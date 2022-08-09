@@ -1,7 +1,7 @@
 package izapple2
 
 import (
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2/screen"
 )
 
 type apple2Tester struct {

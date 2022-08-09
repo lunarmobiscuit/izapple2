@@ -5,8 +5,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
-	"github.com/ivanizag/izapple2"
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2"
+	"github.com/lunarmobiscuit/izapple2/screen"
 )
 
 type keyboard struct {

@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ivanizag/iz6502"
+	"github.com/lunarmobiscuit/iz6502"
 )
 
 // Apple2 represents all the components and state of the emulated machine

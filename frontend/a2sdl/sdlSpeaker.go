@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/ivanizag/izapple2"
+	"github.com/lunarmobiscuit/izapple2"
 	"github.com/veandco/go-sdl2/sdl"
 )
 

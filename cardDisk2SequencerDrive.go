@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math/rand"
 
-	"github.com/ivanizag/izapple2/component"
-	"github.com/ivanizag/izapple2/storage"
+	"github.com/lunarmobiscuit/izapple2/component"
+	"github.com/lunarmobiscuit/izapple2/storage"
 )
 
 type cardDisk2SequencerDrive struct {

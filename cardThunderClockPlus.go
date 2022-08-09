@@ -1,6 +1,6 @@
 package izapple2
 
-import "github.com/ivanizag/izapple2/component"
+import "github.com/lunarmobiscuit/izapple2/component"
 
 /*
 ThunderClock`, real time clock card.

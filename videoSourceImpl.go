@@ -4,7 +4,7 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2/screen"
 )
 
 const (

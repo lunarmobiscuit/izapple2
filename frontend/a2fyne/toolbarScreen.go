@@ -5,7 +5,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2/screen"
 )
 
 type toolbarScreen struct {

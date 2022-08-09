@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ivanizag/izapple2/storage"
+	"github.com/lunarmobiscuit/izapple2/storage"
 )
 
 const (

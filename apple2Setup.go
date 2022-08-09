@@ -3,7 +3,7 @@ package izapple2
 import (
 	"errors"
 
-	"github.com/ivanizag/iz6502"
+	"github.com/lunarmobiscuit/iz6502"
 )
 
 func newApple2() *Apple2 {

@@ -7,7 +7,7 @@ import (
 	"image/color"
 	"time"
 
-	"github.com/ivanizag/izapple2/component"
+	"github.com/lunarmobiscuit/izapple2/component"
 )
 
 /*

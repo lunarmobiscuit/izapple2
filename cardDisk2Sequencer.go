@@ -1,7 +1,7 @@
 package izapple2
 
 import (
-	"github.com/ivanizag/izapple2/component"
+	"github.com/lunarmobiscuit/izapple2/component"
 )
 
 // TODO: fast mode

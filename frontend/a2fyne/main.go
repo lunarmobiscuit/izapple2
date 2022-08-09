@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ivanizag/izapple2"
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2"
+	"github.com/lunarmobiscuit/izapple2/screen"
 
 	"github.com/pkg/profile"
 
@@ -64,7 +64,7 @@ func fyneRun(s *state) {
 	toolbar := buildToolbar(s)
 	display := canvas.NewImageFromImage(nil)
 	display.ScaleMode = canvas.ImageScalePixels // Looks worst but loads less.
-	display.SetMinSize(fyne.NewSize(280, 192))
+	display.SetMinSize(fyne.NewSize(800, 480))
 
 	container := fyne.NewContainerWithLayout(
 		layout.NewBorderLayout(nil, toolbar, nil, s.devices.w),

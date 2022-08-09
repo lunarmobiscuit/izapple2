@@ -5,8 +5,8 @@ import (
 	"image"
 	"unsafe"
 
-	"github.com/ivanizag/izapple2"
-	"github.com/ivanizag/izapple2/screen"
+	"github.com/lunarmobiscuit/izapple2"
+	"github.com/lunarmobiscuit/izapple2/screen"
 
 	"github.com/pkg/profile"
 	"github.com/veandco/go-sdl2/sdl"

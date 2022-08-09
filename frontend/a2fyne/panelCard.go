@@ -5,7 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"github.com/ivanizag/izapple2"
+	"github.com/lunarmobiscuit/izapple2"
 )
 
 type panelCard struct {

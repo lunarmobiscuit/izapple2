@@ -3,7 +3,7 @@ package izapple2
 import (
 	"fmt"
 
-	"github.com/ivanizag/iz6502"
+	"github.com/lunarmobiscuit/iz6502"
 )
 
 /*
