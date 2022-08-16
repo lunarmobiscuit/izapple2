@@ -55,22 +55,22 @@ func (c *cardBase) loadRom(data []uint8) {
 	}
 	if len(data) == 0x100 {
 		// Just 256 bytes in Cs00
-		c.romCsxx = newMemoryRangeROM(0, data, "Slot ROM")
+		c.romCsxx = newMemoryRangeROM(uint32(0), data, "Slot ROM")
 	} else if len(data) == 0x400 {
 		// The file has C800 to CBFF for ROM
 		// The 256 bytes in Cx00 are copied from the last page in C800-CBFF
 		// Used on the Videx 80 columns card
-		c.romCsxx = newMemoryRangeROM(0, data[0x300:], "Slot ROM")
-		c.romC8xx = newMemoryRangeROM(0xc800, data, "Slot C8 ROM")
+		c.romCsxx = newMemoryRangeROM(uint32(0), data[0x300:], "Slot ROM")
+		c.romC8xx = newMemoryRangeROM(0x0c800, data, "Slot C8 ROM")
 	} else if len(data) == 0x800 {
 		// The file has C800 to CFFF
 		// The 256 bytes in Cx00 are copied from the first page in C800
 		c.romCsxx = newMemoryRangeROM(0, data, "Slot ROM")
-		c.romC8xx = newMemoryRangeROM(0xc800, data, "Slot C8 ROM")
+		c.romC8xx = newMemoryRangeROM(0x0c800, data, "Slot C8 ROM")
 	} else if len(data) == 0x1000 {
 		// The file covers the full Cxxx range. Only showing the page
 		// corresponding to the slot used.
-		c.romCxxx = newMemoryRangeROM(0xc000, data, "Slot ROM")
+		c.romCxxx = newMemoryRangeROM(0x0c000, data, "Slot ROM")
 	} else {
 		panic("Invalid ROM size")
 	}
@@ -82,7 +82,7 @@ func (c *cardBase) assign(a *Apple2, slot int) {
 	if slot != 0 {
 		if c.romCsxx != nil {
 			// Relocate to the assigned slot
-			c.romCsxx.setBase(uint16(0xc000 + slot*0x100))
+			c.romCsxx.setBase(uint32(0x0c000 + slot*0x100))
 			a.mmu.setCardROM(slot, c.romCsxx)
 		}
 		if c.romC8xx != nil {

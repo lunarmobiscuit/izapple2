@@ -2,7 +2,7 @@ package izapple2
 
 import (
 	"errors"
-
+	"fmt" // @@@
 	"github.com/lunarmobiscuit/iz6502"
 )
 
@@ -25,6 +25,13 @@ func (a *Apple2) setup(clockMhz float64, fastMode bool) {
 	} else {
 		a.cycleDurationNs = 1000.0 / clockMhz
 	}
+}
+
+func setApple2four(a *Apple2) {
+	a.Name = "Apple ][4"
+	a.cpu = iz6502.NewMythical65c24T8(a.mmu)
+	a.mmu.add24BitMemory(256*1024) // 256K total, including original 64K
+	addApple2SoftSwitches(a.io)
 }
 
 func setApple2plus(a *Apple2) {
@@ -72,6 +79,7 @@ func (a *Apple2) GetCards() [8]Card {
 const (
 	apple2RomSize  = 12 * 1024
 	apple2eRomSize = 16 * 1024
+	apple2fourRomSize = 64 * 1024
 )
 
 // LoadRom loads a standard Apple2+ or 2e ROM
@@ -85,9 +93,30 @@ func (a *Apple2) LoadRom(filename string) error {
 	if size != apple2RomSize && size != apple2eRomSize {
 		return errors.New("rom size not supported")
 	}
+fmt.Printf("NAME = %s\n", a.Name) // @@@
+fmt.Printf("ROM = %s\n", filename) // @@@
+fmt.Printf("64K RST vector = 0x%02x%02x\n", data[size-3], data[size-4]) // @@@
 
-	romBase := 0x10000 - size
-	a.mmu.physicalROM[0] = newMemoryRangeROM(uint16(romBase), data, "Main ROM")
+	romBase := uint32(0x10000 - size)
+	a.mmu.physicalROM[0] = newMemoryRangeROM(romBase, data, "Main ROM")
+	return nil
+}
+
+// LoadRom loads a standard Apple2+ or 2e ROM
+func (a *Apple2) Load24BitRom(filename string) error {
+	data, _, err := LoadResource(filename)
+	if err != nil {
+		return err
+	}
+fmt.Printf("24-bit ROM = %s\n", filename) // @@@
+fmt.Printf("24-bit RST vector = 0x%02x%02x%02x\n", data[0xfffc], data[0xfffb], data[0xfffa]) // @@@
+
+	size := len(data)
+	if size != apple2fourRomSize {
+		return errors.New("(24-bit) rom size not supported")
+	}
+
+	a.mmu.physical24bitROM = newMemoryRangeROM(address24BitROM, data, "24-bit ROM")
 	return nil
 }
 

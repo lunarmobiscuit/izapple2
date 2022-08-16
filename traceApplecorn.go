@@ -29,10 +29,10 @@ type mosCallData struct {
 }
 
 const (
-	applecornKernelStart    uint16 = 0xc000 // Code above this is out of BBC territory
-	applecornTraceAreaStart uint16 = 0xd000
-	applecornNoCaller       uint16 = 0xffff
-	applecornRomTitle       uint16 = 0x8009
+	applecornKernelStart    uint32 = 0x0c000 // Code above this is out of BBC territory
+	applecornTraceAreaStart uint32 = 0x0d000
+	applecornNoCaller       uint32 = 0x0ffff
+	applecornRomTitle       uint32 = 0x08009
 )
 
 func newTraceApplecorn(a *Apple2, skipConsole bool) *traceApplecorn {
@@ -74,14 +74,14 @@ func (t *traceApplecorn) inspect() {
 		service, _, regY, _ := t.a.cpu.GetAXYP()
 		switch service {
 		case 4: // OSCLI
-			address := t.a.mmu.peekWord(0xf2 + uint16(regY))
-			command := t.getTerminatedString(address, 0x0d)
+			address := t.a.mmu.peekWord(0xf2 + regY)
+			command := t.getTerminatedString(uint32(address), 0x0d)
 			fmt.Printf("BBC MOS call to $%04x SERVICE_OSCLI(ROM=\"%s\", A=%v, \"%s\")\n",
 				pc, activeROM, service, command)
 		case 6: // Error
 			address := t.a.mmu.peekWord(0xfd)
-			faultNumber := t.a.mmu.Peek(address)
-			faultMessage := address + 1
+			faultNumber := t.a.mmu.Peek(uint32(address))
+			faultMessage := uint32(address + 1)
 			faultString := t.getTerminatedString(faultMessage, 0)
 			fmt.Printf("BBC MOS call to $%04x SERVICE_ERROR(ROM=\"%s\", A=%v, #=%v, \"%s\")\n",
 				pc, activeROM, service, faultNumber, faultString)
@@ -96,7 +96,7 @@ func (t *traceApplecorn) inspect() {
 			fmt.Printf("BBC MOS call to $%04x SERVICE_OSWORD%02x(ROM=\"%s\", A=%v)\n",
 				pc, pA, activeROM, service)
 		case 9: // *HELP
-			address := t.a.mmu.peekWord(0xf2 + uint16(regY))
+			address := uint32(t.a.mmu.peekWord(uint32(0xf2 + regY)))
 			command := t.getTerminatedString(address, 0x0d)
 			fmt.Printf("BBC MOS call to $%04x SERVICE_HELP(ROM=\"%s\", A=%v, \"%s\")\n",
 				pc, activeROM, service, command)
@@ -168,7 +168,7 @@ func (t *traceApplecorn) inspect() {
 			if regA == 0 {
 				s = fmt.Sprintf("OSFIND('close',HANDLE=%v", regY)
 			} else {
-				filenameAddress := uint16(regX) + uint16(regY)<<8
+				filenameAddress := uint32(regX) + uint32(regY)<<8
 				filename := t.getTerminatedString(filenameAddress, 0x0d)
 				s = fmt.Sprintf("OSFIND('open',FILE='%s')", filename)
 			}
@@ -182,8 +182,8 @@ func (t *traceApplecorn) inspect() {
 			s = "OSARGS(?)"
 			s = fmt.Sprintf("OSARGS(HANDLE=%v,A=%02x)", regY, regA)
 		case 0xffdd:
-			controlBlock := uint16(regX) + uint16(regY)<<8
-			filenameAddress := t.a.mmu.peekWord(controlBlock)
+			controlBlock := uint32(regX) + uint32(regY)<<8
+			filenameAddress := uint32(t.a.mmu.peekWord(controlBlock))
 			filename := t.getTerminatedString(filenameAddress, 0x0d)
 			s = fmt.Sprintf("OSFILE(A=%02x,FILE='%s')", regA, filename)
 		case 0xffe0:
@@ -210,10 +210,10 @@ func (t *traceApplecorn) inspect() {
 			s = fmt.Sprintf("OSWRCH(A=%02x, '%v')", regA, ch)
 			skip = t.skipConsole
 		case 0xfff1:
-			xy := uint16(regX) + uint16(regY)<<8
+			xy := uint32(regX) + uint32(regY)<<8
 			switch regA {
 			case 0: // Read line from input
-				lineAddress := t.a.mmu.peekWord(xy)
+				lineAddress := uint32(t.a.mmu.peekWord(xy))
 				maxLength := t.a.mmu.Peek(xy + 2)
 				s = fmt.Sprintf("OSWORD('read line';A=%02x,XY=%04x,BUF=%04x,MAX=%02x)", regA, xy, lineAddress, maxLength)
 			default:
@@ -222,11 +222,11 @@ func (t *traceApplecorn) inspect() {
 		case 0xfff4:
 			s = fmt.Sprintf("OSBYTE('%s';A=%02x,X=%02x,Y=%02x)", t.osbyteNames[regA], regA, regX, regY)
 		case 0xfff7:
-			xy := uint16(regX) + uint16(regY)<<8
+			xy := uint32(regX) + uint32(regY)<<8
 			command := t.getTerminatedString(xy, 0x0d)
 			s = fmt.Sprintf("OSCLI(\"%s\")", command)
 		case 0xfffe:
-			address := t.a.mmu.peekWord(0x100+uint16(sp+2)) - 1
+			address := uint32(t.a.mmu.peekWord(0x100+uint32(sp+2)) - 1)
 			faultNumber := t.a.mmu.Peek(address)
 			faultMessage := address + 1
 			faultString := t.getTerminatedString(faultMessage, 0)
@@ -238,10 +238,10 @@ func (t *traceApplecorn) inspect() {
 			skip = true
 		}
 
-		t.call.api = pc
-		t.call.a = regA
-		t.call.x = regX
-		t.call.y = regY
+		t.call.api = uint16(pc)
+		t.call.a = uint8(regA & 0xFF)
+		t.call.x = uint8(regX & 0xFF)
+		t.call.y = uint8(regY & 0xFF)
 		t.call.skipLog = skip
 		if !skip {
 			fmt.Printf("BBC MOS call to $%04x %s ", pc, s)
@@ -254,10 +254,10 @@ func (t *traceApplecorn) inspect() {
 		s := ""
 		switch t.call.api {
 		case 0xfff1: // OSWORD
-			cbAddress := uint16(t.call.x) + uint16(t.call.y)<<8
+			cbAddress := uint32(t.call.x) + uint32(t.call.y)<<8
 			switch t.call.a {
 			case 0: // Read line from input
-				lineAddress := t.a.mmu.peekWord(cbAddress)
+				lineAddress := uint32(t.a.mmu.peekWord(cbAddress))
 				line := t.getTerminatedString(lineAddress, '\r')
 				s = fmt.Sprintf(",line='%s',cbaddress=%04x,lineAddress=%04x", line, cbAddress, lineAddress)
 			}
@@ -269,7 +269,7 @@ func (t *traceApplecorn) inspect() {
 	t.wasInKernel = inKernel
 }
 
-func (t *traceApplecorn) getTerminatedString(address uint16, terminator uint8) string {
+func (t *traceApplecorn) getTerminatedString(address uint32, terminator uint8) string {
 	s := ""
 	for {
 		ch := t.a.mmu.Peek(address)
@@ -282,6 +282,6 @@ func (t *traceApplecorn) getTerminatedString(address uint16, terminator uint8) s
 	return s
 }
 
-func (t *traceApplecorn) vector(address uint16) uint16 {
-	return t.a.mmu.peekWord(address)
+func (t *traceApplecorn) vector(address uint32) uint32 {
+	return uint32(t.a.mmu.peekWord(address))
 }

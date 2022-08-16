@@ -58,7 +58,7 @@ func newNoSlotClockDS1216(a *Apple2, memory memoryHandler) *noSlotClockDS1216 {
 	return &nsc
 }
 
-func (nsc *noSlotClockDS1216) peek(address uint16) uint8 {
+func (nsc *noSlotClockDS1216) peek(address uint32) uint8 {
 	read := (address & 0x04) != 0  // Bit A2 of the address bus
 	value := (address & 0x01) != 0 // Bit A0 of the address bus
 
@@ -134,11 +134,11 @@ func (nsc *noSlotClockDS1216) peek(address uint16) uint8 {
 	return data
 }
 
-func (nsc *noSlotClockDS1216) poke(address uint16, value uint8) {
+func (nsc *noSlotClockDS1216) poke(address uint32, value uint8) {
 	nsc.memory.poke(address, value)
 }
 
-func (nsc *noSlotClockDS1216) setBase(base uint16) {
+func (nsc *noSlotClockDS1216) setBase(base uint32) {
 	nsc.memory.setBase(base)
 }
 

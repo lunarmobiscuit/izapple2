@@ -5,7 +5,7 @@ import (
 )
 
 type memoryRange struct {
-	base uint16
+	base uint32
 	data []uint8
 	name string
 }
@@ -14,7 +14,7 @@ type memoryRangeROM struct {
 	memoryRange
 }
 
-func newMemoryRange(base uint16, data []uint8, name string) *memoryRange {
+func newMemoryRange(base uint32, data []uint8, name string) *memoryRange {
 	var m memoryRange
 	m.base = base
 	m.data = data
@@ -24,7 +24,7 @@ func newMemoryRange(base uint16, data []uint8, name string) *memoryRange {
 	return &m
 }
 
-func newMemoryRangeROM(base uint16, data []uint8, name string) *memoryRangeROM {
+func newMemoryRangeROM(base uint32, data []uint8, name string) *memoryRangeROM {
 	var m memoryRangeROM
 	m.base = base
 	m.data = data
@@ -32,23 +32,23 @@ func newMemoryRangeROM(base uint16, data []uint8, name string) *memoryRangeROM {
 	return &m
 }
 
-func (m *memoryRange) setBase(base uint16) {
+func (m *memoryRange) setBase(base uint32) {
 	m.base = base
 }
 
-func (m *memoryRange) peek(address uint16) uint8 {
+func (m *memoryRange) peek(address uint32) uint8 {
 	return m.data[address-m.base]
 }
 
-func (m *memoryRange) poke(address uint16, value uint8) {
+func (m *memoryRange) poke(address uint32, value uint8) {
 	m.data[address-m.base] = value
 }
 
-func (m *memoryRange) subRange(a, b uint16) []uint8 {
+func (m *memoryRange) subRange(a, b uint32) []uint8 {
 	return m.data[a-m.base : b-m.base]
 }
 
-func (m *memoryRangeROM) poke(address uint16, value uint8) {
+func (m *memoryRangeROM) poke(address uint32, value uint8) {
 	// Ignore
 }
 

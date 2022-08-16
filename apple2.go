@@ -37,7 +37,7 @@ type executionTracer interface {
 
 const (
 	// CPUClockMhz is the actual Apple II clock speed
-	CPUClockMhz     = 14.318 / 14
+	CPUClockMhz     = 4 // Mhz instead of  14.318 / 14
 	cpuClockEuroMhz = 14.238 / 14
 )
 
@@ -66,7 +66,6 @@ func (a *Apple2) Start(paused bool) {
 		if !a.paused {
 			for i := 0; i < cpuSpinLoops; i++ {
 				// Conditional tracing
-				//pc, _ := a.cpu.GetPCAndSP()
 				//a.cpu.SetTrace((pc >= 0xc300 && pc <= 0xc400) || (pc >= 0xc800 && pc <= 0xce00))
 
 				// Execution

@@ -40,37 +40,37 @@ type romX struct {
 	debug          bool
 }
 
-var romXActivationSequence = []uint16{0xcaca, 0xcaca, 0xcafe}
-var romXceActivationSequence = []uint16{0xfaca, 0xfaca, 0xfafe}
+var romXActivationSequence = []uint32{0x0caca, 0x0caca, 0x0cafe}
+var romXceActivationSequence = []uint32{0x0faca, 0x0faca, 0x0fafe}
 
 const (
 	romxSetupBank                    = uint8(0)
-	romXPlusSetSystemBankBaseAddress = uint16(0xcef0)
-	romXPlusSetTextBankBaseAddress   = uint16(0xcfd0)
+	romXPlusSetSystemBankBaseAddress = uint32(0x0cef0)
+	romXPlusSetTextBankBaseAddress   = uint32(0x0cfd0)
 
 	// Unknown
-	//romXFirmwareMark0Address = uint16(0xdffe)
+	//romXFirmwareMark0Address = uint32(0x0dffe)
 	//romXFirmwareMark0Value   = uint8(0x4a)
-	//romXFirmwareMark1Address = uint16(0xdfff)
+	//romXFirmwareMark1Address = uint32(0x0dfff)
 	//romXFirmwareMark1Value   = uint8(0xcd)
 
-	romXceSelectTempBank  = uint16(0xf850)
-	romXceSelectMainBank  = uint16(0xf851)
-	romXceSetTempBank     = uint16(0xf830) // 16 positions
-	romXceSetMainBank     = uint16(0xf800) // 16 positions
-	romXcePresetTextBank  = uint16(0xf810) // 16 positions
-	romXceMCP7940SDC      = uint16(0xf860) // 16 positions
-	romXceLowerUpperBanks = uint16(0xf820) // 16 positions
+	romXceSelectTempBank  = uint32(0x0f850)
+	romXceSelectMainBank  = uint32(0x0f851)
+	romXceSetTempBank     = uint32(0x0f830) // 16 positions
+	romXceSetMainBank     = uint32(0x0f800) // 16 positions
+	romXcePresetTextBank  = uint32(0x0f810) // 16 positions
+	romXceMCP7940SDC      = uint32(0x0f860) // 16 positions
+	romXceLowerUpperBanks = uint32(0x0f820) // 16 positions
 
-	romXGetDefaultSystemBank = uint16(0xd034) // $00 to $0f
-	romXGetDefaultTextBank   = uint16(0xd02e) // $10 to $1f
-	romXGetCurrentBootDelay  = uint16(0xdeca) // $00 to $0f
+	romXGetDefaultSystemBank = uint32(0x0d034) // $00 to $0f
+	romXGetDefaultTextBank   = uint32(0x0d02e) // $10 to $1f
+	romXGetCurrentBootDelay  = uint32(0x0deca) // $00 to $0f
 
 	/*
-		romXceEntryPointSetClock      = uint16(0xc803)
-		romXceEntryPointReadClock     = uint16(0xc803)
-		romXceEntryPointLauncherToRam = uint16(0xdfd9)
-		romXceEntryPointLauncher      = uint16(0xdfd0)
+		romXceEntryPointSetClock      = uint32(0x0c803)
+		romXceEntryPointReadClock     = uint32(0x0c803)
+		romXceEntryPointLauncherToRam = uint32(0x0dfd9)
+		romXceEntryPointLauncher      = uint32(0x0dfd0)
 	*/
 )
 
@@ -94,7 +94,7 @@ func newRomX(a *Apple2, memory iz6502.Memory) (*romX, error) {
 	return &rx, nil
 }
 
-func (rx *romX) Peek(address uint16) uint8 {
+func (rx *romX) Peek(address uint32) uint8 {
 	intercepted, value := rx.interceptAccess(address)
 	if intercepted {
 		return value
@@ -102,7 +102,7 @@ func (rx *romX) Peek(address uint16) uint8 {
 	return rx.memory.Peek(address)
 }
 
-func (rx *romX) PeekCode(address uint16) uint8 {
+func (rx *romX) PeekCode(address uint32) uint8 {
 	intercepted, value := rx.interceptAccess(address)
 	if intercepted {
 		return value
@@ -110,7 +110,7 @@ func (rx *romX) PeekCode(address uint16) uint8 {
 	return rx.memory.PeekCode(address)
 }
 
-func (rx *romX) Poke(address uint16, value uint8) {
+func (rx *romX) Poke(address uint32, value uint8) {
 	rx.interceptAccess(address)
 	rx.memory.Poke(address, value)
 }
@@ -120,7 +120,7 @@ func (rx *romX) logf(format string, a ...interface{}) {
 	fmt.Printf("[romX]%s\n", msg)
 }
 
-func (rx *romX) interceptAccess(address uint16) (bool, uint8) {
+func (rx *romX) interceptAccess(address uint32) (bool, uint8) {
 	// Intercept only $C080 to $FFFF as seen by the F12 chip
 	if address < 0xc080 {
 		return false, 0

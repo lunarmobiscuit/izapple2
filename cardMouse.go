@@ -61,12 +61,12 @@ const (
 
 func (c *CardMouse) set(field uint16, value uint8) {
 	// Update the card screen-holes
-	c.a.mmu.Poke(field+uint16(c.slot), value)
+	c.a.mmu.Poke(uint32(field+uint16(c.slot)), value)
 }
 
 func (c *CardMouse) get(field uint16) uint8 {
 	// Read from the card screen-holes
-	return c.a.mmu.Peek(field /*+ uint16(c.slot)*/)
+	return c.a.mmu.Peek(uint32(field /*+ uint16(c.slot)*/))
 }
 
 func (c *CardMouse) setMode(mode uint8) {

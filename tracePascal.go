@@ -8,8 +8,8 @@ type tracePascal struct {
 }
 
 const (
-	pascalJvabfoldL uint16 = 0x00ec // Points to the BIOS entry points
-	pascalJvabfoldH uint16 = 0x00ed // Points to the BIOS entry points
+	pascalJvabfoldL uint32 = 0x00ec // Points to the BIOS entry points
+	pascalJvabfoldH uint32 = 0x00ed // Points to the BIOS entry points
 )
 
 func newTracePascal(a *Apple2) *tracePascal {
@@ -27,8 +27,8 @@ func newTracePascal(a *Apple2) *tracePascal {
 	Experimental. Not sure the paramters for DREAD and DWRITE are correct.
 */
 func (t *tracePascal) inspect() {
-	bios := uint16(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldL)) +
-		uint16(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldH))<<8
+	bios := uint32(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldL)) +
+		uint32(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldH))<<8
 	pc, _ := t.a.cpu.GetPCAndSP()
 	if pc >= bios && pc < bios+0x5a {
 		offset := uint8(pc - bios)
@@ -105,8 +105,8 @@ func (t *tracePascal) inspect() {
 */
 //lint:ignore U1000 unused but stays as reference
 func (t *tracePascal) inspectPerArchitectureGuide() {
-	bios := uint16(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldL)) +
-		uint16(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldH))<<8
+	bios := uint32(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldL)) +
+		uint32(t.a.mmu.physicalMainRAM.peek(pascalJvabfoldH))<<8
 	pc, _ := t.a.cpu.GetPCAndSP()
 	if pc >= bios && pc < bios+0x5a {
 		offset := uint8(pc - bios)
@@ -204,8 +204,8 @@ func (t *tracePascal) inspectPerArchitectureGuide() {
 	}
 }
 
-func (t *tracePascal) param(index uint8) uint16 {
+func (t *tracePascal) param(index uint8) uint32 {
 	_, sp := t.a.cpu.GetPCAndSP()
-	return uint16(t.a.mmu.Peek(0x100+uint16(sp+index))) +
-		uint16(t.a.mmu.Peek(0x100+uint16(sp+index+1)))<<8 - 2 // ??
+	return uint32(t.a.mmu.Peek(0x100+sp+uint32(index))) +
+		uint32(t.a.mmu.Peek(0x100+sp+uint32(index)+1))<<8 - 2 // ??
 }

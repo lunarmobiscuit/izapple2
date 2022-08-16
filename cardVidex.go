@@ -90,26 +90,26 @@ func (c *CardVidex) assign(a *Apple2, slot int) {
 	c.cardBase.assign(a, slot)
 }
 
-const videxRomLimit = uint16(0xcc00)
-const videxSramLimit = uint16(0xce00)
-const videxSramMask = uint16(0x01ff)
+const videxRomLimit = uint32(0x0cc00)
+const videxSramLimit = uint32(0x0ce00)
+const videxSramMask = uint32(0x01ff)
 
-func (c *CardVidex) peek(address uint16) uint8 {
+func (c *CardVidex) peek(address uint32) uint8 {
 	if address < videxRomLimit {
 		return c.upperROM.peek(address)
 	} else if address < videxSramLimit {
-		return c.sram[address&videxSramMask+uint16(c.sramPage)*0x200]
+		return c.sram[address&videxSramMask+uint32(c.sramPage)*0x200]
 	}
 	return 0
 }
 
-func (c *CardVidex) poke(address uint16, value uint8) {
+func (c *CardVidex) poke(address uint32, value uint8) {
 	if address >= videxRomLimit && address < videxSramLimit {
-		c.sram[address&videxSramMask+uint16(c.sramPage)*0x200] = value
+		c.sram[address&videxSramMask+uint32(c.sramPage)*0x200] = value
 	}
 }
 
-func (c *CardVidex) setBase(base uint16) {
+func (c *CardVidex) setBase(base uint32) {
 	// Nothing
 }
 
@@ -132,7 +132,7 @@ func (c *CardVidex) buildImage(light color.Color) *image.RGBA {
 	size := image.Rect(0, 0, width, height)
 	img := image.NewRGBA(size)
 
-	params.IterateScreen(func(address uint16, charLine uint8,
+	params.IterateScreen(func(address uint32, charLine uint8,
 		cursorMode uint8, displayEnable bool,
 		column uint8, y int) {
 

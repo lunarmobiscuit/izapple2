@@ -110,7 +110,7 @@ func (p *ioC0Page) setMouseProvider(m MouseProvider) {
 	p.mouse = m
 }
 
-func (p *ioC0Page) peek(address uint16) uint8 {
+func (p *ioC0Page) peek(address uint32) uint8 {
 	pageAddress := uint8(address)
 	ss := p.softSwitchesR[pageAddress]
 	if ss == nil {
@@ -130,7 +130,7 @@ func (p *ioC0Page) peek(address uint16) uint8 {
 	return value
 }
 
-func (p *ioC0Page) poke(address uint16, value uint8) {
+func (p *ioC0Page) poke(address uint32, value uint8) {
 	pageAddress := uint8(address)
 	ss := p.softSwitchesW[pageAddress]
 	if ss == nil {
@@ -149,7 +149,7 @@ func (p *ioC0Page) poke(address uint16, value uint8) {
 	ss(value)
 }
 
-func (p *ioC0Page) setBase(_ uint16) {
+func (p *ioC0Page) setBase(_ uint32) {
 	// Ignore
 }
 

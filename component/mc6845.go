@@ -81,20 +81,20 @@ func (data *MC6845ImageData) DisplayedWidthHeight(charWidth uint8) (int, int) {
 		int(data.lines)*int(data.charLines) + int(data.adjustLines)
 }
 
-type MC6845RasterCallBack func(address uint16, charLine uint8, // Lookup in char ROM
+type MC6845RasterCallBack func(address uint32, charLine uint8, // Lookup in char ROM
 	cursorMode uint8, displayEnable bool, // Modifiers
 	column uint8, y int) // Position in screen
 
 func (data *MC6845ImageData) IterateScreen(callBack MC6845RasterCallBack) {
-	lineAddress := data.firstChar
+	lineAddress := uint32(data.firstChar)
 	y := 0
-	var address uint16
+	var address uint32
 	for line := uint8(0); line < data.lines; line++ {
 		for charLine := uint8(0); charLine < data.charLines; charLine++ {
 			address = lineAddress // Back to the first char of the line
 			for column := uint8(0); column < data.columns; column++ {
 				cursorMode := MC6845CursorNone
-				isCursor := (address == data.cursorPos) &&
+				isCursor := (address == uint32(data.cursorPos)) &&
 					(charLine >= data.cursorStart) &&
 					(charLine <= data.cursorEnd)
 				if isCursor {

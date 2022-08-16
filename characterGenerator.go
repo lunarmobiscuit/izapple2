@@ -33,7 +33,7 @@ const (
 )
 
 // NewCharacterGenerator instantiates a new Character Generator with the rom on the file given
-func newCharacterGenerator(filename string, order charColumnMap, isApple2e bool) (*CharacterGenerator, error) {
+func newCharacterGenerator(filename string, order charColumnMap, isApple2e bool, invert bool) (*CharacterGenerator, error) {
 	var cg CharacterGenerator
 	cg.columnMap = order
 	cg.pageSize = charGenPageSize2Plus
@@ -44,6 +44,12 @@ func newCharacterGenerator(filename string, order charColumnMap, isApple2e bool)
 	err := cg.load(filename)
 	if err != nil {
 		return nil, err
+	}
+
+	if invert {
+		for i:=0; i<cg.pageSize; i++ {
+			cg.data[i] = 0xff - cg.data[i]
+		}
 	}
 
 	return &cg, nil

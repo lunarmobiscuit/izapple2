@@ -103,7 +103,7 @@ func (c *CardSwyft) assign(a *Apple2, slot int) {
 	a.mmu.inhibitROM(c)
 }
 
-func (c *CardSwyft) translateAddress(address uint16) uint16 {
+func (c *CardSwyft) translateAddress(address uint32) uint32 {
 	/*
 		The four 4k sections of the 16k ROM image are mapped:
 			D000-DFFF (page 1)
@@ -120,14 +120,14 @@ func (c *CardSwyft) translateAddress(address uint16) uint16 {
 	return address - 0xD000 + 0x1000
 }
 
-func (c *CardSwyft) peek(address uint16) uint8 {
+func (c *CardSwyft) peek(address uint32) uint8 {
 	return c.rom[c.translateAddress(address)]
 }
 
-func (c *CardSwyft) poke(address uint16, value uint8) {
+func (c *CardSwyft) poke(address uint32, value uint8) {
 	// Nothing
 }
 
-func (c *CardSwyft) setBase(base uint16) {
+func (c *CardSwyft) setBase(base uint32) {
 	// Nothing
 }

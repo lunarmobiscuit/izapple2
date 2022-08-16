@@ -106,11 +106,12 @@ func (c *CardHardDisk) assign(a *Apple2, slot int) {
 
 	c.addCardSoftSwitchR(3, func() uint8 {
 		// Smart port entry point
-		command := c.a.mmu.Peek(c.mliParams + 1)
-		paramsAddress := uint16(c.a.mmu.Peek(c.mliParams+2)) + uint16(c.a.mmu.Peek(c.mliParams+3))<<8
-		unit := a.mmu.Peek(paramsAddress + 1)
-		address := uint16(a.mmu.Peek(paramsAddress+2)) + uint16(a.mmu.Peek(paramsAddress+3))<<8
-		block := uint16(a.mmu.Peek(paramsAddress+4)) + uint16(a.mmu.Peek(paramsAddress+5))<<8
+		command := c.a.mmu.Peek(uint32(c.mliParams + 1))
+		paramsAddress := uint16(c.a.mmu.Peek(uint32(c.mliParams+2))) +
+							uint16(c.a.mmu.Peek(uint32(c.mliParams+3)))<<8
+		unit := a.mmu.Peek(uint32(paramsAddress + 1))
+		address := uint16(a.mmu.Peek(uint32(paramsAddress+2))) + uint16(a.mmu.Peek(uint32(paramsAddress+3)))<<8
+		block := uint16(a.mmu.Peek(uint32(paramsAddress+4))) + uint16(a.mmu.Peek(uint32(paramsAddress+5)))<<8
 		if c.trace {
 			fmt.Printf("[CardHardDisk] Smart port command %v on slot %v, unit $%x, block %v to $%x.\n", command, slot, unit, block, address)
 		}
@@ -154,7 +155,7 @@ func (c *CardHardDisk) readBlock(block uint16, dest uint16) uint8 {
 	}
 	// Byte by byte transfer to memory using the full Poke code path
 	for i := uint16(0); i < uint16(len(data)); i++ {
-		c.a.mmu.Poke(dest+i, data[i])
+		c.a.mmu.Poke(uint32(dest+i), data[i])
 	}
 
 	return proDosDeviceNoError
@@ -172,7 +173,7 @@ func (c *CardHardDisk) writeBlock(block uint16, source uint16) uint8 {
 	// Byte by byte transfer from memory using the full Peek code path
 	buf := make([]uint8, storage.ProDosBlockSize)
 	for i := uint16(0); i < uint16(len(buf)); i++ {
-		buf[i] = c.a.mmu.Peek(source + i)
+		buf[i] = c.a.mmu.Peek(uint32(source + i))
 	}
 
 	err := c.disk.Write(uint32(block), buf)
@@ -189,14 +190,14 @@ func (c *CardHardDisk) status(unit uint8, dest uint16) uint8 {
 	}
 
 	// See http://www.1000bit.it/support/manuali/apple/technotes/smpt/tn.smpt.2.html
-	c.a.mmu.Poke(dest+0, 0x02) // One device
-	c.a.mmu.Poke(dest+1, 0xff) // No interrupt
-	c.a.mmu.Poke(dest+2, 0x00)
-	c.a.mmu.Poke(dest+3, 0x00) // Unknown manufacturer
-	c.a.mmu.Poke(dest+4, 0x01)
-	c.a.mmu.Poke(dest+5, 0x00) // Version 1.0 final
-	c.a.mmu.Poke(dest+6, 0x00)
-	c.a.mmu.Poke(dest+7, 0x00) // Reserved
+	c.a.mmu.Poke(uint32(dest+0), 0x02) // One device
+	c.a.mmu.Poke(uint32(dest+1), 0xff) // No interrupt
+	c.a.mmu.Poke(uint32(dest+2), 0x00)
+	c.a.mmu.Poke(uint32(dest+3), 0x00) // Unknown manufacturer
+	c.a.mmu.Poke(uint32(dest+4), 0x01)
+	c.a.mmu.Poke(uint32(dest+5), 0x00) // Version 1.0 final
+	c.a.mmu.Poke(uint32(dest+6), 0x00)
+	c.a.mmu.Poke(uint32(dest+7), 0x00) // Reserved
 
 	return proDosDeviceNoError
 }

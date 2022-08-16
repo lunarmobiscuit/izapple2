@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	textPage1Address  = uint16(0x0400)
-	textPage2Address  = uint16(0x0800)
-	textPageSize      = uint16(0x0400)
-	hiResPage1Address = uint16(0x2000)
-	hiResPage2Address = uint16(0x4000)
-	hiResPageSize     = uint16(0x2000)
-	shResPageAddress  = uint16(0x2000)
-	shResPageSize     = uint16(0x8000)
+	textPage1Address  = uint32(0x00400)
+	textPage2Address  = uint32(0x00800)
+	textPageSize      = uint32(0x00400)
+	hiResPage1Address = uint32(0x02000)
+	hiResPage2Address = uint32(0x04000)
+	hiResPageSize     = uint32(0x02000)
+	shResPageAddress  = uint32(0x02000)
+	shResPageSize     = uint32(0x08000)
 )
 
 // GetCurrentVideoMode returns the active video mode

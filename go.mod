@@ -2,8 +2,6 @@ module github.com/lunarmobiscuit/izapple2
 
 go 1.18
 
-replace github.com/lunarmobiscuit/iz6502 => ../iz6502
-
 require (
 	fyne.io/fyne/v2 v2.1.4
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20220320163800-277f93cfa958
@@ -30,3 +28,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+replace github.com/lunarmobiscuit/iz6502 => ../iz6502

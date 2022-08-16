@@ -54,7 +54,7 @@ func MainApple() *Apple2 {
 		"slot for the 256kb Saturn card. -1 for none")
 	vidHDCardSlot := flag.Int(
 		"vidHDSlot",
-		2,
+		-1, // 2,
 		"slot for the VidHD card, only for //e models. -1 for none")
 	fastChipCardSlot := flag.Int(
 		"fastChipSlot",
@@ -70,7 +70,7 @@ func MainApple() *Apple2 {
 		"slot for the Parallel Printer Interface. -1 for none")
 	ramWorksKb := flag.Int(
 		"ramworks",
-		8192,
+		0, // 8192,
 		"memory to use with RAMWorks card, 0 for no card, max is 16384")
 	thunderClockCardSlot := flag.Int(
 		"thunderClockCardSlot",
@@ -130,8 +130,8 @@ func MainApple() *Apple2 {
 		"dump to the console the hd/smarport commands")
 	model := flag.String(
 		"model",
-		"2enh",
-		"set base model. Models available 2plus, 2e, 2enh, base64a")
+		"2four", // "2enh",
+		"set base model. Models available 2plus, 2e, 2enh, 2four, base64a")
 	profile := flag.Bool(
 		"profile",
 		false,
@@ -211,6 +211,8 @@ func MainApple() *Apple2 {
 
 	// Disable incompatible cards
 	switch *model {
+	case "2four":
+		*videxCardSlot = -1
 	case "2plus":
 		*vidHDCardSlot = -1
 	case "2e":
@@ -341,6 +343,20 @@ func initModel(a *Apple2, model string, romFile string, charRomFile string) {
 		}
 		charGenMap = charGenColumnsMap2Plus
 
+	case "2four":
+		setApple2four(a)
+		if romFile == defaultInternal {
+			romFile = "<internal>/Apple2_Plus.rom"
+		}
+		if charRomFile == defaultInternal {
+			charRomFile = "<internal>/Apple II4 Video.bin"
+		}
+		charGenMap = charGenColumnsMap2e
+		err := a.Load24BitRom("<internal>/Apple2four.rom")
+		if err != nil {
+			panic(err)
+		}
+
 	case "2e":
 		setApple2e(a)
 		if romFile == defaultInternal {
@@ -389,7 +405,7 @@ func initModel(a *Apple2, model string, romFile string, charRomFile string) {
 	}
 
 	// Load character generator
-	cg, err := newCharacterGenerator(charRomFile, charGenMap, a.isApple2e)
+	cg, err := newCharacterGenerator(charRomFile, charGenMap, a.isApple2e, model == "2four")
 	if err != nil {
 		panic(err)
 	}

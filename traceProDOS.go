@@ -17,13 +17,13 @@ type traceProDOS struct {
 }
 
 const (
-	mliAddress uint16 = 0xbf00
-	biAddress  uint16 = 0xbe03
+	mliAddress uint32 = 0x0bf00
+	biAddress  uint32 = 0x0be03
 
-	deviceCountAddress   uint16 = 0xbf31 // DEVCNT
-	deviceListAddress    uint16 = 0xbf32
-	deviceDriverVectors  uint16 = 0xbf10 // DEVADR01
-	deviceDateTimeVector uint16 = 0xbf07 // DATETIME+1
+	deviceCountAddress   uint32 = 0x0bf31 // DEVCNT
+	deviceListAddress    uint32 = 0x0bf32
+	deviceDriverVectors  uint32 = 0x0bf10 // DEVADR01
+	deviceDateTimeVector uint32 = 0x0bf07 // DATETIME+1
 )
 
 func newTraceProDOS(a *Apple2) *traceProDOS {
@@ -55,7 +55,7 @@ func (t *traceProDOS) inspect() {
 		t.refreshDeviceDrives()
 		t.callPending = true
 		//t.a.cpu.SetTrace(true)
-	} else if t.callPending && pc == t.returnAddress {
+	} else if t.callPending && pc == uint32(t.returnAddress) {
 		t.dumpMLIReturn()
 		t.callPending = false
 		//t.a.cpu.SetTrace(false)
@@ -68,10 +68,10 @@ func (t *traceProDOS) inspect() {
 
 func (t *traceProDOS) dumpMLICall() {
 	_, sp := t.a.cpu.GetPCAndSP()
-	caller := uint16(t.a.mmu.Peek(0x100+uint16(sp+1))) +
-		uint16(t.a.mmu.Peek(0x100+uint16(sp+2)))<<8 - 2
-	t.functionCode = t.a.mmu.Peek(caller + 3)
-	t.paramsAdddress = uint16(t.a.mmu.Peek(caller+4)) + uint16(t.a.mmu.Peek(caller+5))<<8
+	caller := uint16(t.a.mmu.Peek(uint32(0x100+sp+1))) +
+		uint16(t.a.mmu.Peek(uint32(0x100+sp+2)))<<8 - 2
+	t.functionCode = t.a.mmu.Peek(uint32(caller + 3))
+	t.paramsAdddress = uint16(t.a.mmu.Peek(uint32(caller+4))) + uint16(t.a.mmu.Peek(uint32(caller+5)))<<8
 	t.returnAddress = caller + 6
 	fmt.Printf("MLI call $%02x from $%04x", t.functionCode, caller)
 	switch t.functionCode {
@@ -132,7 +132,7 @@ func (t *traceProDOS) dumpMLICall() {
 func (t *traceProDOS) dumpMLIReturn() {
 	error, acc := t.a.cpu.GetCarryAndAcc()
 	if error {
-		fmt.Printf("error $%02x: %v\n", acc, getMliErrorText(acc))
+		fmt.Printf("error $%02x: %v\n", acc, getMliErrorText(uint8(acc & 0xFF)))
 	} else {
 		switch t.functionCode {
 		case 0x82: // Get Time
@@ -144,7 +144,7 @@ func (t *traceProDOS) dumpMLIReturn() {
 				date>>9+1900, (date>>5)&0x1f, date&0x1f, // Review Y2K
 				hour, minute)
 		case 0xc5: // Online
-			dataAddress := t.paramWord(2)
+			dataAddress := uint32(t.paramWord(2))
 			for {
 				b := t.a.mmu.Peek(dataAddress)
 				dataAddress++
@@ -158,7 +158,7 @@ func (t *traceProDOS) dumpMLIReturn() {
 					// No error
 					name := ""
 					for i := uint8(0); i < size; i++ {
-						name += string(t.a.mmu.Peek(dataAddress+uint16(i)) & 0x7f)
+						name += string(t.a.mmu.Peek(dataAddress+uint32(i)) & 0x7f)
 					}
 					fmt.Printf("%s: \"%s\" ", unit, name)
 				} else {
@@ -192,7 +192,7 @@ func (t *traceProDOS) dumpMLIReturn() {
 func (t *traceProDOS) dumpBIExec() {
 	s := ""
 	for i := uint16(1); i < 256; i++ {
-		ch := t.a.mmu.Peek(0x200 + i)
+		ch := t.a.mmu.Peek(uint32(0x200 + i))
 		if ch == 0 || ch == 0x8d {
 			break
 		}
@@ -227,7 +227,7 @@ func (t *traceProDOS) dumpDevices() {
 	count := mem.peek(deviceCountAddress) + 1
 	fmt.Printf("Prodos disk devices: \n")
 	for i := uint8(0); i < count; i++ {
-		value := mem.peek(deviceListAddress + uint16(i))
+		value := mem.peek(deviceListAddress + uint32(i))
 		id := "unknown"
 		switch value & 0xf {
 		case 0x0:
@@ -242,8 +242,8 @@ func (t *traceProDOS) dumpDevices() {
 
 	// Device drivers
 	fmt.Printf("ProDOS device drivers:\n")
-	for slot := uint16(0); slot <= 7; slot++ {
-		for drive := uint16(0); drive < 2; drive++ {
+	for slot := uint32(0); slot <= 7; slot++ {
+		for drive := uint32(0); drive < 2; drive++ {
 			address := deviceDriverVectors + (slot+drive*8)*2
 			value := uint16(mem.peek(address)) + 0x100*uint16(mem.peek(address+1))
 			fmt.Printf("  S%vD%v: $%04x\n", slot, drive+1, value)
@@ -257,7 +257,7 @@ func (t *traceProDOS) dumpDevices() {
 func (t *traceProDOS) refreshDeviceDrives() {
 	mem := t.a.mmu.getPhysicalMainRAM(false)
 	drivers := make([]uint16, 0, 15)
-	for i := uint16(0); i < 16; i++ {
+	for i := uint32(0); i < 16; i++ {
 		address := deviceDriverVectors + i*2
 		value := uint16(mem.peek(address)) + 0x100*uint16(mem.peek(address+1))
 		drivers = append(drivers, value)
@@ -270,9 +270,9 @@ func (t *traceProDOS) refreshDeviceDrives() {
 	t.deviceDrivers = drivers
 }
 
-func (t *traceProDOS) isDriverAddress(pc uint16) bool {
+func (t *traceProDOS) isDriverAddress(pc uint32) bool {
 	for _, vector := range t.deviceDrivers {
-		if vector == pc {
+		if uint32(vector) == pc {
 			return true
 		}
 	}
@@ -280,12 +280,12 @@ func (t *traceProDOS) isDriverAddress(pc uint16) bool {
 }
 
 func (t *traceProDOS) paramByte(pos uint16) uint8 {
-	return t.a.mmu.Peek(t.paramsAdddress + pos)
+	return t.a.mmu.Peek(uint32(t.paramsAdddress + pos))
 }
 
 func (t *traceProDOS) paramWord(pos uint16) uint16 {
 	// Two bytes
-	return uint16(t.a.mmu.Peek(t.paramsAdddress+pos)) + uint16(t.a.mmu.Peek(t.paramsAdddress+pos+1))<<8
+	return uint16(t.a.mmu.Peek(uint32(t.paramsAdddress+pos))) + uint16(t.a.mmu.Peek(uint32(t.paramsAdddress+pos+1)))<<8
 }
 
 func (t *traceProDOS) paramLen(pos uint16) uint32 {
@@ -295,10 +295,10 @@ func (t *traceProDOS) paramLen(pos uint16) uint32 {
 
 func (t *traceProDOS) paramString(pos uint16) string {
 	address := t.paramWord(pos)
-	size := t.a.mmu.Peek(address)
+	size := t.a.mmu.Peek(uint32(address))
 	s := ""
 	for i := uint8(0); i < size; i++ {
-		s += string(t.a.mmu.Peek(address+1+uint16(i)) & 0x7f)
+		s += string(t.a.mmu.Peek(uint32(address+1+uint16(i))) & 0x7f)
 	}
 	return s
 }

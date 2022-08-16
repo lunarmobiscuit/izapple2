@@ -53,7 +53,7 @@ func buildToolbar(s *state) *widget.Toolbar {
 			s.win.SetTitle(s.DefaultTitle())
 		}))
 	//tb.Append(widget.NewToolbarSeparator())
-	//tb.Append(newToolbarDisk("S6D1")
+	//tb.Append(newToolbarDisk("S6D1"))
 	tb.Append(widget.NewToolbarSpacer())
 	tb.Append(widget.NewToolbarAction(
 		theme.ViewFullScreenIcon(),
