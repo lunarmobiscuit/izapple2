@@ -268,6 +268,9 @@ DoReset
 	jmp Reset
 
 Do2Plus
+	sws							; Reset the stack width to 8-bits
+	ldx #$ff 					; Reset the stack to $1FF
+	txs
 	lda #0
 	sta PWREDUP 				; Make sure the Apple ][ ROM thinks this is a fresh reboot
 	jmp (RSTVECTOR)				; Jump to the 6502 64K RST vector
