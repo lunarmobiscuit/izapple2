@@ -135,16 +135,20 @@ func (mmu *memoryManager) accessUpperRAMArea(address uint32) memoryHandler {
 		// Use extended RAM
 		block := mmu.extendedRAMBlock
 		if mmu.lcAltBank && address <= addressLimitDArea {
+fmt.Printf("LC %x -> physicalExtAltRAM[%x]\n", address, block)
 			return mmu.physicalExtAltRAM[block]
 		}
+fmt.Printf("LC %x -> physicalExtRAM[%x]\n", address, mmu.extendedRAMBlock)
 		return mmu.physicalExtRAM[mmu.extendedRAMBlock]
 	}
 
 	// Use language card
 	block := mmu.lcSelectedBlock
 	if mmu.lcAltBank && address <= addressLimitDArea {
+fmt.Printf("LC %x -> physicalLangAltRAM[%x]\n", address, block)
 		return mmu.physicalLangAltRAM[block]
 	}
+fmt.Printf("LC %x -> physicalLangRAM[%x]\n", address, block)
 	return mmu.physicalLangRAM[block]
 }
 
@@ -201,7 +205,7 @@ func (mmu *memoryManager) accessRead(address uint32) memoryHandler {
 	if mmu.mainROMinhibited != nil {
 		return mmu.mainROMinhibited
 	}
-	if mmu.lcActiveRead {
+	if mmu.lcActiveRead && (address <= 0x0FFFF) {
 		return mmu.accessUpperRAMArea(address)
 	}
 	if address <= 0x0FFFF {
@@ -248,7 +252,7 @@ func (mmu *memoryManager) accessWrite(address uint32) memoryHandler {
 	if mmu.mainROMinhibited != nil {
 		return mmu.mainROMinhibited
 	}
-	if mmu.lcActiveWrite {
+	if mmu.lcActiveWrite && (address <= 0x0FFFF) {
 		return mmu.accessUpperRAMArea(address)
 	}
 	if address <= 0x0FFFF {
@@ -278,12 +282,13 @@ func (mmu *memoryManager) peekWord(address uint32) uint16 {
 
 // Peek returns the data on the given address
 func (mmu *memoryManager) Peek(address uint32) uint8 {
-//fmt.Printf("  Peek(0x%x)\n", address) // @@@
+//fmt.Printf("\n  Peek(0x%x)", address) // @@@
 	mh := mmu.accessRead(address)
 	if mh == nil {
 		return 0xff // Or some random number
 	}
 	value := mh.peek(address)
+//fmt.Printf(" = %02x\n", value) // @@@
 	//if address >= 0xc400 && address < 0xc500 {
 	//	fmt.Printf("[MMU] Peek at %04x: %02x\n", address, value)
 	//}
@@ -321,6 +326,7 @@ func (mmu *memoryManager) PeekCode(address uint32) uint8 {
 
 // Poke sets the data at the given address
 func (mmu *memoryManager) Poke(address uint32, value uint8) {
+//fmt.Printf("\n  Poke(0x%x) <- %02x\n", address, value) // @@@
 	mh := mmu.accessWrite(address)
 	if mh != nil {
 		mh.poke(address, value)

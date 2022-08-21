@@ -1,0 +1,490 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  pomme -l Apple2four.lst -o Apple2four.rom Apple2four.pom 
+ *
+ */
+
+const KBD         = $c000		// R last key pressed + 128
+const KBDSTRB     = $c010		// RW keyboard strobe
+const TAPEOUT     = $c020		// RW toggle caseette tape output
+const SPKR        = $c030		// RW toggle speaker
+const TXTCLR      = $c050		// RW display graphics
+const TXTSET      = $c051		// RW display text
+const MIXSET      = $c053		// RW display split screen
+const TXTPAGE1    = $c054		// RW display page 1
+const LORES       = $c056		// RW display lo-res graphics
+const SETAN0      = $c058		// RW annunciator 0 off
+const SETAN1      = $c05a		// RW annunciator 1 off
+const CLRAN2      = $c05d		// RW annunciator 2 on
+const CLRAN3      = $c05f		// RW annunciator 3 on
+const TAPEIN      = $c060		// R cassete tape input
+const PADDL0      = $c064		// R analog input 0
+const PTRIG       = $c070		// RW analog input reset
+const CLRROM      = $cfff		// disable slot C8 ROM
+const RSTVECTOR   = $fffc  	// Apple ][ 6502 reset vector
+const PWREDUP     = $03f4  	// Apple ][ stores #$A5 to make RST a soft reboot
+
+
+/*
+ *  The code begins with a JMPs to the OS functions
+ *  (TBD: change all but the first JMP to a table of vectors and add JSR ($aaaa) address mode)
+ */
+sub Start @$FF0000 {
+	jmp Reset
+	jmp ClearScreen
+	jmp ScrollScreen
+}
+
+sub Reset @$FF0200 {
+	cld
+	ldx #$ff
+	txs
+	lda TXTSET
+	lda TXTPAGE1
+	lda SETAN0					; AN0 = TTL hi
+	lda SETAN1					; AN1 = TTL hi
+	lda CLRAN2					; AN2 = TTL lo
+	lda CLRAN3					; AN3 = TTL lo
+	lda CLRROM					; turn off extension ROM
+	bit KBDSTRB					; clear keyboard
+	ldx #0
+	jsr ClearScreen			; clear the screen (x = row 0)
+}
+
+sub AppleII4 {
+	ldx #0
+ loop_AppleII4:
+	lda Hello,x
+	beq +done_AppleII4
+	ora #$80
+	sta $400,x
+	inx
+	bne -loop_AppleII4
+ done_AppleII4:
+}
+
+sub EchoKeys {
+	lda #2
+	sta $02							; $02 = TEXT ROW (start at row 2)
+	lda #0
+	sta $03							; $03 = TEXT COLUMN (start at column 0)
+	jsr ClearInputBuffer
+ echo_loop:
+	ldx $02							; $02 = TEXT ROW
+	jsr ScreenBase			; $00/$01 = TEXT line base address
+	lda $03
+	bne +echo_read
+ draw_prompt:
+	ldy #0
+	lda #$BA 						; ':'
+	sta ($00),y
+	iny
+	sty $03
+ echo_read:
+	bit KBD 					; check keyboard for next key
+	bpl -echo_read
+	lda KBD 					; get the key code from the keyboard
+	bit KBDSTRB					; clear keyboard strobe (a.k.a. ack keyboard read)
+	cmp #$8D					; 13 = CR ($80 | $0D in high ASCII)
+	beq +echo_next_line
+	cmp #$88					; 8 = BS ($80 | $08 in high ASCII)
+	beq +echo_backspace
+	cmp #$9B					; 27 = ESC ($80 | $1B in high ASCII)
+	beq +echo_escape
+	cmp #$99					; control character ($80 | $19 in high ASCII)
+	bcc -echo_read
+	ldy $03
+	cpy #40 					; ignore if >= column 40
+	beq -echo_loop
+	sta ($00),y
+	and #$7F					; store (low) ASCII in TEXT buffer
+	dey
+	sta $200,y
+	inc $03						; next column
+	bra -echo_loop
+ echo_next_line:
+	jsr NextLine
+ echo_command:
+	jsr CommandLine
+	jsr ClearInputBuffer
+	jmp echo_loop
+ echo_backspace:
+	lda $03
+	beq -echo_loop
+	tay
+	dey
+	sty $03
+	lda #$A0
+	sta ($00),y
+	jmp echo_loop
+ echo_escape:
+	ldx #2
+	jsr ClearScreen		; clear the screen (x = row 2)
+	lda #2
+	sta $02						; reset to row 2
+	lda #0
+	sta $03						; reset to column 0
+	jmp echo_loop
+}
+
+sub CommandLine {
+ command_check_clear:
+  lda.t #CMD_Clear		; $05/$06/$07 = COMMAND string base address
+  sta.t $05
+	jsr CompareText
+	beq +not_command_clear
+	jsr DoClear
+	rts.a24
+ not_command_clear:
+ command_check_memory:
+  lda.t #CMD_Memory
+  sta.t $05
+	jsr CompareText
+	beq +not_command_memory
+	lda #0
+	jsr DoMemory
+	rts.a24
+ not_command_memory:
+ command_check_reset:
+  lda.t #CMD_Reset
+  sta.t $05
+	jsr CompareText
+	beq +not_command_reset
+	jsr DoReset
+	rts.a24
+ not_command_reset:
+ command_check_2plus:
+  lda.t #CMD_2Plus
+  sta.t $05
+	jsr CompareText
+	beq +not_command_2plus
+	jsr Do2Plus
+	rts.a24
+ not_command_2plus:
+ command_check_c081:
+  lda.t #CMD_C081
+  sta.t $05
+	jsr CompareText
+	beq +not_command_c081
+	jsr DoC081
+	rts.a24
+ not_command_c081:
+ command_check_c083:
+  lda.t #CMD_C083
+  sta.t $05
+	jsr CompareText
+	beq +not_command_c083
+	jsr DoC083
+	rts.a24
+ not_command_c083:
+	rts.a24
+}
+
+sub CompareText {
+	ldy #0
+ compare_loop:
+	lda $200,y
+ 	a24
+	cmp ($05),y
+	bne +compare_no_match
+	iny
+	cmp #0
+	bne +compare_loop
+ compare_match:
+	lda ($05),y
+	bne +compare_no_match
+	lda #$FF
+	rts.a24
+ compare_no_match:
+	lda #0
+	rts.a24
+}
+
+sub DoClear {
+	ldx #2
+	jsr ClearScreen
+	lda #2
+	sta $02						; $02 = TEXT ROW (start at row 2)
+	lda #0
+	sta $03						; $03 = TEXT COLUMN (start at column 0)
+	rts.a24
+}
+
+sub DoMemory {
+	jsr NextLine
+	lda #0
+	jsr PrintHexByte
+	lda #$AD
+	jsr PrintChar
+	jsr PrintSpace
+	ldx #0
+ loop_Memory:
+	lda $00,x
+	jsr PrintHexByte
+	jsr PrintSpace
+	inx
+	cpx #8
+	bne -loop_Memory
+	jsr NextLine
+	rts.a24
+}
+
+// A = byte // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+sub PrintHexByte {				
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr PrintHexDigit
+	pla
+	and #$0F
+	jsr PrintHexDigit
+	rts.a24
+}
+
+// A = nibble // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+sub PrintHexDigit {
+	cmp #10
+	bcc +print_hex_digit_09
+	clc
+	adc #$B7
+	bra +print_hex_digit
+ print_hex_digit_09:
+	adc #$B0
+ print_hex_digit:
+	ldy $03
+	sta ($00),y
+	inc $03
+	rts.a24
+}
+
+; A = ASCII // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+sub PrintChar {
+	ldy $03
+	sta ($00),y
+	inc $03
+	rts.a24
+}
+
+; $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+sub PrintSpace {
+	lda #$A0
+	ldy $03
+	sta ($00),y
+	inc $03
+	rts.a24
+}
+
+sub DoReset {
+  lda #$A1
+  sta $425
+  sta $426
+  sta $427
+	jmp Reset
+}
+
+sub Do2Plus {
+	sws							; Reset the stack width to 8-bits
+	ldx #$ff 				; Reset the stack to $1FF
+	txs
+	lda #0
+	sta PWREDUP 				; Make sure the Apple ][ ROM thinks this is a fresh reboot
+	jmp (RSTVECTOR)			; Jump to the 6502 64K RST vector
+}
+
+; X = row // $00/$01 = address of the line on the TEXT screen // -> A = address
+sub ScreenBase {
+  txa									; X = X * 2
+  asl
+  tax
+ 	lda.w TextScreenBase,x
+	sta.w $00						; $00/$01 = TEXT line base address
+	rts.a24
+}
+
+; X = row // Y = column // $00/$01 = address of the line on the TEXT screen
+sub ClearScreen {
+  txa									; X = X * 2
+  asl
+  tax
+ loop_clear_line:
+ 	lda.w TextScreenBase,x
+	sta.w $00						; $00/$01 = TEXT line base address
+	lda #$A0A0 					; $20 (space) | $80 (high ASCII)
+	ldy #0
+ loop_clear_char:
+	sta.w ($00),y
+	iny
+	iny
+	cpy #40
+	bne -loop_clear_char
+	inx
+	inx
+	cpx #48 // 24 lines * 2
+	bne -loop_clear_line
+	rts.a24
+}
+
+; $00/$01 = address of the line on the TEXT screen // $02 = TEXT ROW // $03 = TEXT COLUMN
+sub NextLine {
+	lda $02
+	cmp #23
+	beq +next_line_scroll
+ next_line_next_row:
+	inc $02						; increment the current row
+	lda #0
+	sta $03						; reset to column 0
+	ldx $02
+	jsr ScreenBase			; $00/$01 = TEXT line base address
+	rts.a24
+ next_line_scroll:
+	ldx #2
+	jsr ScrollScreen			; scroll the screen (x = row 2)
+	lda #23
+	sta $02						; reset to row 23
+	lda #00
+	sta $03						; reset to column 0
+	rts.a24
+}
+
+; X = first row // Y = column
+sub ScrollScreen {
+  txa									; X = X * 2
+  asl
+  tax
+ loop_scroll_line:
+	lda.w TextScreenBase,x
+	sta.w $00						; $00/$01 = TEXT line base address
+	lda.w TextScreenBase+2,x
+	sta.w $04						; $04/$05 = address of the next line on the TEXT screen
+	ldy #0
+ loop_scroll_char:
+	lda ($04),y
+	sta ($00),y
+	iny
+	cpy #40
+	bne -loop_scroll_char
+	inx
+	inx
+	cpx #46 // 23 lines * 2
+	bne -loop_scroll_line
+ scroll_clear_last_line:
+	lda.w TextScreenBase,x
+	sta.w $00						; $00/$01 = TEXT line base address
+	lda.w #$A0A0
+	ldy #0
+ loop_scroll_clear_line:
+	sta.w ($00),y
+	iny
+	iny
+	cpy #40
+	bne -loop_scroll_clear_line
+ done_with_scroll:
+	rts.a24
+}
+
+sub ClearInputBuffer {
+	lda #0
+	ldx #$ff
+ loop_clear_buffer:
+	sta $200,x					; $200 = TEXT BUFFER ($2FF = length / $2nn = characters)
+	dex
+	bne -loop_clear_buffer
+	sta $200
+	rts.a24
+}
+
+
+sub DoC081 {
+	lda $C081
+	lda $C081
+	jsr NextLine
+	lda #$aa
+	sta $E000
+	lda #$E0
+	jsr PrintHexByte
+	lda #0
+	jsr PrintHexByte
+	lda #$AD
+	jsr PrintChar
+	jsr PrintSpace
+	ldx #0
+ loop_c081:
+	lda $E000,x
+	jsr PrintHexByte
+	jsr PrintSpace
+	inx
+	cpx #8
+	bne -loop_c081
+	jsr NextLine
+	rts.a24
+}
+
+sub DoC083 {
+	lda $C083
+	lda $C083
+	jsr NextLine
+	lda $03
+	sta $E000
+	lda $04
+	sta $E001
+	lda #$E0
+	jsr PrintHexByte
+	lda #0
+	jsr PrintHexByte
+	lda #$AD
+	jsr PrintChar
+	jsr PrintSpace
+	ldx #0
+ loop_c083:
+	lda $E000,x
+	jsr PrintHexByte
+	jsr PrintSpace
+	inx
+	cpx #8
+	bne -loop_c083
+	jsr NextLine
+	rts.a24
+}
+
+
+/*
+ *  The series of data blocks
+ */
+data TextScreenBase @$FF8000 word {
+	$0400, $0480, $0500, $0580, $0600, $0680, $0700, $0780
+	$0428, $04A8, $0528, $05A8, $0628, $06A8, $0728, $07A8
+	$0450, $04D0, $0550, $05D0, $0650, $06D0, $0750, $07D0
+}
+
+data Hello string {
+	"Apple ][4"
+}
+
+data CMD_Clear string { "clear" }
+data CMD_Memory string { "memory" }
+data CMD_Reset string { "reset" }
+data CMD_2Plus string { "2+" }
+data CMD_C081 string { "c081" }
+data CMD_C083 string { "c083" }
+
+data CommandListLength byte { 6 }
+data CommandList u24 {
+	CMD_Clear
+	CMD_Memory
+	CMD_Reset
+	CMD_2Plus
+	CMD_C081
+	CMD_C083
+}
+
+/*
+ *  The 6502 vectors
+ */
+data Vectors @$FFFFF7 u24 {
+	$000000 	; NMI
+	$FF0000 	; RESET
+	$000000 	; IRQ
+}

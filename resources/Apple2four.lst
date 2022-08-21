@@ -1,0 +1,458 @@
+ff0000 ; SUB start:
+ff0000 4f 4c 00 02 ff     jmp.a24 $ff0200
+ff0005 4f 4c 03 04 ff     jmp.a24 $ff0403
+ff000a 4f 4c 4b 04 ff     jmp.a24 $ff044b
+
+; 497 BYTES of FILLER
+
+ff0200 ; SUB reset:
+ff0200 d8                 cld
+ff0201 a2 ff              ldx #$ff
+ff0203 ba                 txs
+ff0204 ad 51 c0           lda $c051
+ff0207 ad 54 c0           lda $c054
+ff020a ad 58 c0           lda $c058
+ff020d ad 5a c0           lda $c05a
+ff0210 ad 5d c0           lda $c05d
+ff0213 ad 5f c0           lda $c05f
+ff0216 ad ff cf           lda $cfff
+ff0219 2c 10 c0           bit $c010
+ff021c a2 00              ldx #$0
+ff021e 4f 20 03 04 ff     jsr.a24 $ff0403
+
+ff0223 ; SUB appleii4:
+ff0223 a2 00              ldx #$0
+ff0225                  loop_appleii4:
+ff0225 4f bd 30 80 ff     lda.a24 $ff8030,X
+ff022a f0 08              beq +8
+ff022c 09 80              ora #$80
+ff022e 9d 00 04           sta $0400,X
+ff0231 e8                 inx
+ff0232 d0 f1              bne -15
+ff0234                  done_appleii4:
+
+ff0234 ; SUB echokeys:
+ff0234 a9 02              lda #$2
+ff0236 85 02              sta $02
+ff0238 a9 00              lda #$0
+ff023a 85 03              sta $03
+ff023c 4f 20 88 04 ff     jsr.a24 $ff0488
+ff0241                  echo_loop:
+ff0241 a6 02              ldx $02
+ff0243 4f 20 f6 03 ff     jsr.a24 $ff03f6
+ff0248 a5 03              lda $03
+ff024a d0 09              bne +9
+ff024c                  draw_prompt:
+ff024c a0 00              ldy #$0
+ff024e a9 ba              lda #$ba
+ff0250 91 00              sta ($00),Y
+ff0252 c8                 iny
+ff0253 84 03              sty $03
+ff0255                  echo_read:
+ff0255 2c 00 c0           bit $c000
+ff0258 10 fb              bpl -5
+ff025a ad 00 c0           lda $c000
+ff025d 2c 10 c0           bit $c010
+ff0260 c9 8d              cmp #$8d
+ff0262 f0 1e              beq +30
+ff0264 c9 88              cmp #$88
+ff0266 f0 2e              beq +46
+ff0268 c9 9b              cmp #$9b
+ff026a f0 3b              beq +59
+ff026c c9 99              cmp #$99
+ff026e 90 e5              bcc -27
+ff0270 a4 03              ldy $03
+ff0272 c0 28              cpy #$28
+ff0274 f0 cb              beq -53
+ff0276 91 00              sta ($00),Y
+ff0278 29 7f              and #$7f
+ff027a 88                 dey
+ff027b 99 00 02           sta $0200,Y
+ff027e e6 03              inc $03
+ff0280 80 bf              bra -65
+ff0282                  echo_next_line:
+ff0282 4f 20 25 04 ff     jsr.a24 $ff0425
+ff0287                  echo_command:
+ff0287 4f 20 bb 02 ff     jsr.a24 $ff02bb
+ff028c 4f 20 88 04 ff     jsr.a24 $ff0488
+ff0291 4f 4c 41 02 ff     jmp.a24 $ff0241
+ff0296                  echo_backspace:
+ff0296 a5 03              lda $03
+ff0298 f0 a7              beq -89
+ff029a a8                 tay
+ff029b 88                 dey
+ff029c 84 03              sty $03
+ff029e a9 a0              lda #$a0
+ff02a0 91 00              sta ($00),Y
+ff02a2 4f 4c 41 02 ff     jmp.a24 $ff0241
+ff02a7                  echo_escape:
+ff02a7 a2 02              ldx #$2
+ff02a9 4f 20 03 04 ff     jsr.a24 $ff0403
+ff02ae a9 02              lda #$2
+ff02b0 85 02              sta $02
+ff02b2 a9 00              lda #$0
+ff02b4 85 03              sta $03
+ff02b6 4f 4c 41 02 ff     jmp.a24 $ff0241
+
+ff02bb ; SUB commandline:
+ff02bb                  command_check_clear:
+ff02bb 2f a9 3a 80 ff     lda.t #$ff803a
+ff02c0 2f 85 05           sta.t $05
+ff02c3 4f 20 43 03 ff     jsr.a24 $ff0343
+ff02c8 f0 07              beq +7
+ff02ca 4f 20 5e 03 ff     jsr.a24 $ff035e
+ff02cf 4f 60              rts.a24
+ff02d1                  not_command_clear:
+ff02d1                  command_check_memory:
+ff02d1 2f a9 40 80 ff     lda.t #$ff8040
+ff02d6 2f 85 05           sta.t $05
+ff02d9 4f 20 43 03 ff     jsr.a24 $ff0343
+ff02de f0 09              beq +9
+ff02e0 a9 00              lda #$0
+ff02e2 4f 20 6f 03 ff     jsr.a24 $ff036f
+ff02e7 4f 60              rts.a24
+ff02e9                  not_command_memory:
+ff02e9                  command_check_reset:
+ff02e9 2f a9 47 80 ff     lda.t #$ff8047
+ff02ee 2f 85 05           sta.t $05
+ff02f1 4f 20 43 03 ff     jsr.a24 $ff0343
+ff02f6 f0 07              beq +7
+ff02f8 4f 20 da 03 ff     jsr.a24 $ff03da
+ff02fd 4f 60              rts.a24
+ff02ff                  not_command_reset:
+ff02ff                  command_check_2plus:
+ff02ff 2f a9 4d 80 ff     lda.t #$ff804d
+ff0304 2f 85 05           sta.t $05
+ff0307 4f 20 43 03 ff     jsr.a24 $ff0343
+ff030c f0 07              beq +7
+ff030e 4f 20 ea 03 ff     jsr.a24 $ff03ea
+ff0313 4f 60              rts.a24
+ff0315                  not_command_2plus:
+ff0315                  command_check_c081:
+ff0315 2f a9 50 80 ff     lda.t #$ff8050
+ff031a 2f 85 05           sta.t $05
+ff031d 4f 20 43 03 ff     jsr.a24 $ff0343
+ff0322 f0 07              beq +7
+ff0324 4f 20 97 04 ff     jsr.a24 $ff0497
+ff0329 4f 60              rts.a24
+ff032b                  not_command_c081:
+ff032b                  command_check_c083:
+ff032b 2f a9 55 80 ff     lda.t #$ff8055
+ff0330 2f 85 05           sta.t $05
+ff0333 4f 20 43 03 ff     jsr.a24 $ff0343
+ff0338 f0 07              beq +7
+ff033a 4f 20 dc 04 ff     jsr.a24 $ff04dc
+ff033f 4f 60              rts.a24
+ff0341                  not_command_c083:
+ff0341 4f 60              rts.a24
+
+ff0343 ; SUB comparetext:
+ff0343 a0 00              ldy #$0
+ff0345                  compare_loop:
+ff0345 b9 00 02           lda $0200,Y
+ff0348 4f                 a24
+ff0349 d1 05              cmp ($05),Y
+ff034b d0 0d              bne +13
+ff034d c8                 iny
+ff034e c9 00              cmp #$0
+ff0350 d0 f3              bne -13
+ff0352                  compare_match:
+ff0352 b1 05              lda ($05),Y
+ff0354 d0 04              bne +4
+ff0356 a9 ff              lda #$ff
+ff0358 4f 60              rts.a24
+ff035a                  compare_no_match:
+ff035a a9 00              lda #$0
+ff035c 4f 60              rts.a24
+
+ff035e ; SUB doclear:
+ff035e a2 02              ldx #$2
+ff0360 4f 20 03 04 ff     jsr.a24 $ff0403
+ff0365 a9 02              lda #$2
+ff0367 85 02              sta $02
+ff0369 a9 00              lda #$0
+ff036b 85 03              sta $03
+ff036d 4f 60              rts.a24
+
+ff036f ; SUB domemory:
+ff036f 4f 20 25 04 ff     jsr.a24 $ff0425
+ff0374 a9 00              lda #$0
+ff0376 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff037b a9 ad              lda #$ad
+ff037d 4f 20 c8 03 ff     jsr.a24 $ff03c8
+ff0382 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff0387 a2 00              ldx #$0
+ff0389                  loop_memory:
+ff0389 b5 00              lda $00,X
+ff038b 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff0390 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff0395 e8                 inx
+ff0396 e0 08              cpx #$8
+ff0398 d0 ef              bne -17
+ff039a 4f 20 25 04 ff     jsr.a24 $ff0425
+ff039f 4f 60              rts.a24
+
+ff03a1 ; SUB printhexbyte:
+ff03a1 48                 pha
+ff03a2 4a                 lsr
+ff03a3 4a                 lsr
+ff03a4 4a                 lsr
+ff03a5 4a                 lsr
+ff03a6 4f 20 b5 03 ff     jsr.a24 $ff03b5
+ff03ab 68                 pla
+ff03ac 29 0f              and #$f
+ff03ae 4f 20 b5 03 ff     jsr.a24 $ff03b5
+ff03b3 4f 60              rts.a24
+
+ff03b5 ; SUB printhexdigit:
+ff03b5 c9 0a              cmp #$a
+ff03b7 90 05              bcc +5
+ff03b9 18                 clc
+ff03ba 69 b7              adc #$b7
+ff03bc 80 02              bra +2
+ff03be                  print_hex_digit_09:
+ff03be 69 b0              adc #$b0
+ff03c0                  print_hex_digit:
+ff03c0 a4 03              ldy $03
+ff03c2 91 00              sta ($00),Y
+ff03c4 e6 03              inc $03
+ff03c6 4f 60              rts.a24
+
+ff03c8 ; SUB printchar:
+ff03c8 a4 03              ldy $03
+ff03ca 91 00              sta ($00),Y
+ff03cc e6 03              inc $03
+ff03ce 4f 60              rts.a24
+
+ff03d0 ; SUB printspace:
+ff03d0 a9 a0              lda #$a0
+ff03d2 a4 03              ldy $03
+ff03d4 91 00              sta ($00),Y
+ff03d6 e6 03              inc $03
+ff03d8 4f 60              rts.a24
+
+ff03da ; SUB doreset:
+ff03da a9 a1              lda #$a1
+ff03dc 8d 25 04           sta $0425
+ff03df 8d 26 04           sta $0426
+ff03e2 8d 27 04           sta $0427
+ff03e5 4f 4c 00 02 ff     jmp.a24 $ff0200
+
+ff03ea ; SUB do2plus:
+ff03ea fc                 sws
+ff03eb a2 ff              ldx #$ff
+ff03ed ba                 txs
+ff03ee a9 00              lda #$0
+ff03f0 8d f4 03           sta $03f4
+ff03f3 6c fc ff           jmp ($fffc)
+
+ff03f6 ; SUB screenbase:
+ff03f6 8a                 txa
+ff03f7 0a                 asl
+ff03f8 aa                 tax
+ff03f9 5f bd 00 80 ff     lda.w.a24 $ff8000,X
+ff03fe 1f 85 00           sta.w $00
+ff0401 4f 60              rts.a24
+
+ff0403 ; SUB clearscreen:
+ff0403 8a                 txa
+ff0404 0a                 asl
+ff0405 aa                 tax
+ff0406                  loop_clear_line:
+ff0406 5f bd 00 80 ff     lda.w.a24 $ff8000,X
+ff040b 1f 85 00           sta.w $00
+ff040e 1f a9 a0 a0        lda.w #$a0a0
+ff0412 a0 00              ldy #$0
+ff0414                  loop_clear_char:
+ff0414 1f 91 00           sta.w ($00),Y
+ff0417 c8                 iny
+ff0418 c8                 iny
+ff0419 c0 28              cpy #$28
+ff041b d0 f7              bne -9
+ff041d e8                 inx
+ff041e e8                 inx
+ff041f e0 30              cpx #$30
+ff0421 d0 e3              bne -29
+ff0423 4f 60              rts.a24
+
+ff0425 ; SUB nextline:
+ff0425 a5 02              lda $02
+ff0427 c9 17              cmp #$17
+ff0429 f0 0f              beq +15
+ff042b                  next_line_next_row:
+ff042b e6 02              inc $02
+ff042d a9 00              lda #$0
+ff042f 85 03              sta $03
+ff0431 a6 02              ldx $02
+ff0433 4f 20 f6 03 ff     jsr.a24 $ff03f6
+ff0438 4f 60              rts.a24
+ff043a                  next_line_scroll:
+ff043a a2 02              ldx #$2
+ff043c 4f 20 4b 04 ff     jsr.a24 $ff044b
+ff0441 a9 17              lda #$17
+ff0443 85 02              sta $02
+ff0445 a9 00              lda #$0
+ff0447 85 03              sta $03
+ff0449 4f 60              rts.a24
+
+ff044b ; SUB scrollscreen:
+ff044b 8a                 txa
+ff044c 0a                 asl
+ff044d aa                 tax
+ff044e                  loop_scroll_line:
+ff044e 5f bd 00 80 ff     lda.w.a24 $ff8000,X
+ff0453 1f 85 00           sta.w $00
+ff0456 5f bd 02 80 ff     lda.w.a24 $ff8002,X
+ff045b 1f 85 04           sta.w $04
+ff045e a0 00              ldy #$0
+ff0460                  loop_scroll_char:
+ff0460 b1 04              lda ($04),Y
+ff0462 91 00              sta ($00),Y
+ff0464 c8                 iny
+ff0465 c0 28              cpy #$28
+ff0467 d0 f7              bne -9
+ff0469 e8                 inx
+ff046a e8                 inx
+ff046b e0 2e              cpx #$2e
+ff046d d0 df              bne -33
+ff046f                  scroll_clear_last_line:
+ff046f 5f bd 00 80 ff     lda.w.a24 $ff8000,X
+ff0474 1f 85 00           sta.w $00
+ff0477 1f a9 a0 a0        lda.w #$a0a0
+ff047b a0 00              ldy #$0
+ff047d                  loop_scroll_clear_line:
+ff047d 1f 91 00           sta.w ($00),Y
+ff0480 c8                 iny
+ff0481 c8                 iny
+ff0482 c0 28              cpy #$28
+ff0484 d0 f7              bne -9
+ff0486                  done_with_scroll:
+ff0486 4f 60              rts.a24
+
+ff0488 ; SUB clearinputbuffer:
+ff0488 a9 00              lda #$0
+ff048a a2 ff              ldx #$ff
+ff048c                  loop_clear_buffer:
+ff048c 9d 00 02           sta $0200,X
+ff048f ca                 dex
+ff0490 d0 fa              bne -6
+ff0492 8d 00 02           sta $0200
+ff0495 4f 60              rts.a24
+
+ff0497 ; SUB doc081:
+ff0497 ad 81 c0           lda $c081
+ff049a ad 81 c0           lda $c081
+ff049d 4f 20 25 04 ff     jsr.a24 $ff0425
+ff04a2 a9 aa              lda #$aa
+ff04a4 8d 00 e0           sta $e000
+ff04a7 a9 e0              lda #$e0
+ff04a9 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff04ae a9 00              lda #$0
+ff04b0 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff04b5 a9 ad              lda #$ad
+ff04b7 4f 20 c8 03 ff     jsr.a24 $ff03c8
+ff04bc 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff04c1 a2 00              ldx #$0
+ff04c3                  loop_c081:
+ff04c3 bd 00 e0           lda $e000,X
+ff04c6 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff04cb 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff04d0 e8                 inx
+ff04d1 e0 08              cpx #$8
+ff04d3 d0 ee              bne -18
+ff04d5 4f 20 25 04 ff     jsr.a24 $ff0425
+ff04da 4f 60              rts.a24
+
+ff04dc ; SUB doc083:
+ff04dc ad 83 c0           lda $c083
+ff04df ad 83 c0           lda $c083
+ff04e2 4f 20 25 04 ff     jsr.a24 $ff0425
+ff04e7 a5 03              lda $03
+ff04e9 8d 00 e0           sta $e000
+ff04ec a5 04              lda $04
+ff04ee 8d 01 e0           sta $e001
+ff04f1 a9 e0              lda #$e0
+ff04f3 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff04f8 a9 00              lda #$0
+ff04fa 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff04ff a9 ad              lda #$ad
+ff0501 4f 20 c8 03 ff     jsr.a24 $ff03c8
+ff0506 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff050b a2 00              ldx #$0
+ff050d                  loop_c083:
+ff050d bd 00 e0           lda $e000,X
+ff0510 4f 20 a1 03 ff     jsr.a24 $ff03a1
+ff0515 4f 20 d0 03 ff     jsr.a24 $ff03d0
+ff051a e8                 inx
+ff051b e0 08              cpx #$8
+ff051d d0 ee              bne -18
+ff051f 4f 20 25 04 ff     jsr.a24 $ff0425
+ff0524 4f 60              rts.a24
+
+; 31450 BYTES of FILLER
+
+ff8000 ; DATA TextScreenBase:
+ff8000 00 04
+ff8002 80 04
+ff8004 00 05
+ff8006 80 05
+ff8008 00 06
+ff800a 80 06
+ff800c 00 07
+ff800e 80 07
+ff8010 28 04
+ff8012 a8 04
+ff8014 28 05
+ff8016 a8 05
+ff8018 28 06
+ff801a a8 06
+ff801c 28 07
+ff801e a8 07
+ff8020 50 04
+ff8022 d0 04
+ff8024 50 05
+ff8026 d0 05
+ff8028 50 06
+ff802a d0 06
+ff802c 50 07
+ff802e d0 07
+
+ff8030 ; DATA Hello:
+ff8030 41 70 70 6c 65 20 5d 5b 34 00
+
+ff803a ; DATA CMD_Clear:
+ff803a 63 6c 65 61 72 00
+
+ff8040 ; DATA CMD_Memory:
+ff8040 6d 65 6d 6f 72 79 00
+
+ff8047 ; DATA CMD_Reset:
+ff8047 72 65 73 65 74 00
+
+ff804d ; DATA CMD_2Plus:
+ff804d 32 2b 00
+
+ff8050 ; DATA CMD_C081:
+ff8050 63 30 38 31 00
+
+ff8055 ; DATA CMD_C083:
+ff8055 63 30 38 33 00
+
+ff805a ; DATA CommandListLength:
+ff805a 06
+
+ff805b ; DATA CommandList:
+ff805b 3a 80 ff
+ff805e 40 80 ff
+ff8061 47 80 ff
+ff8064 4d 80 ff
+ff8067 50 80 ff
+ff806a 55 80 ff
+
+; 32650 BYTES of FILLER
+
+fffff7 ; DATA Vectors:
+fffff7 00 00 00
+fffffa 00 00 ff
+fffffd 00 00 00
+

@@ -146,6 +146,7 @@ CommandLine
 	sta $07
 	jsr CompareText;
 	beq .not_command_memory
+	lda #0
 	jsr DoMemory
 	rts
 .not_command_memory
@@ -173,6 +174,30 @@ CommandLine
 	jsr Do2Plus
 	rts
 .not_command_2plus
+.command_check_c081
+	lda #<CMD_C081
+	sta $05
+	lda #>CMD_C081
+	sta $06
+	lda #$FF 					; TODO: Add >> to dasm
+	sta $07
+	jsr CompareText;
+	beq .not_command_c0c0
+	jsr DoC081
+	rts
+.not_command_c0c0
+.command_check_c083
+	lda #<CMD_C083
+	sta $05
+	lda #>CMD_C083
+	sta $06
+	lda #$FF 					; TODO: Add >> to dasm
+	sta $07
+	jsr CompareText;
+	beq .not_command_c0c3
+	jsr DoC083
+	rts
+.not_command_c0c3
 	rts
 
 CompareText
@@ -362,6 +387,59 @@ ClearInputBuffer
 	rts
 
 
+
+DoC081
+	lda $C081
+	lda $C081
+	jsr NextLine
+	lda #$aa
+	sta $E000
+	lda #$E0
+	jsr PrintHexByte
+	lda #0
+	jsr PrintHexByte
+	lda #$AD
+	jsr PrintChar
+	jsr PrintSpace
+	ldx #0
+.loop_c081
+	lda $E000,x
+	jsr PrintHexByte
+	jsr PrintSpace
+	inx
+	cpx #8
+	bne .loop_c081
+	jsr NextLine
+	rts
+
+DoC083
+	lda $C083
+	lda $C083
+	jsr NextLine
+	lda $03
+	sta $E000
+	lda $04
+	sta $E001
+	lda #$E0
+	jsr PrintHexByte
+	lda #0
+	jsr PrintHexByte
+	lda #$AD
+	jsr PrintChar
+	jsr PrintSpace
+	ldx #0
+.loop_c083
+	lda $E000,x
+	jsr PrintHexByte
+	jsr PrintSpace
+	inx
+	cpx #8
+	bne .loop_c083
+	jsr NextLine
+	rts
+
+
+
 	SEG Data
 	ORG $FF8000
 
@@ -383,11 +461,15 @@ CommandList
 	DC.W CMD_Memory
 	DC.W CMD_Reset
 	DC.W CMD_2Plus
+	DC.W CMD_C081
+	DC.W CMD_C083
 
 CMD_Clear DC.B "clear", $00
 CMD_Memory DC.B "memory", $00
 CMD_Reset DC.B "reset", $00
 CMD_2Plus DC.B "2+", $00
+CMD_C081 DC.B "c081", $00
+CMD_C083 DC.B "c083", $00
 
 	SEG Interrupts
 	ORG $FFFFF7

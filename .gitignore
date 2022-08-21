@@ -10,3 +10,5 @@ frontend/*/snapshot.gif
 frontend/*/snapshot.png
 frontend/*/printer.out
 .DS_Store
+resources/Apple2four.dasm.lst
+resources/Apple2four.rom.orig

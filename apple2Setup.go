@@ -2,7 +2,6 @@ package izapple2
 
 import (
 	"errors"
-	"fmt" // @@@
 	"github.com/lunarmobiscuit/iz6502"
 )
 
@@ -93,9 +92,6 @@ func (a *Apple2) LoadRom(filename string) error {
 	if size != apple2RomSize && size != apple2eRomSize {
 		return errors.New("rom size not supported")
 	}
-fmt.Printf("NAME = %s\n", a.Name) // @@@
-fmt.Printf("ROM = %s\n", filename) // @@@
-fmt.Printf("64K RST vector = 0x%02x%02x\n", data[size-3], data[size-4]) // @@@
 
 	romBase := uint32(0x10000 - size)
 	a.mmu.physicalROM[0] = newMemoryRangeROM(romBase, data, "Main ROM")
@@ -108,8 +104,6 @@ func (a *Apple2) Load24BitRom(filename string) error {
 	if err != nil {
 		return err
 	}
-fmt.Printf("24-bit ROM = %s\n", filename) // @@@
-fmt.Printf("24-bit RST vector = 0x%02x%02x%02x\n", data[0xfffc], data[0xfffb], data[0xfffa]) // @@@
 
 	size := len(data)
 	if size != apple2fourRomSize {
