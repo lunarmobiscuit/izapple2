@@ -296,9 +296,7 @@ sub Do2Plus {
 
 ; X = row // $00/$01 = address of the line on the TEXT screen // -> A = address
 sub ScreenBase {
-  txa									; X = X * 2
-  asl
-  tax
+  xsl									; X = X * 2
  	lda.w TextScreenBase,x
 	sta.w $00						; $00/$01 = TEXT line base address
 	rts.a24
@@ -306,9 +304,7 @@ sub ScreenBase {
 
 ; X = row // Y = column // $00/$01 = address of the line on the TEXT screen
 sub ClearScreen {
-  txa									; X = X * 2
-  asl
-  tax
+  xsl									; X = X * 2
  loop_clear_line:
  	lda.w TextScreenBase,x
 	sta.w $00						; $00/$01 = TEXT line base address
@@ -337,7 +333,7 @@ sub NextLine {
 	lda #0
 	sta $03						; reset to column 0
 	ldx $02
-	jsr ScreenBase			; $00/$01 = TEXT line base address
+	jsr ScreenBase		; $00/$01 = TEXT line base address
 	rts.a24
  next_line_scroll:
 	ldx #2
@@ -351,9 +347,7 @@ sub NextLine {
 
 ; X = first row // Y = column
 sub ScrollScreen {
-  txa									; X = X * 2
-  asl
-  tax
+  xsl									; X = X * 2
  loop_scroll_line:
 	lda.w TextScreenBase,x
 	sta.w $00						; $00/$01 = TEXT line base address
