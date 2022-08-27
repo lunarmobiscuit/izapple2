@@ -247,13 +247,13 @@ ff03f0 8d f4 03           sta $03f4
 ff03f3 6c fc ff           jmp ($fffc)
 
 ff03f6 ; SUB screenbase:
-ff03f6 bb                 xsl
+ff03f6 2b                 xsl
 ff03f7 5f bd 00 80 ff     lda.w.a24 $ff8000,X
 ff03fc 1f 85 00           sta.w $00
 ff03ff 4f 60              rts.a24
 
 ff0401 ; SUB clearscreen:
-ff0401 bb                 xsl
+ff0401 2b                 xsl
 ff0402                  loop_clear_line:
 ff0402 5f bd 00 80 ff     lda.w.a24 $ff8000,X
 ff0407 1f 85 00           sta.w $00
@@ -292,7 +292,7 @@ ff0443 85 03              sta $03
 ff0445 4f 60              rts.a24
 
 ff0447 ; SUB scrollscreen:
-ff0447 bb                 xsl
+ff0447 2b                 xsl
 ff0448                  loop_scroll_line:
 ff0448 5f bd 00 80 ff     lda.w.a24 $ff8000,X
 ff044d 1f 85 00           sta.w $00

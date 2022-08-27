@@ -12,3 +12,4 @@ frontend/*/printer.out
 .DS_Store
 resources/Apple2four.dasm.lst
 resources/Apple2four.rom.orig
+frontend/a2fyne/run.out

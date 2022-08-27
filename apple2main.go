@@ -131,7 +131,7 @@ func MainApple() *Apple2 {
 	model := flag.String(
 		"model",
 		"2four", // "2enh",
-		"set base model. Models available 2plus, 2e, 2enh, 2four, base64a")
+		"set base model. Models available 2plus, 2e, 2enh, 2four, 2test, base64a")
 	profile := flag.Bool(
 		"profile",
 		false,
@@ -213,6 +213,8 @@ func MainApple() *Apple2 {
 	switch *model {
 	case "2four":
 		*videxCardSlot = -1
+	case "2test":
+		*vidHDCardSlot = -1
 	case "2plus":
 		*vidHDCardSlot = -1
 	case "2e":
@@ -342,6 +344,20 @@ func initModel(a *Apple2, model string, romFile string, charRomFile string) {
 			charRomFile = "<internal>/Apple2rev7CharGen.rom"
 		}
 		charGenMap = charGenColumnsMap2Plus
+
+	case "2test":
+		setApple2test(a)
+		if romFile == defaultInternal {
+			romFile = "<internal>/Apple2_Test.rom"
+		}
+		if charRomFile == defaultInternal {
+			charRomFile = "<internal>/Apple2rev7CharGen.rom"
+		}
+		charGenMap = charGenColumnsMap2Plus
+		err := a.Load24BitRom("<internal>/Apple2four.rom")
+		if err != nil {
+			panic(err)
+		}
 
 	case "2four":
 		setApple2four(a)

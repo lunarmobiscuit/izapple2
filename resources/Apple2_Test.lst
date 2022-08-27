@@ -1,0 +1,302 @@
+00d000 ; SUB reset:
+00d000 d8                 cld
+00d001 a2 ff              ldx #$ff
+00d003 9a                 txs
+00d004 ad 51 c0           lda $c051
+00d007 ad 54 c0           lda $c054
+00d00a ad 58 c0           lda $c058
+00d00d ad 5a c0           lda $c05a
+00d010 ad 5d c0           lda $c05d
+00d013 ad 5f c0           lda $c05f
+00d016 ad ff cf           lda $cfff
+00d019 2c 10 c0           bit $c010
+00d01c 20 00 f8           jsr $f800
+00d01f 20 22 f8           jsr $f822
+00d022 20 30 f8           jsr $f830
+00d025 20 00 d8           jsr $d800
+00d028 20 30 f8           jsr $f830
+00d02b 20 22 f8           jsr $f822
+00d02e 20 00 e0           jsr $e000
+00d031 20 30 f8           jsr $f830
+00d034 20 22 f8           jsr $f822
+00d037 20 00 f0           jsr $f000
+00d03a                  forever:
+00d03a 20 30 f8           jsr $f830
+00d03d b8                 clv
+00d03e 50 fa              bvc -6
+
+; 1984 BYTES of FILLER
+
+00d800 ; SUB big_registers:
+00d800 a0 00              ldy #$0
+00d802                  loop_y:
+00d802 a9 00              lda #$0
+00d804 85 ff              sta $ff
+00d806 a2 00              ldx #$0
+00d808                  loop_x:
+00d808 20 30 f8           jsr $f830
+00d80b 2f bd 00 04        lda.t $000400,X
+00d80f 2f dd 03 04        cmp.t $000403,X
+00d813 f0 1a              beq +26
+00d815 90 18              bcc +24
+00d817                  swap:
+00d817 2f bd 00 04        lda.t $000400,X
+00d81b 2f 85 00           sta.t $00
+00d81e 2f bd 03 04        lda.t $000403,X
+00d822 2f 9d 00 04        sta.t $000400,X
+00d826 2f a5 00           lda.t $00
+00d829 2f 9d 03 04        sta.t $000403,X
+00d82d e6 ff              inc $ff
+00d82f                  next:
+00d82f e8                 inx
+00d830 e8                 inx
+00d831 e8                 inx
+00d832 e0 1b              cpx #$1b
+00d834 d0 d2              bne -46
+00d836                  test:
+00d836 c8                 iny
+00d837 a5 ff              lda $ff
+00d839 d0 c7              bne -57
+00d83b                  done:
+00d83b 60                 rts
+
+; 1988 BYTES of FILLER
+
+00e000 ; SUB pseudo_ops:
+00e000 a5 a2              lda $a2
+00e002 8d 0d 05           sta $050d
+00e005 a0 00              ldy #$0
+00e007                  loop_y:
+00e007                   ; ld_r255 #$0
+00e007 a9 00              lda #$0
+00e009 85 ff              sta $ff
+00e00b a2 00              ldx #$0
+00e00d                  loop_x:
+00e00d                   ; ld_t0 $0400,X
+00e00d bd 00 04           lda $0400,X
+00e010 85 00              sta $00
+00e012 bd 01 04           lda $0401,X
+00e015 85 01              sta $01
+00e017 bd 02 04           lda $0402,X
+00e01a 85 02              sta $02
+00e01c                   ; ld_t3 $0403,X
+00e01c bd 03 04           lda $0403,X
+00e01f 85 03              sta $03
+00e021 bd 04 04           lda $0404,X
+00e024 85 04              sta $04
+00e026 bd 05 04           lda $0405,X
+00e029 85 05              sta $05
+00e02b 8e 08 05           stx $0508
+00e02e                   ; ccct0 $0000
+00e02e 38                 sec
+00e02f a5 00              lda $00
+00e031 e5 03              sbc $03
+00e033 a5 01              lda $01
+00e035 e5 04              sbc $04
+00e037 a5 02              lda $02
+00e039 e5 05              sbc $05
+00e03b 90 54              bcc +84
+00e03d bd 00 04           lda $0400,X
+00e040 8d 00 05           sta $0500
+00e043 bd 01 04           lda $0401,X
+00e046 8d 01 05           sta $0501
+00e049 bd 03 04           lda $0403,X
+00e04c 8d 03 05           sta $0503
+00e04f bd 04 04           lda $0404,X
+00e052 8d 04 05           sta $0504
+00e055 a5 ff              lda $ff
+00e057 8d 06 05           sta $0506
+00e05a                  swap:
+00e05a                   ; ld_t0 $0400,X
+00e05a bd 00 04           lda $0400,X
+00e05d 85 00              sta $00
+00e05f bd 01 04           lda $0401,X
+00e062 85 01              sta $01
+00e064 bd 02 04           lda $0402,X
+00e067 85 02              sta $02
+00e069                   ; mv_t $0403,X
+00e069 bd 03 04           lda $0403,X
+00e06c 9d 00 04           sta $0400,X
+00e06f bd 04 04           lda $0404,X
+00e072 9d 01 04           sta $0401,X
+00e075 bd 05 04           lda $0405,X
+00e078 9d 02 04           sta $0402,X
+00e07b                   ; st_t0 $0403,X
+00e07b a5 00              lda $00
+00e07d 9d 03 04           sta $0403,X
+00e080 a5 01              lda $01
+00e082 9d 04 04           sta $0404,X
+00e085 a5 02              lda $02
+00e087 9d 05 04           sta $0405,X
+00e08a                   ; ld_r255 #$1
+00e08a a9 01              lda #$1
+00e08c 85 ff              sta $ff
+00e08e 20 30 f8           jsr $f830
+00e091                  next:
+00e091 e8                 inx
+00e092 e8                 inx
+00e093 e8                 inx
+00e094 e0 1b              cpx #$1b
+00e096 f0 03              beq +3
+00e098 4c 0d e0           jmp $e00d
+00e09b                  test:
+00e09b                   ; ld_r255
+00e09b a5 ff              lda $ff
+00e09d f0 03              beq +3
+00e09f 4c 07 e0           jmp $e007
+00e0a2                  done:
+00e0a2 60                 rts
+
+; 3933 BYTES of FILLER
+
+00f000 ; SUB traditional:
+00f000 a0 00              ldy #$0
+00f002                  loop_y:
+00f002 a9 00              lda #$0
+00f004 85 ff              sta $ff
+00f006 a2 00              ldx #$0
+00f008                  loop_x:
+00f008 bd 00 04           lda $0400,X
+00f00b dd 03 04           cmp $0403,X
+00f00e f0 05              beq +5
+00f010 b0 1a              bcs +26
+00f012 b8                 clv
+00f013 50 4c              bvc +76
+00f015                  byte2:
+00f015 bd 01 04           lda $0401,X
+00f018 dd 04 04           cmp $0404,X
+00f01b f0 05              beq +5
+00f01d b0 0d              bcs +13
+00f01f b8                 clv
+00f020 50 3f              bvc +63
+00f022                  byte3:
+00f022 bd 02 04           lda $0402,X
+00f025 dd 05 04           cmp $0405,X
+00f028 f0 37              beq +55
+00f02a 90 35              bcc +53
+00f02c                  swap:
+00f02c bd 00 04           lda $0400,X
+00f02f 85 00              sta $00
+00f031 bd 01 04           lda $0401,X
+00f034 85 01              sta $01
+00f036 bd 02 04           lda $0402,X
+00f039 85 02              sta $02
+00f03b bd 03 04           lda $0403,X
+00f03e 9d 00 04           sta $0400,X
+00f041 bd 04 04           lda $0404,X
+00f044 9d 01 04           sta $0401,X
+00f047 bd 05 04           lda $0405,X
+00f04a 9d 02 04           sta $0402,X
+00f04d a5 00              lda $00
+00f04f 9d 03 04           sta $0403,X
+00f052 a5 01              lda $01
+00f054 9d 04 04           sta $0404,X
+00f057 a5 02              lda $02
+00f059 9d 05 04           sta $0405,X
+00f05c e6 ff              inc $ff
+00f05e 20 30 f8           jsr $f830
+00f061                  next:
+00f061 e8                 inx
+00f062 e8                 inx
+00f063 e8                 inx
+00f064 e0 1b              cpx #$1b
+00f066 d0 a0              bne -96
+00f068 a5 ff              lda $ff
+00f06a d0 96              bne -106
+00f06c 60                 rts
+
+; 1427 BYTES of FILLER
+
+00f600 ; SUB showing_off:
+00f600                   ; ld_r8 #$12
+00f600 a9 12              lda #$12
+00f602 85 08              sta $08
+00f604                   ; ld_w8 #$1234
+00f604 a9 34              lda #$34
+00f606 85 08              sta $08
+00f608 a9 12              lda #$12
+00f60a 85 09              sta $09
+00f60c                   ; ld_t8 #$123456
+00f60c a9 56              lda #$56
+00f60e 85 08              sta $08
+00f610 a9 34              lda #$34
+00f612 85 09              sta $09
+00f614 a9 12              lda #$12
+00f616 85 0a              sta $0a
+
+; 488 BYTES of FILLER
+
+00f800 ; SUB clear_screen:
+00f800 a9 a0              lda #$a0
+00f802 a2 00              ldx #$0
+00f804                  cls_loop:
+00f804 9d 00 04           sta $0400,X
+00f807 9d 80 04           sta $0480,X
+00f80a 9d 00 05           sta $0500,X
+00f80d 9d 80 05           sta $0580,X
+00f810 9d 00 06           sta $0600,X
+00f813 9d 80 06           sta $0680,X
+00f816 9d 00 07           sta $0700,X
+00f819 9d 80 07           sta $0780,X
+00f81c e8                 inx
+00f81d e0 28              cpx #$28
+00f81f d0 e3              bne -29
+00f821 60                 rts
+00f822 ; SUB copy_to_RAM:
+00f822 a2 00              ldx #$0
+00f824                  copy_loop:
+00f824 bd 00 ff           lda $ff00,X
+00f827 9d 00 04           sta $0400,X
+00f82a e8                 inx
+00f82b e0 1d              cpx #$1d
+00f82d d0 f5              bne -11
+00f82f 60                 rts
+00f830 ; SUB wait_for_key:
+00f830                  loop:
+00f830 2c 00 c0           bit $c000
+00f833 10 fb              bpl -5
+00f835 2c 10 c0           bit $c010
+00f838 60                 rts
+
+; 1735 BYTES of FILLER
+
+00ff00 ; DATA sort_me:
+00ff00 d4
+00ff01 da
+00ff02 a0
+00ff03 c2
+00ff04 c1
+00ff05 a0
+00ff06 d5
+00ff07 c1
+00ff08 a0
+00ff09 c2
+00ff0a c2
+00ff0b a0
+00ff0c c2
+00ff0d c2
+00ff0e a0
+00ff0f cc
+00ff10 c3
+00ff11 a0
+00ff12 c5
+00ff13 c5
+00ff14 a0
+00ff15 d3
+00ff16 d8
+00ff17 a0
+00ff18 cf
+00ff19 d9
+00ff1a a0
+00ff1b d2
+00ff1c d9
+00ff1d a0
+
+
+; 220 BYTES of FILLER
+
+00fffa ; DATA Vectors:
+00fffa 00 00
+00fffc 00 d0
+00fffe 00 00
+

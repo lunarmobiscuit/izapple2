@@ -33,6 +33,13 @@ func setApple2four(a *Apple2) {
 	addApple2SoftSwitches(a.io)
 }
 
+func setApple2test(a *Apple2) {
+	a.Name = "Apple ][test"
+	a.cpu = iz6502.NewMythical65c24T8(a.mmu)
+	a.mmu.add24BitMemory(256*1024) // 256K total, including original 64K
+	addApple2SoftSwitches(a.io)
+}
+
 func setApple2plus(a *Apple2) {
 	a.Name = "Apple ][+"
 	a.cpu = iz6502.NewNMOS6502(a.mmu)
