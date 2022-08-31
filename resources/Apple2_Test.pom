@@ -63,11 +63,9 @@ sub big_registers @$D800 {
   inx
 	cpx #27									; Loop N-1 items (N=10, each items is 3 bytes), so 9x3 = 27
 	bne -loop_X
- test:
   iny
 	lda 255
 	bne -loop_Y
- done:
 	rts
 }
 

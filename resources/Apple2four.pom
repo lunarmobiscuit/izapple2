@@ -25,6 +25,12 @@ const CLRROM      = $cfff		// disable slot C8 ROM
 const RSTVECTOR   = $fffc  	// Apple ][ 6502 reset vector
 const PWREDUP     = $03f4  	// Apple ][ stores #$A5 to make RST a soft reboot
 
+global TXTPTR 		= @$FE.a16	// $FE-$FF is the address of the current line of text
+global TXTROW 		= @$3FF			// $3FF is the current row on the text screen
+global TXTPOS 		= @$3FE			// $3FE is the current position (column) in the text screen
+global TXTBUFFER 	= @$200			// $200-$2FF holds the line of text being typed
+
+global ARG0				= @$00
 
 /*
  *  The code begins with a JMPs to the OS functions
@@ -36,6 +42,9 @@ sub Start @$FF0000 {
 	jmp ScrollScreen
 }
 
+/*
+ *  RST vector points here
+ */
 sub Reset @$FF0200 {
 	cld
 	ldx #$ff
@@ -52,6 +61,9 @@ sub Reset @$FF0200 {
 	jsr ClearScreen			; clear the screen (x = row 0)
 }
 
+/*
+ *  Print Apple ][4 at the top of the screen
+ */
 sub AppleII4 {
 	ldx #0
  loop_AppleII4:
@@ -64,44 +76,46 @@ sub AppleII4 {
  done_AppleII4:
 }
 
+/*
+ *  Echo the keys as they are typed and store in @TXTBUFFER
+ */
 sub EchoKeys {
 	lda #2
-	sta $02							; $02 = TEXT ROW (start at row 2)
+	sta @TXTROW							; Start at row 2
 	lda #0
-	sta $03							; $03 = TEXT COLUMN (start at column 0)
+	sta @TXTPOS							; Start at position 0
 	jsr ClearInputBuffer
  echo_loop:
-	ldx $02							; $02 = TEXT ROW
-	jsr ScreenBase			; $00/$01 = TEXT line base address
-	lda $03
+	jsr ScreenBase					; Set the @TEXTPTR based on @TXTROW
+	lda @TXTPOS
 	bne +echo_read
  draw_prompt:
 	ldy #0
-	lda #$BA 						; ':'
-	sta ($00),y
+	lda #':'
+	sta (@TXTPTR),y
 	iny
-	sty $03
+	sty @TXTPOS
  echo_read:
-	bit KBD 					; check keyboard for next key
+	bit KBD 								; check keyboard for next key
 	bpl -echo_read
-	lda KBD 					; get the key code from the keyboard
-	bit KBDSTRB					; clear keyboard strobe (a.k.a. ack keyboard read)
-	cmp #$8D					; 13 = CR ($80 | $0D in high ASCII)
+	lda KBD 								; get the key code from the keyboard
+	bit KBDSTRB							; clear keyboard strobe (a.k.a. ack keyboard read)
+	cmp #$8D								; 13 = CR ($80 | $0D in high ASCII)
 	beq +echo_next_line
-	cmp #$88					; 8 = BS ($80 | $08 in high ASCII)
+	cmp #$88								; 8 = BS ($80 | $08 in high ASCII)
 	beq +echo_backspace
-	cmp #$9B					; 27 = ESC ($80 | $1B in high ASCII)
+	cmp #$9B								; 27 = ESC ($80 | $1B in high ASCII)
 	beq +echo_escape
-	cmp #$99					; control character ($80 | $19 in high ASCII)
+	cmp #$99								; control character ($80 | $19 in high ASCII)
 	bcc -echo_read
-	ldy $03
-	cpy #40 					; ignore if >= column 40
+	ldy @TXTPOS
+	cpy #40 								; ignore if >= column 40
 	beq -echo_loop
-	sta ($00),y
-	and #$7F					; store (low) ASCII in TEXT buffer
+	sta (@TXTPTR),y
+	and #$7F								; store (low) ASCII in TEXT buffer
 	dey
-	sta $200,y
-	inc $03						; next column
+	sta @TXTBUFFER,y
+	inc @TXTPOS							; next position
 	bra -echo_loop
  echo_next_line:
 	jsr NextLine
@@ -110,28 +124,31 @@ sub EchoKeys {
 	jsr ClearInputBuffer
 	jmp echo_loop
  echo_backspace:
-	lda $03
+	lda @TXTPOS
 	beq -echo_loop
 	tay
 	dey
-	sty $03
-	lda #$A0
-	sta ($00),y
+	sty @TXTPOS
+	lda #$A0								; High ASCII ' '
+	sta (@TXTPTR),y
 	jmp echo_loop
  echo_escape:
 	ldx #2
-	jsr ClearScreen		; clear the screen (x = row 2)
+	jsr ClearScreen					; clear the screen (x = row 2)
 	lda #2
-	sta $02						; reset to row 2
+	sta @TXTROW							; reset to row 2
 	lda #0
-	sta $03						; reset to column 0
+	sta @TXTPOS							; reset to position 0
 	jmp echo_loop
 }
 
+/*
+ *  Lookup and execute the typed command
+ */
 sub CommandLine {
  command_check_clear:
-  lda.t #CMD_Clear		; $05/$06/$07 = COMMAND string base address
-  sta.t $05
+  lda.t #CMD_Clear
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_clear
 	jsr DoClear
@@ -139,7 +156,7 @@ sub CommandLine {
  not_command_clear:
  command_check_memory:
   lda.t #CMD_Memory
-  sta.t $05
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_memory
 	lda #0
@@ -148,7 +165,7 @@ sub CommandLine {
  not_command_memory:
  command_check_reset:
   lda.t #CMD_Reset
-  sta.t $05
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_reset
 	jsr DoReset
@@ -156,7 +173,7 @@ sub CommandLine {
  not_command_reset:
  command_check_2plus:
   lda.t #CMD_2Plus
-  sta.t $05
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_2plus
 	jsr Do2Plus
@@ -164,7 +181,7 @@ sub CommandLine {
  not_command_2plus:
  command_check_c081:
   lda.t #CMD_C081
-  sta.t $05
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_c081
 	jsr DoC081
@@ -172,7 +189,7 @@ sub CommandLine {
  not_command_c081:
  command_check_c083:
   lda.t #CMD_C083
-  sta.t $05
+  sta.t @ARG0
 	jsr CompareText
 	beq +not_command_c083
 	jsr DoC083
@@ -181,18 +198,22 @@ sub CommandLine {
 	rts.a24
 }
 
+/*
+ *  Compare the text buffer with a string
+ *  @ARG0.a24 points to the string
+ */
 sub CompareText {
 	ldy #0
  compare_loop:
-	lda $200,y
+	lda @TXTBUFFER,y
  	a24
-	cmp ($05),y
+	cmp (@ARG0),y
 	bne +compare_no_match
 	iny
 	cmp #0
 	bne +compare_loop
  compare_match:
-	lda ($05),y
+	lda (@ARG0),y
 	bne +compare_no_match
 	lda #$FF
 	rts.a24
@@ -201,16 +222,22 @@ sub CompareText {
 	rts.a24
 }
 
+/*
+ *  'clear'
+ */
 sub DoClear {
 	ldx #2
 	jsr ClearScreen
 	lda #2
-	sta $02						; $02 = TEXT ROW (start at row 2)
+	sta @TXTROW						; Start at row 2
 	lda #0
-	sta $03						; $03 = TEXT COLUMN (start at column 0)
+	sta @TXTPOS						; Start at position 0
 	rts.a24
 }
 
+/*
+ *  'memory'
+ */
 sub DoMemory {
 	jsr NextLine
 	lda #0
@@ -230,7 +257,10 @@ sub DoMemory {
 	rts.a24
 }
 
-// A = byte // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+/*
+ *  Print a hex byte
+ *  A = value to print
+ */
 sub PrintHexByte {				
 	pha
 	lsr
@@ -244,7 +274,10 @@ sub PrintHexByte {
 	rts.a24
 }
 
-// A = nibble // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+/*
+ *  Print a hex digit
+ *  A = nibble to print
+ */
 sub PrintHexDigit {
 	cmp #10
 	bcc +print_hex_digit_09
@@ -254,123 +287,139 @@ sub PrintHexDigit {
  print_hex_digit_09:
 	adc #$B0
  print_hex_digit:
-	ldy $03
-	sta ($00),y
-	inc $03
+	ldy @TXTPOS
+	sta (@TXTPTR),y
+	inc @TXTPOS
 	rts.a24
 }
 
-; A = ASCII // $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+/*
+ *  Print a character
+ *  A = ASCII character
+ */
 sub PrintChar {
-	ldy $03
-	sta ($00),y
-	inc $03
+	ldy @TXTPOS
+	sta (@TXTPTR),y
+	inc @TXTPOS
 	rts.a24
 }
 
-; $00/$01 = address of the line on the TEXT screen // $03 = TEXT COLUMN
+/*
+ *  Print a space
+ */
 sub PrintSpace {
 	lda #$A0
-	ldy $03
-	sta ($00),y
-	inc $03
+	ldy @TXTPOS
+	sta (@TXTPTR),y
+	inc @TXTPOS
 	rts.a24
 }
 
+/*
+ *  Restart at the beginning on the ROM
+ *  @@@ Add a warm restart flag like on the ][+
+ */
 sub DoReset {
-  lda #$A1
-  sta $425
-  sta $426
-  sta $427
+	nop											; @@@ THERE IS A BUG THAT FAILS TO COUNT THE LENGTH OF IF THERE IS JUST ONE OPCODE
 	jmp Reset
 }
 
+/*
+ *  Jump to the 6502 RST vector
+ */
 sub Do2Plus {
-	sws							; Reset the stack width to 8-bits
-	ldx #$ff 				; Reset the stack to $1FF
+	sws											; Reset the stack width to 8-bits
+	ldx #$ff 								; Reset the stack to $1FF
 	txs
 	lda #0
-	sta PWREDUP 				; Make sure the Apple ][ ROM thinks this is a fresh reboot
-	jmp (RSTVECTOR)			; Jump to the 6502 64K RST vector
+	sta PWREDUP 						; Make sure the Apple ][ ROM thinks this is a fresh reboot
+	jmp (RSTVECTOR)					; Jump to the 6502 64K RST vector
 }
 
-; X = row // $00/$01 = address of the line on the TEXT screen // -> A = address
+/*
+ *  Compute the TEXT screen pointer
+ */
 sub ScreenBase {
-  xsl									; X = X * 2
- 	lda.w TextScreenBase,x
-	sta.w $00						; $00/$01 = TEXT line base address
+	X = @TXTROW							; X = @TXTROW
+  xsl											; X = X * 2
+	lda.w TextScreenBase,x	; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
 	rts.a24
 }
 
-; X = row // Y = column // $00/$01 = address of the line on the TEXT screen
+/*
+ *  Fill the TEXT screen with spaces from row X to row 23
+ *  X = first row to start clearing
+ */
 sub ClearScreen {
-  xsl									; X = X * 2
+  xsl											; X = X * 2
  loop_clear_line:
- 	lda.w TextScreenBase,x
-	sta.w $00						; $00/$01 = TEXT line base address
-	lda #$A0A0 					; $20 (space) | $80 (high ASCII)
+	lda.w TextScreenBase,x	; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda #$A0 								; $20 (space) | $80 (high ASCII)
 	ldy #0
  loop_clear_char:
-	sta.w ($00),y
+	sta (@TXTPTR),y
 	iny
-	iny
-	cpy #40
+	cpy #40									; 40 columns wide
 	bne -loop_clear_char
 	inx
 	inx
-	cpx #48 // 24 lines * 2
+	cpx #48									; 24 rows (x2 bytes pre row pointer)
 	bne -loop_clear_line
 	rts.a24
 }
 
-; $00/$01 = address of the line on the TEXT screen // $02 = TEXT ROW // $03 = TEXT COLUMN
+; Check to see if the TEXT screen needs to be scrolled, and if so, scroll
 sub NextLine {
-	lda $02
+	lda @TXTROW							; 24 rows tall (0-23)
 	cmp #23
 	beq +next_line_scroll
  next_line_next_row:
-	inc $02						; increment the current row
+	inc @TXTROW							; Increment the current row
+	jsr ScreenBase					; Update the @TXTPTR
 	lda #0
-	sta $03						; reset to column 0
-	ldx $02
-	jsr ScreenBase		; $00/$01 = TEXT line base address
+	sta @TXTPOS							; Reset to position 0
 	rts.a24
  next_line_scroll:
 	ldx #2
-	jsr ScrollScreen			; scroll the screen (x = row 2)
+	jsr ScrollScreen				; Scroll the screen, from row X=2
 	lda #23
-	sta $02						; reset to row 23
-	lda #00
-	sta $03						; reset to column 0
+	sta @TXTROW							; Set to row 23
+	lda #0
+	sta @TXTPOS							; Reset to position 0
 	rts.a24
 }
 
-; X = first row // Y = column
+/*
+ *  Scroll the TEXT screen with spaces from row X to row 23
+ *  X = first row to start clearing
+ */
 sub ScrollScreen {
-  xsl									; X = X * 2
+  xsl											; X = X * 2
  loop_scroll_line:
-	lda.w TextScreenBase,x
-	sta.w $00						; $00/$01 = TEXT line base address
+	lda.w TextScreenBase,x	; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
 	lda.w TextScreenBase+2,x
-	sta.w $04						; $04/$05 = address of the next line on the TEXT screen
+	sta.w $00								; $00-$01 = address of the next line on the TEXT screen
 	ldy #0
  loop_scroll_char:
-	lda ($04),y
-	sta ($00),y
+	lda ($00),y
+	sta (@TXTPTR),y
 	iny
-	cpy #40
+	cpy #40									; 40 columns
 	bne -loop_scroll_char
 	inx
 	inx
-	cpx #46 // 23 lines * 2
+	cpx #46									; Only 23 rows (46 = 23 x 2), as the the last line gets cleared
 	bne -loop_scroll_line
  scroll_clear_last_line:
-	lda.w TextScreenBase,x
-	sta.w $00						; $00/$01 = TEXT line base address
-	lda.w #$A0A0
+	lda.w TextScreenBase,x	; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda.w #$A0A0						; Two ' 's
 	ldy #0
  loop_scroll_clear_line:
-	sta.w ($00),y
+	sta.w (@TXTPTR),y
 	iny
 	iny
 	cpy #40
@@ -379,11 +428,14 @@ sub ScrollScreen {
 	rts.a24
 }
 
+/*
+ *  Clear the text input buffer (255 bytes, filled with zeros)
+ */
 sub ClearInputBuffer {
 	lda #0
 	ldx #$ff
  loop_clear_buffer:
-	sta $200,x					; $200 = TEXT BUFFER ($2FF = length / $2nn = characters)
+	sta @TXTBUFFER,x
 	dex
 	bne -loop_clear_buffer
 	sta $200
@@ -391,6 +443,9 @@ sub ClearInputBuffer {
 }
 
 
+/*
+ *  'c081' @@@ DEBUGGING
+ */
 sub DoC081 {
 	lda $C081
 	lda $C081
@@ -416,11 +471,14 @@ sub DoC081 {
 	rts.a24
 }
 
+/*
+ *  'c083' @@@ DEBUGGING
+ */
 sub DoC083 {
 	lda $C083
 	lda $C083
 	jsr NextLine
-	lda $03
+	lda @TXTPOS
 	sta $E000
 	lda $04
 	sta $E001
@@ -445,7 +503,7 @@ sub DoC083 {
 
 
 /*
- *  The series of data blocks
+ *  The addresses of the 24 TEXT rows
  */
 data TextScreenBase @$FF8000 word {
 	$0400, $0480, $0500, $0580, $0600, $0680, $0700, $0780
@@ -453,10 +511,17 @@ data TextScreenBase @$FF8000 word {
 	$0450, $04D0, $0550, $05D0, $0650, $06D0, $0750, $07D0
 }
 
+
+/*
+ *  The title of the reset screen
+ */
 data Hello string {
 	"Apple ][4"
 }
 
+/*
+ *  The list of commands
+ */
 data CMD_Clear string { "clear" }
 data CMD_Memory string { "memory" }
 data CMD_Reset string { "reset" }

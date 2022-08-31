@@ -365,7 +365,7 @@ func initModel(a *Apple2, model string, romFile string, charRomFile string) {
 			romFile = "<internal>/Apple2_Plus.rom"
 		}
 		if charRomFile == defaultInternal {
-			charRomFile = "<internal>/Apple II4 Video.bin"
+			charRomFile = "<internal>/Apple II4 Charset.rom"
 		}
 		charGenMap = charGenColumnsMap2e
 		err := a.Load24BitRom("<internal>/Apple2four.rom")
@@ -421,7 +421,7 @@ func initModel(a *Apple2, model string, romFile string, charRomFile string) {
 	}
 
 	// Load character generator
-	cg, err := newCharacterGenerator(charRomFile, charGenMap, a.isApple2e, model == "2four")
+	cg, err := newCharacterGenerator(charRomFile, charGenMap, a.isApple2e)
 	if err != nil {
 		panic(err)
 	}
