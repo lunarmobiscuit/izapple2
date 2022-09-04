@@ -135,20 +135,16 @@ func (mmu *memoryManager) accessUpperRAMArea(address uint32) memoryHandler {
 		// Use extended RAM
 		block := mmu.extendedRAMBlock
 		if mmu.lcAltBank && address <= addressLimitDArea {
-fmt.Printf("LC %x -> physicalExtAltRAM[%x]\n", address, block)
 			return mmu.physicalExtAltRAM[block]
 		}
-fmt.Printf("LC %x -> physicalExtRAM[%x]\n", address, mmu.extendedRAMBlock)
 		return mmu.physicalExtRAM[mmu.extendedRAMBlock]
 	}
 
 	// Use language card
 	block := mmu.lcSelectedBlock
 	if mmu.lcAltBank && address <= addressLimitDArea {
-fmt.Printf("LC %x -> physicalLangAltRAM[%x]\n", address, block)
 		return mmu.physicalLangAltRAM[block]
 	}
-fmt.Printf("LC %x -> physicalLangRAM[%x]\n", address, block)
 	return mmu.physicalLangRAM[block]
 }
 

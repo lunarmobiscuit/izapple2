@@ -36,6 +36,14 @@ func MainApple() *Apple2 {
 		"disk35",
 		"",
 		"file to load on the SmartPort disk (slot 5)")
+	fauxDiskRoot := flag.String(
+		"faux",
+		"",
+		"root directory ofthe Faux disk (slot 7)")
+	fauxDiskSlot := flag.Int(
+		"fauxSlot",
+		-1,
+		"slot for the Faux disk if present. -1 for none.")
 	cpuClock := flag.Float64(
 		"mhz",
 		CPUClockMhz,
@@ -124,6 +132,10 @@ func MainApple() *Apple2 {
 		"traceSSReg",
 		false,
 		"dump to the console the sofswitch registrations")
+	traceFD := flag.Bool(
+		"traceFD",
+		false,
+		"dump to the console the fauxdisk commands")
 	traceHD := flag.Bool(
 		"traceHD",
 		false,
@@ -270,6 +282,13 @@ func MainApple() *Apple2 {
 		}
 	}
 
+	if *smartPortImage != "" {
+		err := a.AddSmartPortDisk(5, *smartPortImage, *traceHD)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	if *fastChipCardSlot >= 0 {
 		a.AddFastChip(*fastChipCardSlot)
 	}
@@ -293,6 +312,17 @@ func MainApple() *Apple2 {
 			*hardDiskSlot = 7
 		}
 		err := a.AddSmartPortDisk(*hardDiskSlot, hardDiskImageFinal, *traceHD)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if *fauxDiskRoot != "" {
+		if *fauxDiskSlot <= 0 {
+			// If there is a faux disk drive, but no slot assigned, use slot 7.
+			*fauxDiskSlot = 7
+		}
+		err := a.AddFauxDisk(*fauxDiskSlot, *fauxDiskRoot, *traceFD)
 		if err != nil {
 			panic(err)
 		}

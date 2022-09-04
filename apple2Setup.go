@@ -179,6 +179,18 @@ func (a *Apple2) AddSmartPortDisk(slot int, hdImage string, trace bool) error {
 	return nil
 }
 
+// AddFauxDisk adds a faux disk card and image
+func (a *Apple2) AddFauxDisk(slot int, fauxRoot string, trace bool) error {
+	c := NewCardFauxDisk()
+	c.trace = trace
+	err := c.LoadRoot(fauxRoot)
+	if err != nil {
+		return err
+	}
+	a.insertCard(c, slot)
+	return nil
+}
+
 // AddVidHD adds a card with the signature of VidHD
 func (a *Apple2) AddVidHD(slot int) {
 	a.insertCard(NewCardVidHD(), slot)

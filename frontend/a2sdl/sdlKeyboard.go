@@ -23,7 +23,7 @@ func newSDLKeyBoard(a *izapple2.Apple2) *sdlKeyboard {
 	k.a = a
 	k.keyChannel = izapple2.NewKeyboardChannel(a)
 
-	k.screenMode = screen.ScreenModeNTSC
+	k.screenMode = screen.ScreenModePlain
 	return &k
 }
 

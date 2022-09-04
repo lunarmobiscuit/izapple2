@@ -27,8 +27,7 @@ func main() {
 
 func sdlRun(a *izapple2.Apple2) {
 
-	window, renderer, err := sdl.CreateWindowAndRenderer(4*40*7+8, 4*24*8,
-		sdl.WINDOW_SHOWN)
+	window, renderer, err := sdl.CreateWindowAndRenderer(3*40*7+8, 3*24*8, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic("Failed to create window")
 	}
