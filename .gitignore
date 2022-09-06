@@ -14,3 +14,11 @@ resources/Apple2four.dasm.lst
 resources/Apple2four.rom.orig
 frontend/a2fyne/run.out
 frontend/a2fyne/run.out
+2four/ABC.txt
+2four/DEFG.txt
+2four/Logo.txt
+2four/OS4/HELP.txt
+2four/SCROLLS.txt
+2four/Test.txt
+2four/Z.txt
+frontend/a2sdl/run.out
