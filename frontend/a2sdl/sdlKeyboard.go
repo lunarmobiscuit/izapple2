@@ -60,9 +60,13 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 
 	switch key.Sym {
 	case sdl.K_ESCAPE:
-		result = 27
+		if (ctrl || shift) {
+			k.a.SendCommand(izapple2.CommandReset)
+		} else {
+			result = 27
+		}
 	case sdl.K_BACKSPACE:
-		result = 8
+		result = 127 // was 8 = LEFT, but those two keys should be different behaviors
 	case sdl.K_RETURN:
 		result = 13
 	case sdl.K_RETURN2:
