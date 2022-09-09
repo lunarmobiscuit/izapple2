@@ -222,6 +222,7 @@ func (c *CardFauxDisk) assign(a *Apple2, slot int) {
 		case FAUX_VOLUME_NAME: return c.fauxDiskName()
 		case FAUX_CATALOG: return c.fauxDiskCatalog(true)
 		case FAUX_CATALOG_NEXT: return c.fauxDiskCatalog(false)
+		case FAUX_EXISTS: return c.fauxDiskExists()
 		case FAUX_OPEN: return c.fauxDiskOpen()
 		case FAUX_READ: return c.fauxDiskRead()
 		case FAUX_READ_DMA: return c.fauxDiskReadDMA()
@@ -368,23 +369,52 @@ func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry) []fauxFile {
 	return files
 }
 
+func (c *CardFauxDisk) fauxDiskExists() uint8 {
+	if c.trace {
+		fmt.Printf("[CardFauxDisk] FAUX_EXISTS\n")
+	}
+
+	fname := strings.ToUpper(c.c800toName())
+	if c.trace {
+		fmt.Printf("[CardFauxDisk] EXISTS '%s'\n", fname)
+	}
+
+	// Find the matching file
+	for i := 0; i < len(c.root); i++ {
+		f := c.root[i]
+		if (fname == strings.ToUpper(f.name)) {
+			c.c800[0] = uint8(f.ftype[0]) | 0x80
+			c.c800[1] = uint8(f.ftype[1]) | 0x80
+			c.c800[2] = uint8(f.ftype[2]) | 0x80
+
+			if (f.isdir) {
+				c.c800[3] = '-' | 0x80
+				c.c800[4] = '-' | 0x80
+				c.c800[5] = '-' | 0x80
+			} else {
+				c.c800[3] = uint8(f.size % 1000 / 100) + ('0' | 0x80)
+				c.c800[4] = uint8(f.size % 100 / 10) + ('0' | 0x80)
+				c.c800[5] = uint8(f.size % 10) + ('0' | 0x80)
+			}
+
+			c.c800[6] = uint8(f.size & 0x0ff)
+			c.c800[7] = uint8((f.size >> 8) & 0x0ff)
+			c.c800[8] = uint8((f.size >> 16) & 0x0ff)
+
+			return FAUX_SUCCESS
+		}
+	}
+
+	fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+	return FAUX_ERR_NOT_FOUND
+}
 
 func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_OPEN\n")
 	}
 
-	name := make([]uint8, 16)
-	for i := 0; i < 16; i++ {
-		name[i] = c.c800[i]
-		if c.c800[i] == 0x00 {
-			name = name[:i]
-			break
-		}
-		// @@@ TODO - Add wait to simulate clock cycles
-	}
-	fname := strings.ToUpper(string(name))
-
+	fname := strings.ToUpper(c.c800toName())
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] OPEN '%s'\n", fname)
 	}
@@ -558,6 +588,20 @@ func (c *CardFauxDisk) fauxDiskChdirUp() uint8 {
 	}
 
 	return FAUX_SUCCESS
+}
+
+func (c *CardFauxDisk) c800toName() string {
+	name := make([]uint8, 16)
+	for i := 0; i < 16; i++ {
+		name[i] = c.c800[i]
+		if c.c800[i] == 0x00 {
+			name = name[:i]
+			break
+		}
+		// @@@ TODO - Add wait to simulate clock cycles
+	}
+
+	return string(name)
 }
 
 
