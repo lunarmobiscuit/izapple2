@@ -20,7 +20,6 @@ type sdlKeyboard struct {
 	modeMemory		bool
 	modeBreakpoint	bool
 	modeValue		uint32
-	runUntilPC		bool
 }
 
 func newSDLKeyBoard(a *izapple2.Apple2) *sdlKeyboard {
@@ -56,18 +55,30 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 
 	// Step-by-step debugging mode
 	if k.a.IsPaused() && !k.a.IsRunningUntilPC() {
-fmt.Printf("MONITOR: %c\n", key.Sym)
 		switch key.Sym {
 		case ' ':
 			k.a.SendCommand(izapple2.CommandNextStep)
 			return
 		case sdl.K_RETURN:
 			if k.modeMemory {
-				fmt.Printf("0x%x :: \n", k.modeValue)
+				address := k.modeValue & 0x0FFFFF0
+				fmt.Printf("0x%06x :: ", address)
+				for i := 0; i < 16; i++ {
+					fmt.Printf("%02x ", k.a.Peek(address + uint32(i)))
+				}
+				fmt.Printf("  ")
+				for i := 0; i < 16; i++ {
+					ch := k.a.Peek(address + uint32(i))
+					if (ch == 0) { ch = '.' } else if (ch < 32) { ch += 32 }
+					fmt.Printf("%c", ch)
+				}
+				fmt.Printf("\n")
+
+				k.modeValue += 16
 				return
 			} else if k.modeBreakpoint {
+				k.modeBreakpoint = false
 				fmt.Printf("0x%x :: \n", k.modeValue)
-				k.runUntilPC = true
 				k.a.SetUntilPC(k.modeValue)
 				return
 			}
@@ -87,18 +98,22 @@ fmt.Printf("MONITOR: %c\n", key.Sym)
 				return
 			}
 		case 'M','m':
-			fmt.Printf("Dump memory: ")
+			fmt.Printf("*** MEMORY: \n")
 			k.modeMemory = true
 			k.modeBreakpoint = false
 			k.modeValue = 0
 			return
 		case 'P','p':
-			fmt.Printf("Breakpoint: ")
+			fmt.Printf("*** Run to PC: ")
 			k.modeMemory = false
 			k.modeBreakpoint = true
 			k.modeValue = 0
 			return
-		case sdl.K_ESCAPE:
+		case '.':
+			fmt.Printf("*** Run to PC (again)\n", )
+			k.a.SetUntilPC(0xffffff)
+			return
+		case 'R', 'r', sdl.K_ESCAPE:
 			k.a.SendCommand(izapple2.CommandStart)
 			k.a.SendCommand(izapple2.CommandCPUTraceOff)
 			return

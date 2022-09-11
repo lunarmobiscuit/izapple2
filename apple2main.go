@@ -2,6 +2,8 @@ package izapple2
 
 import (
 	"flag"
+	"fmt"
+	"strconv"
 )
 
 const defaultInternal = "<default>"
@@ -120,6 +122,10 @@ func MainApple() *Apple2 {
 		"panicSS",
 		false,
 		"panic if a not implemented softswitch is used")
+	runToPC := flag.String(
+		"runToPC",
+		"",
+		"run until the specified PC is reached, then step")
 	traceCPU := flag.Bool(
 		"traceCpu",
 		false,
@@ -220,6 +226,17 @@ func MainApple() *Apple2 {
 
 	initModel(a, *model, *romFile, *charRomFile)
 	a.cpu.SetTrace(*traceCPU)
+
+	if *runToPC != "" {
+		var pc int64
+		if len(*runToPC) > 2 && (*runToPC)[:2] == "0x" {
+			pc, _ = strconv.ParseInt((*runToPC)[2:], 16, 32)
+		} else {
+			pc, _ = strconv.ParseInt(*runToPC, 16, 32)
+		}
+		fmt.Printf("*** RUN until PC = 0x%06x\n", pc)
+		a.SetUntilPC(uint32(pc))
+	}
 
 	// Disable incompatible cards
 	switch *model {

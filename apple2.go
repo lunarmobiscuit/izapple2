@@ -29,8 +29,8 @@ type Apple2 struct {
 	paused              bool
 	stepping            bool
 	nextStep            bool
-	stopAtPC			bool
-	stopAtAddr			uint32
+	stoppingAtPC		bool
+	stopAtPC			uint32
 	tracers             []executionTracer
 	forceCaps           bool
 }
@@ -67,7 +67,7 @@ func (a *Apple2) Start(paused bool) {
 
 	for {
 		// Run 6502 steps
-		if !a.paused || (a.stepping && (a.nextStep || a.stopAtPC)) {
+		if !a.paused || (a.stepping && (a.nextStep || a.stoppingAtPC)) {
 			for i := 0; i < cpuSpinLoops; i++ {
 				// Conditional tracing
 				//a.cpu.SetTrace((pc >= 0xc300 && pc <= 0xc400) || (pc >= 0xc800 && pc <= 0xce00))
@@ -79,11 +79,14 @@ func (a *Apple2) Start(paused bool) {
 				a.executionTrace()
 
 				// Waiting on PC or stepping instructions
-				if a.stopAtPC {
+				if a.stoppingAtPC {
 					pc := a.cpu.GetPC()
-					if (pc == a.stopAtAddr) {
-						a.stopAtPC = false
+					if (pc == a.stopAtPC) {
+						a.stoppingAtPC = false
+						a.paused = true
 						a.cpu.SetTrace(true)
+						fmt.Printf("*** STOPPED AT PC 0x%06x\n", pc)
+						fmt.Printf("*** SPACE to STEP - P to set PC - M to dump memory\n")
 						break
 					}
 				} else if (a.stepping) {
@@ -112,26 +115,26 @@ func (a *Apple2) Start(paused bool) {
 				case CommandPause:
 					if !a.paused {
 						a.paused = true
-						a.stopAtPC = false
+						a.stoppingAtPC = false
 					}
 				case CommandStep:
 					if !a.stepping {
 						a.paused = true
 						a.stepping = true
 						a.nextStep = true
-						a.stopAtPC = false
+						a.stoppingAtPC = false
 					}
 				case CommandNextStep:
 					if a.stepping {
 						a.nextStep = true
-						a.stopAtPC = false
+						a.stoppingAtPC = false
 					}
 				case CommandStart:
 					if a.paused {
 						a.paused = false
 						a.stepping = false
 						a.nextStep = false
-						a.stopAtPC = false
+						a.stoppingAtPC = false
 						referenceTime = time.Now()
 						speedReferenceTime = referenceTime
 					}
@@ -200,15 +203,19 @@ func (a *Apple2) IsStepping() bool {
 
 // SetUntilPC runs until the emulator reaches the specific PC
 func (a *Apple2) IsRunningUntilPC() bool {
-	return a.stopAtPC
+	return a.stoppingAtPC
 }
 
 // SetUntilPC runs until the emulator reaches the specific PC
 func (a *Apple2) SetUntilPC(pc uint32) {
 	a.cpu.SetTrace(false)
+	a.paused = false
 	a.stepping = true
-	a.stopAtPC = true
-	a.stopAtAddr = pc
+	a.nextStep = false
+	a.stoppingAtPC = true
+	if (pc != 0xffffff) {
+		a.stopAtPC = pc
+	}
 }
 
 func (a *Apple2) GetCycles() uint64 {
@@ -330,6 +337,11 @@ func (a *Apple2) executionTrace() {
 		}
 	}
 }
+
+func (a *Apple2) Peek(address uint32) uint8 {
+	return a.mmu.Peek(address)
+}
+
 
 func (a *Apple2) dumpDebugInfo() {
 	// See "Apple II Monitors Peeled"

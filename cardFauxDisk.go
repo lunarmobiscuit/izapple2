@@ -61,6 +61,8 @@ type CardFauxDisk struct {
 	retErr		uint8
 
 	c800		[0x800]uint8
+
+	catDir		[]fauxFile
 }
 
 // CardFauxDisk represents a faux storage disk but is just the emulator's hard disk
@@ -70,6 +72,7 @@ type fauxFile struct {
 	ftype		string
 	size		int64
 	isdir		bool
+	subdir		[]fauxFile
 }
 
 
@@ -105,7 +108,12 @@ func (c *CardFauxDisk) reloadRoot() error {
 	if err != nil {
 		return err
 	}
-	c.root = c.processDirectory(dir)
+	root, err := c.processDirectory(dir, 0)
+	if (err != nil) {
+		return err
+	}
+	c.root = root
+
 	return nil
 }
 
@@ -269,11 +277,21 @@ func (c *CardFauxDisk) fauxDiskName() uint8 {
 //    0xC806-0xC8nn = zero-terminated name (high ASCII)
 //
 func (c *CardFauxDisk) fauxDiskCatalog(firstCall bool) uint8 {
-	if c.trace {
-		fmt.Printf("[CardFauxDisk] FAUX_CATALOG %t\n", firstCall)
+	// Optional subdir name
+	catSubdir := false
+	dirname := strings.ToUpper(c.c800toName())
+	if dirname != "" {
+		catSubdir = true
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] FAUX_CATALOG %s %t\n", dirname, firstCall)
+		}
+	} else {
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] FAUX_CATALOG %t\n", firstCall)
+		}
 	}
-
-	// Begint the catalog process
+	
+	// Begin the catalog process
 	if (firstCall) {
 		// Load the root directory
 		c.LoadRoot(c.rootName)
@@ -281,13 +299,26 @@ func (c *CardFauxDisk) fauxDiskCatalog(firstCall bool) uint8 {
 		// Reset the directory index
 		c.dirIdx = 0
 
-		// Return the number of items in directory
-		c.ret0 = uint32(len(c.root) & 0x0FFFFFF)
-	} else if (c.dirIdx >= len(c.root)) {
+		if catSubdir {
+			subdir := c.findSubdir(dirname)
+			if (subdir == nil) {
+				fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+				return FAUX_ERR_NOT_FOUND
+			}
+			c.catDir = subdir
+
+			// Return the number of items in subdr
+			c.ret0 = uint32(len(subdir) & 0x0FFFFFF)
+		} else {
+			// Return the number of items in directory
+			c.catDir = c.root
+			c.ret0 = uint32(len(c.root) & 0x0FFFFFF)
+		}
+	} else if (c.dirIdx >= len(c.catDir)) {
 		// No more items
 		return FAUX_END_OF_CATALOG
 	} else {
-		f := c.root[c.dirIdx]
+		f := c.catDir[c.dirIdx]
 
 		c.c800[0] = uint8(f.ftype[0]) | 0x80
 		c.c800[1] = uint8(f.ftype[1]) | 0x80
@@ -320,7 +351,7 @@ func (c *CardFauxDisk) fauxDiskCatalog(firstCall bool) uint8 {
 //
 //  Process the items from the OS directory
 //
-func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry) []fauxFile {
+func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry, level int) ([]fauxFile, error) {
 	nFiles := len(dir)
 	files := make([]fauxFile, nFiles)
 	n := 0
@@ -343,9 +374,25 @@ func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry) []fauxFile {
 
 		// Extract and return a 3-byte type (from the filename .suffix)
 		if (f.isdir) {
+			// Only allow one level of subdirectories
+			if (level > 0) {
+				continue
+			}
+
 			f.ftype = ":::"
 			f.name = f.filename
 			f.size = 0
+
+			// Load the sub directory
+			subdir, err := os.ReadDir(c.rootName + "/" + f.filename)
+			if err != nil {
+				return files, err
+			}
+
+			f.subdir , err = c.processDirectory(subdir, level+1)
+			if err != nil {
+				return files, err
+			}
 		} else {
 			dot := strings.LastIndexByte(f.filename, '.')
 			if (dot != -1) {
@@ -369,7 +416,23 @@ func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry) []fauxFile {
 		n += 1
 	}
 
-	return files
+	return files, nil
+}
+
+
+//
+//  Find a subdir in root
+//
+func (c *CardFauxDisk) findSubdir(dirname string) []fauxFile {
+	// Find the matching subdir
+	for i := 0; i < len(c.root); i++ {
+		f := c.root[i]
+		if (dirname == strings.ToUpper(f.name)) {
+			return f.subdir
+		}
+	}
+
+	return nil
 }
 
 
@@ -387,10 +450,25 @@ func (c *CardFauxDisk) fauxDiskExists() uint8 {
 		fmt.Printf("[CardFauxDisk] EXISTS '%s'\n", fname)
 	}
 
+	// Subdir is specified by a colon 
+	colon := strings.IndexByte(fname, ':')
+	if (colon == -1) {
+		return c.fauxDiskExists__(fname, c.root, "")
+	} else {
+		dirname := fname[:colon]
+		subdir := c.findSubdir(dirname)
+		if (subdir == nil) {
+			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			return FAUX_ERR_NOT_FOUND
+		}
+		return c.fauxDiskExists__(fname[colon+1:], subdir, dirname + "/")
+	}
+}
+func (c *CardFauxDisk) fauxDiskExists__(filename string, dir []fauxFile, dirName string) uint8 {
 	// Find the matching file
-	for i := 0; i < len(c.root); i++ {
-		f := c.root[i]
-		if (fname == strings.ToUpper(f.name)) {
+	for i := 0; i < len(dir); i++ {
+		f := dir[i]
+		if (filename == strings.ToUpper(f.name)) {
 			c.c800[0] = uint8(f.ftype[0]) | 0x80
 			c.c800[1] = uint8(f.ftype[1]) | 0x80
 			c.c800[2] = uint8(f.ftype[2]) | 0x80
@@ -436,9 +514,24 @@ func (c *CardFauxDisk) fauxDiskCreate() uint8 {
 		fmt.Printf("[CardFauxDisk] CREATE '%s.%s'\n", fname, ftype)
 	}
 
+	// Subdir is specified by a colon 
+	colon := strings.IndexByte(fname, ':')
+	if (colon == -1) {
+		return c.fauxDiskCreate__(fname, fnameUC, ftype, c.root, "")
+	} else {
+		dirname := fname[:colon]
+		subdir := c.findSubdir(dirname)
+		if (subdir == nil) {
+			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			return FAUX_ERR_NOT_FOUND
+		}
+		return c.fauxDiskCreate__(fname[colon+1:], fnameUC[colon+1:], ftype, subdir, dirname + "/")
+	}
+}
+func (c *CardFauxDisk) fauxDiskCreate__(fname string, fnameUC string, ftype string, dir []fauxFile, dirName string) uint8 {
 	// Check if the file already exists
-	for i := 0; i < len(c.root); i++ {
-		f := c.root[i]
+	for i := 0; i < len(dir); i++ {
+		f := dir[i]
 		if (fnameUC == strings.ToUpper(f.name)) {
 			if c.trace {
 				fmt.Printf("[CardFauxDisk] ERROR: '%s' already exists\n", fname)
@@ -447,7 +540,7 @@ func (c *CardFauxDisk) fauxDiskCreate() uint8 {
 		}
 	}
 
-	file, err := os.Create(string(c.rootName + "/" + fname + "." + ftype))
+	file, err := os.Create(string(c.rootName + "/" + dirName + fname + "." + ftype))
 	if (err != nil) {
 		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
 		return FAUX_ERR_NOT_FOUND
@@ -475,12 +568,28 @@ func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 		fmt.Printf("[CardFauxDisk] OPEN '%s'\n", fname)
 	}
 
+	// Subdir is specified by a colon 
+	colon := strings.IndexByte(fname, ':')
+	if (colon == -1) {
+		return c.fauxDiskOpen__(fname, c.root, "")
+	} else {
+		dirname := fname[:colon]
+		subdir := c.findSubdir(dirname)
+		if (subdir == nil) {
+			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			return FAUX_ERR_NOT_FOUND
+		}
+		return c.fauxDiskOpen__(fname[colon+1:], subdir, dirname + "/")
+	}
+
+}
+func (c *CardFauxDisk) fauxDiskOpen__(filename string, dir []fauxFile, dirName string) uint8 {
 	// Find the matching file
 	hasMatch := false
 	catIdx := 0
-	for i := 0; i < len(c.root); i++ {
-		f := c.root[i]
-		if (fname == strings.ToUpper(f.name)) {
+	for i := 0; i < len(dir); i++ {
+		f := dir[i]
+		if (filename == strings.ToUpper(f.name)) {
 			catIdx = i
 			hasMatch = true
 			break
@@ -491,7 +600,8 @@ func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 		return FAUX_ERR_NOT_FOUND
 	}
 
-	file, err := os.Open(string(c.rootName + "/" + c.root[catIdx].filename))
+fmt.Printf("  OPEN '%s'\n", c.rootName + "/" + dirName + dir[catIdx].filename)
+	file, err := os.Open(string(c.rootName + "/" + dirName + dir[catIdx].filename))
 	if (err != nil) {
 		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
 		return FAUX_ERR_NOT_FOUND
