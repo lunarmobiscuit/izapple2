@@ -8,7 +8,7 @@
 /*
  *  '?' - List the commands
  */
-sub DoHelp(NUMP %%0) {
+sub DoHelp(NPRM %%0) {
 	var I	= @$04						; loop variable
 	var I6	= @$05						; I * 6
 	var COL	= @$06						; column 0/12/24
@@ -72,8 +72,8 @@ sub DoHelp(NUMP %%0) {
 /*
  *  'ascii' - Show all the ASCII characters
  */
-sub DoAscii(NUMP %%0) {
-	lda @NUMP
+sub DoAscii(NPRM %%0) {
+	lda @NPRM
 	IF (==) {
 		jmp asciiChart
 	}
@@ -81,7 +81,7 @@ sub DoAscii(NUMP %%0) {
 		jmp asciiChar
 	}
 }
-sub asciiChart(NUMP %%0) {
+sub asciiChart(NPRM %%0) {
 	var I	= @$00						; loop variable
 	var J	= @$01						; I * 6
 	var C	= @$02						; (@I << 4) + J
@@ -121,7 +121,7 @@ sub asciiChart(NUMP %%0) {
 
 	RETURN
 }
-sub asciiChar(NUMP %%0, CMD %%0.1, CHARS %%0.4) {
+sub asciiChar(NPRM %%0, CMD %%0.1, CHARS %%0.4) {
 	var I		= %R0.t
 	var ASCII	= %R3
 
@@ -132,7 +132,7 @@ sub asciiChar(NUMP %%0, CMD %%0.1, CHARS %%0.4) {
 		ldy.t @I
 		lda.a24 XY
 		sta.t @ASCII
-		if (==) {						; Iterate until the end of the string of characters
+		IF (==) {						; Iterate until the end of the string of characters
 			BREAK
 		}
 
@@ -195,7 +195,7 @@ sub asciiChar(NUMP %%0, CMD %%0.1, CHARS %%0.4) {
 		lda #PAGINATE_LINES_PER_PAGE
 		sta %%7
 		jsr PaginateLine
-		if (!=) {
+		IF (!=) {
 			BREAK
 		}
 	}
@@ -211,19 +211,37 @@ sub asciiChar(NUMP %%0, CMD %%0.1, CHARS %%0.4) {
 /*
  *  'catalog' - Show the list of files on the harddisk or floppy
  */
-sub DoCatalog(NUMP %%0) {
+sub DoCatalog(NPRM %%0, CMD %%0.1, DIRNAME %%0.4) {
 	jsr NextLine
+
+	lda @NPRM						; no dirname
+	IF (< 1) {
+		stz %%0.8					; Store a zero as an empty string
+		lda.t #%%0.8				; Point @DIRNAME there
+		sta.t @DIRNAME
+	}
 
 	lda.t #CatalogHeaderStr
 	sta.t %%7
 	jsr PrintString
-	jsr Disk4Name
-	stx.t %%7
+	lda @NPRM
+	IF (< 1) {
+		jsr Disk4Name
+		stx.t %%7
+	}
+	ELSE {
+		lda #':'H
+		jsr PrintChar
+		lda.t @DIRNAME
+		sta.t %%7
+	}
 	jsr PrintString
 	jsr NextLine
 
+	lda.t @DIRNAME
+	sta.t %%6
 	jsr Disk4CatalogStart
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
@@ -231,7 +249,7 @@ sub DoCatalog(NUMP %%0) {
 
 	LOOP {
 		jsr Disk4CatalogNext
-		if (!=) {
+		IF (!=) {
 			BREAK
 		}
 		stx.t %%7
@@ -269,7 +287,7 @@ sub DoCatalog(NUMP %%0) {
 /*
  *  'clear'
  */
-sub DoClear(NUMP %%0) {
+sub DoClear(NPRM %%0) {
 	lda @DISPMODE
 	cmp #DISP_TEXT_1
 	IF (==) {
@@ -315,7 +333,7 @@ sub DoClear(NUMP %%0) {
 /*
  *  'echo'
  */
-sub DoEcho(NUMP %%0, INPUT @$200) {
+sub DoEcho(NPRM %%0, INPUT @$200) {
 	lda #@INPUT
 	sta.t %%7
 	jsr PrintString
@@ -328,18 +346,18 @@ sub DoEcho(NUMP %%0, INPUT @$200) {
  *  'load' filename,address
  *
  */
-sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
+sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	jsr NextLine
 
-	lda @NUMP						; must specify a filename
-	if (< 1) {
+	lda @NPRM						; must specify a filename
+	IF (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
 		RETURN
 	}
-	lda @NUMP						; and an address
-	if (< 2) {
+	lda @NPRM						; and an address
+	IF (< 2) {
 		lda.t #NoAddressErrStr
 		sta.t %%7
 		jsr PrintError
@@ -352,7 +370,7 @@ sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	sta.t @ADDRESS
 
 	lda.t @FILENAME					; filename exists?
-	if (==) {
+	IF (==) {
 		lda #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -362,7 +380,7 @@ sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	var FN = %R3.b
 	sta.t %%6
 	jsr Disk4Open
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
@@ -376,11 +394,11 @@ sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	stz.t @R_IDX
 	LOOP {
 		jsr Disk4Read
-		if (== DISK4_END_OF_FILE) {		; Until EOF
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
 			BREAK
 		}
 		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
-		if (==) {
+		IF (==) {
 			BREAK
 		}
 		sta.w @ACTUAL
@@ -432,11 +450,11 @@ sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 /*
  *  'view'
  */
-sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
+sub DoView(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	jsr NextLine
 
-	lda @NUMP						; must specify a filename
-	if (< 1) {
+	lda @NPRM						; must specify a filename
+	IF (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -447,7 +465,7 @@ sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 	lda.t @FILENAME
 	sta.t %%6
 	jsr Disk4Open
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
@@ -460,11 +478,11 @@ sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 	stz @TXTPGROWS
 	LOOP {
 		jsr Disk4Read
-		if (== DISK4_END_OF_FILE) {		; Until EOF
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
 			BREAK
 		}
 		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
-		if (==) {
+		IF (==) {
 			BREAK
 		}
 		sta.t @ACTUAL
@@ -478,7 +496,7 @@ sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 				lda #PAGINATE_LINES_PER_PAGE
 				sta %%7
 				jsr PaginateLine
-				if (!=) {
+				IF (!=) {
 					BREAK
 				}
 			}
@@ -489,7 +507,7 @@ sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 					lda #PAGINATE_LINES_PER_PAGE
 					sta %%7
 					jsr PaginateLine
-					if (!=) {
+					IF (!=) {
 						bra +done
 					}
 					CONTINUE
@@ -523,32 +541,32 @@ sub DoView(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 /*
  *  'store' - Store memory to a file
  */
-sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LENGTH %%0.13) {
+sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LENGTH %%0.13) {
 	jsr NextLine
 
-	lda @NUMP						; must specify a filename
-	if (< 1) {
+	lda @NPRM						; must specify a filename
+	IF (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
 		RETURN
 	}
-	lda @NUMP						; and an file type
-	if (< 2) {
+	lda @NPRM						; and an file type
+	IF (< 2) {
 		lda.t #NoFileTypeErrStr
 		sta.t %%7
 		jsr PrintError
 		RETURN
 	}
-	lda @NUMP						; and an address
-	if (< 3) {
+	lda @NPRM						; and an address
+	IF (< 3) {
 		lda.t #NoAddressErrStr
 		sta.t %%7
 		jsr PrintError
 		RETURN
 	}
-	lda @NUMP						; and a length
-	if (< 4) {
+	lda @NPRM						; and a length
+	IF (< 4) {
 		lda.t #NoLengthErrStr
 		sta.t %%7
 		jsr PrintError
@@ -563,7 +581,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 	ldx.t @LENGTH
 	lda.a24 X
 	cmp #'+'
-	if (==) {						; +length 
+	IF (==) {						; +length 
 		inx.t						; address+1 to skip the '+'
 		stx.t %%7
 		jsr ParseNumber
@@ -576,7 +594,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 		sec							; length = end - start
 		sbc.t @ADDRESS
 		sta.t @LENGTH
-		if (-) {
+		IF (-) {
 			lda.t #EndBeforeStartErrStr
 			sta.t %%7
 			jsr PrintError
@@ -585,7 +603,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 	}
 
 	lda.t @FILENAME					; filename exists?
-	if (==) {
+	IF (==) {
 		lda #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -593,7 +611,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 	}
 	sta.t %%6
 	lda.t @TYPE						; type exists?
-	if (==) {
+	IF (==) {
 		lda #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -603,7 +621,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 	var FN = %R3.b
 	sta.t %%6.3
 	jsr Disk4Create
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
@@ -620,7 +638,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 	stz.t @W_IDX
 	LOOP {
 		lda.t @REMAINING				; Stop when all the bytes are written
-		if (==) {
+		IF (==) {
 			BREAK
 		}
 
@@ -655,7 +673,7 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 		sta.w @REMAINING
 
 		jsr Disk4Write
-		if (!=) {						; All errors are bad
+		IF (!=) {						; All errors are bad
 			jsr Disk4PrintError
 			BREAK
 		}
@@ -669,12 +687,12 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LEN
 /*
  *  'peek' addr[,addr] or addr[,+length]
  */
-sub DoPeek(NUMP %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
+sub DoPeek(NPRM %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
 	var CUR_ADDR 	= %%0.252.t				; current address
 	var ADDR 		= %R3.t
 
-	lda @NUMP								; must specify a filename
-	if (< 1) {
+	lda @NPRM								; must specify a filename
+	IF (< 1) {
 		lda.t #NoAddressErrStr
 		sta.t %%7
 		jsr PrintError
@@ -686,12 +704,12 @@ sub DoPeek(NUMP %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
 	and.t #$FFFFF0							; round down to multiple of 16
 	sta.t @START_ADDR
 
-	lda @NUMP								; and an address
-	if (>= 2) {
+	lda @NPRM								; and an address
+	IF (>= 2) {
 		ldx.t @END_ADDR
 		lda.a24 X
 		cmp #'+'
-		if (==) {							; +length 
+		IF (==) {							; +length 
 			inx.t							; address+1 to skip the '+'
 			stx.t %%7
 			jsr ParseNumber
@@ -721,7 +739,7 @@ sub DoPeek(NUMP %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
 		lda #PAGINATE_LINES_PER_PAGE
 		sta %%7
 		jsr PaginateLine
-		if (!=) {
+		IF (!=) {
 			BREAK
 		}
 
@@ -730,7 +748,7 @@ sub DoPeek(NUMP %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
 		adc.t #8
 		sta.t @CUR_ADDR
 		cmp.t @END_ADDR
-		if (>=) {
+		IF (>=) {
 			BREAK
 		}
 	}
@@ -783,11 +801,11 @@ sub Draw_Peek_Line(CUR_ADDR %%0.252.t) {
 /*
  *  'poke' addr,value
  */
-sub DoPoke(NUMP %%0, CMD %%0.1, ADDRESS %%0.4, VALUE %%0.7) {
+sub DoPoke(NPRM %%0, CMD %%0.1, ADDRESS %%0.4, VALUE %%0.7) {
 	var CUR_ADDR 	= %%0.252.t			; current address
 
-	lda @NUMP							; must specify a filename
-	if (< 1) {
+	lda @NPRM							; must specify a filename
+	IF (< 1) {
 		lda.t #NoAddressErrStr
 		sta.t %%7
 		jsr PrintError
@@ -798,8 +816,8 @@ sub DoPoke(NUMP %%0, CMD %%0.1, ADDRESS %%0.4, VALUE %%0.7) {
 	jsr ParseNumber
 	sta.t @ADDRESS
 
-	lda @NUMP							; must specify a value
-	if (< 2) {
+	lda @NPRM							; must specify a value
+	IF (< 2) {
 		lda.t #NoValueErrStr
 		sta.t %%7
 		jsr PrintError
@@ -844,11 +862,11 @@ sub DoPoke(NUMP %%0, CMD %%0.1, ADDRESS %%0.4, VALUE %%0.7) {
  *  'run' filename
  *
  */
-sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
+sub DoRun(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	jsr NextLine
 
-	lda @NUMP							; must specify a filename
-	if (< 1) {
+	lda @NPRM							; must specify a filename
+	IF (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -856,7 +874,7 @@ sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 
 	lda.t @FILENAME						; filename exists?
-	if (==) {
+	IF (==) {
 		lda #NoFilenameErrStr
 		sta.t %%7
 		jsr PrintError
@@ -865,13 +883,13 @@ sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 
 	sta.t %%6
 	jsr Disk4Exists
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
 	lda.t @DISK4_RAM					; The type is returned in $C800-$C802
 	cmp.t #$ced5d2						; "NUR" = "RUN" loaded as one little-endian 24-bit value
-	if (!=) {
+	IF (!=) {
 		lda.t #NotRUNFileError
 		sta.t %%7
 		jsr PrintError
@@ -880,7 +898,7 @@ sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 
 	var FN = %R3.b
 	jsr Disk4Open
-	if (!=) {
+	IF (!=) {
 		jsr Disk4PrintError
 		RETURN
 	}
@@ -894,11 +912,11 @@ sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 	stz.t @R_IDX
 	LOOP {
 		jsr Disk4Read
-		if (== DISK4_END_OF_FILE) {		; Until EOF
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
 			BREAK
 		}
 		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
-		if (==) {
+		IF (==) {
 			BREAK
 		}
 		sta.t @ACTUAL
@@ -942,7 +960,7 @@ sub DoRun(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
  *  'reset' - restarts at the beginning on the ROM
  *  @@@ Add a warm restart flag like on the ][+
  */
-sub DoReset(NUMP %%0) {
+sub DoReset(NPRM %%0) {
 	nop											; @@@ THERE IS A BUG THAT FAILS TO COUNT THE LENGTH OF IF THERE IS JUST ONE OPCODE
 	jmp Reset
 }
@@ -951,9 +969,9 @@ sub DoReset(NUMP %%0) {
 /*
  *  'text' - Switch to the TEXT screen (screen 1 or screen 2)
  */
-sub DoText(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
-	lda @NUMP
-	if (< 1) {
+sub DoText(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
+	lda @NPRM
+	IF (< 1) {
 		lda #DISP_TEXT_1
 		jsr SetScreenMode
 		RETURN
@@ -962,14 +980,14 @@ sub DoText(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 	ldx.t @WHERE
 	lda.a24 X
 	cmp #'8'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
 		cmp #'0'
-		if (==) {
+		IF (==) {
 			ldy #2
 			lda.a24 XY
-			if (==) {
+			IF (==) {
 				lda #DISP_80COL_1
 				jsr SetScreenMode
 			}
@@ -980,20 +998,20 @@ sub DoText(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 		RETURN
 	}
 	cmp #'1'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_TEXT_1
 			jsr SetScreenMode
 			RETURN
 		}
 	}
 	cmp #'2'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_TEXT_2
 			jsr SetScreenMode
 			RETURN
@@ -1010,9 +1028,9 @@ sub DoText(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 /*
  *  'lores' - Switch to the LORES screen (screen 1 or screen 2)
  */
-sub DoLores(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
-	lda @NUMP
-	if (< 1) {
+sub DoLores(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
+	lda @NPRM
+	IF (< 1) {
 		lda #DISP_LORES_2				; Default is page 2 (to not overlap the commands on TEXT page 1)
 		jsr SetScreenMode
 		RETURN
@@ -1021,20 +1039,20 @@ sub DoLores(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 	ldx.t @WHERE
 	lda.a24 X
 	cmp #'1'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_LORES_1
 			jsr SetScreenMode
 			RETURN
 		}
 	}
 	cmp #'2'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_LORES_2
 			jsr SetScreenMode
 			RETURN
@@ -1051,9 +1069,9 @@ sub DoLores(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 /*
  *  'hires' - Switch to the HIRES screen (screen 1 or screen 2)
  */
-sub DoHires(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
-	lda @NUMP
-	if (< 1) {
+sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
+	lda @NPRM
+	IF (< 1) {
 		lda #DISP_HIRES_1
 		jsr SetScreenMode
 		RETURN
@@ -1062,20 +1080,20 @@ sub DoHires(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 	ldx.t @WHERE
 	lda.a24 X
 	cmp #'1'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_HIRES_1
 			jsr SetScreenMode
 			RETURN
 		}
 	}
 	cmp #'2'
-	if (==) {
+	IF (==) {
 		ldy #1
 		lda.a24 XY
-		if (==) {
+		IF (==) {
 			lda #DISP_HIRES_2
 			jsr SetScreenMode
 			RETURN
@@ -1092,7 +1110,7 @@ sub DoHires(NUMP %%0, CMD %%0.1, WHERE %%0.4) {
 /*
  *  Jump to the 6502 RST vector
  */
-sub Do2Plus(NUMP %%0) {
+sub Do2Plus(NPRM %%0) {
 	sta LANGCLR					; disable the ][+ "upper" 16K (one write is sufficent)
 	sws							; Reset the stack width to 8-bits
 	ldx #$ff 					; Reset the stack to $1FF
@@ -1106,7 +1124,7 @@ sub Do2Plus(NUMP %%0) {
 /*
  *  Shift all the args down X position(s)
  */
-sub shiftArgs(NUMP %%0, SHIFT X) {
+sub shiftArgs(NPRM %%0, SHIFT X) {
 	var IDX = %R127
 	stx @IDX
 	var N3 = %R126
@@ -1114,11 +1132,11 @@ sub shiftArgs(NUMP %%0, SHIFT X) {
 
 	; Shift one position at a time (which isn't efficient, but simpler)
 	LOOP {
-		lda @NUMP				; Topmost ARG is $D001 + (NUMP * 3)
-		if (==) {
+		lda @NPRM				; Topmost ARG is $D001 + (NPRM * 3)
+		IF (==) {
 			RETURN
 		}
-		dec						; Shift up to $D001 + (NUMP-1 * 3) = @MOVETO
+		dec						; Shift up to $D001 + (NPRM-1 * 3) = @MOVETO
 		sta @N3
 		clc
 		adc @N3
@@ -1141,9 +1159,9 @@ sub shiftArgs(NUMP %%0, SHIFT X) {
 			}
 		}
 
-		dec @NUMP				; Decrement the count of parameters
+		dec @NPRM				; Decrement the count of parameters
 		dec @IDX				; Decrement the shift counter
-		if (==) {				; Stop if done shifting
+		IF (==) {				; Stop if done shifting
 			BREAK
 		}
 	}

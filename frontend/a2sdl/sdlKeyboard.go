@@ -54,11 +54,10 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 	shift := key.Mod&sdl.KMOD_SHIFT != 0
 
 	// Step-by-step debugging mode
-	if k.a.IsPaused() && !k.a.IsRunningUntilPC() {
+	if k.a.IsPaused() {
 		switch key.Sym {
 		case ' ':
 			k.a.SendCommand(izapple2.CommandNextStep)
-			return
 		case sdl.K_RETURN:
 			if k.modeMemory {
 				address := k.modeValue & 0x0FFFFF0
@@ -73,51 +72,43 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 					fmt.Printf("%c", ch)
 				}
 				fmt.Printf("\n")
-
 				k.modeValue += 16
-				return
 			} else if k.modeBreakpoint {
 				k.modeBreakpoint = false
 				fmt.Printf("0x%x :: \n", k.modeValue)
 				k.a.SetUntilPC(k.modeValue)
-				return
 			}
 		case '0','1','2','3','4','5','6','7','8','9':
 			if k.modeMemory || k.modeBreakpoint {
 				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - '0'))
-				return
 			}
 		case 'A','B','C','D','E','F':
 			if k.modeMemory || k.modeBreakpoint {
 				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - 'A' + 10))
-				return
 			}
 		case 'a','b','c','d','e','f':
 			if k.modeMemory || k.modeBreakpoint {
 				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - 'a' + 10))
-				return
 			}
 		case 'M','m':
 			fmt.Printf("*** MEMORY: \n")
 			k.modeMemory = true
 			k.modeBreakpoint = false
 			k.modeValue = 0
-			return
 		case 'P','p':
 			fmt.Printf("*** Run to PC: ")
 			k.modeMemory = false
 			k.modeBreakpoint = true
 			k.modeValue = 0
-			return
 		case '.':
 			fmt.Printf("*** Run to PC (again)\n", )
 			k.a.SetUntilPC(0xffffff)
-			return
 		case 'R', 'r', sdl.K_ESCAPE:
 			k.a.SendCommand(izapple2.CommandStart)
 			k.a.SendCommand(izapple2.CommandCPUTraceOff)
-			return
 		}
+
+		return
 	}
 
 	if ctrl {

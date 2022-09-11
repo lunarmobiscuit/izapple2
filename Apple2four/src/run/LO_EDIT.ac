@@ -45,7 +45,7 @@ const CLR_WHITE		= $F
  *  Print the whole set of ASCII characters
  *  or convert a hex or decimal value into an ASCII character
  */
-sub Lopaint(NUMP %%0, CMD %%0.1.t) @$10000 {
+sub Lopaint(NPRM %%0, CMD %%0.1.t) @$10000 {
 	lda #DISP_LORES_2
 	jsr (os4_SetScreenMode)
 	jsr (os4_ClearLores)
@@ -439,8 +439,8 @@ sub DoHelp() {
 /*
  *  Set the color for drawing
  */
-sub DoColor(NUMP %%0, CMD %%0.1, SETCOLOR %%0.4) {
-	lda @NUMP						; no color specified (use a random color)
+sub DoColor(NPRM %%0, CMD %%0.1, SETCOLOR %%0.4) {
+	lda @NPRM						; no color specified (use a random color)
 	if (< 1) {
 		lda.t #MissingColorErr
 		sta.t %%7
@@ -468,8 +468,8 @@ sub DoClear() {
 /*
  *  Fill the screen with one color
  */
-sub DoFill(NUMP %%0, CMD %%0.1, FILLCOLOR %%0.4) {
-	lda @NUMP						; no color specified (use a random color)
+sub DoFill(NPRM %%0, CMD %%0.1, FILLCOLOR %%0.4) {
+	lda @NPRM						; no color specified (use a random color)
 	if (< 1) {
 		lda @TXTROW
 	}
@@ -486,12 +486,12 @@ sub DoFill(NUMP %%0, CMD %%0.1, FILLCOLOR %%0.4) {
 /*
  *  Draw a horizontal line
  */
-sub DoHLine(NUMP %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
+sub DoHLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	var ROWPTR = %R251.w
 	var CURMSK = %R250
 	var CURPXL = %R249
 
-	lda @NUMP
+	lda @NPRM
 	if (< 1) {
 		lda.t #MissingStartErr
 		sta.t %%7
@@ -570,13 +570,13 @@ sub DoHLine(NUMP %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 /*
  *  Draw a vertical line
  */
-sub DoVLine(NUMP %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
+sub DoVLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	var ROWPTR = %R251.w
 	var CURMSK = %R250
 	var CURPXL = %R249
 	var I = %R248
 
-	lda @NUMP
+	lda @NPRM
 	if (< 1) {
 		lda.t #MissingStartErr
 		sta.t %%7
@@ -660,10 +660,10 @@ sub DoVLine(NUMP %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
  *  'load' filename
  *
  */
-sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
+sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	jsr (os4_NextLine)
 
-	lda @NUMP						; must specify a filename
+	lda @NPRM						; must specify a filename
 	if (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
@@ -747,11 +747,11 @@ sub DoLoad(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 /*
  *  'store' - Store memory to a file
  */
-sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
+sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	jsr restoreBehindCursor
 	jsr (os4_NextLine)
 
-	lda @NUMP						; must specify a filename
+	lda @NPRM						; must specify a filename
 	if (< 1) {
 		lda.t #NoFilenameErrStr
 		sta.t %%7
@@ -849,8 +849,8 @@ sub DoStore(NUMP %%0, CMD %%0.1, FILENAME %%0.4) {
 /*
  *  Move the cursor
  */
-sub DoX(NUMP %%0, CMD %%0.1, XPOS %%0.4) {
-	lda @NUMP						; no color specified (use a random color)
+sub DoX(NPRM %%0, CMD %%0.1, XPOS %%0.4) {
+	lda @NPRM						; no color specified (use a random color)
 	if (< 1) {
 		lda.t #MissingValueErr
 		sta.t %%7
@@ -875,8 +875,8 @@ sub DoX(NUMP %%0, CMD %%0.1, XPOS %%0.4) {
 
 	RETURN 0
 }
-sub DoY(NUMP %%0, CMD %%0.1, YPOS %%0.4) {
-	lda @NUMP						; no color specified (use a random color)
+sub DoY(NPRM %%0, CMD %%0.1, YPOS %%0.4) {
+	lda @NPRM						; no color specified (use a random color)
 	if (< 1) {
 		lda.t #MissingValueErr
 		sta.t %%7
@@ -963,93 +963,9 @@ sub CommandLine() {
 		RETURN
 	}
 
-	lda #@INPBUFFER						; %%0.1 <- the command text
-	sta.t %%0.1
-
-	lda #0								; %%0 <- the number of args (not including the command)
-	sta %%0
-
-	ldy #3								; Index to the next %%0.parameter
-	ldx #0
-	LOOP {
-		lda @INPBUFFER,x				; Look for a space
-		IF (== 0) {
-			BREAK
-		}
-		cmp #' '
-		IF (==) {
-			LOOP {
-				lda @INPBUFFER,x		; Skip over extra spaces
-				IF (== 0) {
-					BREAK
-				}
-				cmp #' '
-				IF (==) {
-					lda #0
-					sta @INPBUFFER,x
-					inx
-				}
-				BREAK
-			}
-
-			lda #@INPBUFFER
-			clc
-			adx.w
-			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
-			iny
-			iny
-			iny
-			inc %%0
-			inx
-			BREAK
-		}
-		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
-		cpx #127
-		IF (>=) {
-			BREAK
-		}
-	}
-
-	LOOP {
-		lda @INPBUFFER,x				; Look for a comma between args
-		IF (== 0) {
-			BREAK
-		}
-		cmp #','
-		IF (==) {
-			lda #0
-			sta @INPBUFFER,x
-			inx
-
-			LOOP {
-				lda @INPBUFFER,x		; Skip over extra spaces
-				IF (== 0) {
-					BREAK
-				}
-				cmp #' '
-				IF (==) {
-					lda #0
-					sta @INPBUFFER,x
-					inx
-				}
-				BREAK
-			}
-
-			lda #@INPBUFFER
-			clc
-			adx.w
-			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
-			iny
-			iny
-			iny
-			inc %%0
-		}
-		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
-		cpx #127
-		IF (>=) {
-			BREAK
-		}
-	}
+	lda.t #@INPBUFFER
+	sta.t %%7
+	jsr (os4_ParseInputParams)
 
 	ldx.t %%0.1							; 0, 1, 2, ... 15 sets the color
 	lda.a24 X

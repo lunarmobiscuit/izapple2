@@ -1,7 +1,7 @@
 /*
  *  ROM for the mythical Apple ][4
  *
- *  aCCemble -l Apple2four.lst -o Apple2four.rom Apple2four.ac; cp Apple2four.rom ../../../izapple2/resources
+ *  aCCemble -l Apple2four.lst -o ../../resources/Apple2four.rom Apple2four.ac
  *  go run . -faux ../../Apple2four/root/ -traceFD
  *
  */
@@ -162,93 +162,14 @@ sub CommandLine() {
 	var I	= @$04						; loop variable
 	var I6	= @$05						; I * 6
 
-	lda #@TYPBUFFER						; %%0.1 <- the command text
-	sta.t %%0.1
-
-	lda #0								; %%0 <- the number of args (not including the command)
-	sta %%0
-
-	ldy #3								; Index to the next %%0.parameter
-	ldx #0
-	LOOP {
-		lda @TYPBUFFER,x				; Look for a space
-		IF (== 0) {
-			BREAK
-		}
-		cmp #' '
-		IF (==) {
-			LOOP {
-				lda @TYPBUFFER,x		; Skip over extra spaces
-				IF (== 0) {
-					BREAK
-				}
-				cmp #' '
-				IF (==) {
-					lda #0
-					sta @TYPBUFFER,x
-					inx
-				}
-				BREAK
-			}
-
-			lda #@TYPBUFFER
-			clc
-			adx.w
-			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
-			iny
-			iny
-			iny
-			inc %%0
-			inx
-			BREAK
-		}
-		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
-		cpx #127
-		IF (>=) {
-			BREAK
-		}
+	lda @TYPBUFFER						; Check for blank line
+	if (==) {
+		RETURN
 	}
 
-	LOOP {
-		lda @TYPBUFFER,x				; Look for a comma between args
-		IF (== 0) {
-			BREAK
-		}
-		cmp #','
-		IF (==) {
-			lda #0
-			sta @TYPBUFFER,x
-			inx
-
-			LOOP {
-				lda @TYPBUFFER,x		; Skip over extra spaces
-				IF (== 0) {
-					BREAK
-				}
-				cmp #' '
-				IF (==) {
-					lda #0
-					sta @TYPBUFFER,x
-					inx
-				}
-				BREAK
-			}
-
-			lda #@TYPBUFFER
-			clc
-			adx.w
-			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
-			iny
-			iny
-			iny
-			inc %%0
-		}
-		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
-		cpx #127
-		IF (>=) {
-			BREAK
-		}
-	}
+	lda.t #@TYPBUFFER
+	sta.t %%7
+	jsr ParseInputParams
 
 	lda.t %%0.1							; strA for CompareText
 	sta.t %%7
@@ -274,6 +195,11 @@ sub CommandLine() {
 			RETURN
 		}
 	}
+
+	lda.t #UnknownCommandErr
+	sta.t %%7
+	jsr PrintError
+
 	RETURN
 }
 

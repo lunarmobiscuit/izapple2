@@ -745,6 +745,105 @@ sub ScrollScreen(FIRST_ROW X) {
 
 
 /*
+ *  Parse the input buffer into %%0, %%0.1, %%0.3 parameters
+ */
+sub ParseInputParams(INBUFPTR %%7) {
+	var INPBUFFER = %R247.t				; Holds the pointer to the INPUT buffer
+
+	lda.t @INBUFPTR						; @INBUFPTR = (@INBUFPTR), i.e. unwrap the address indirection
+	sta.t @INPBUFFER
+	sta.t %%0.1							; %%0.1 <- the command text points to the INPUT buffer
+
+	lda #0								; %%0 <- the number of args (not including the command)
+	sta %%0
+
+	ldx #3								; Index to the next %%0.parameter
+	ldy #0
+	LOOP {
+		lda (@INPBUFFER),y				; Look for a space
+		IF (== 0) {
+			BREAK
+		}
+		cmp #' '
+		IF (==) {
+			LOOP {
+				lda (@INPBUFFER),y		; Skip over extra spaces
+				IF (== 0) {
+					BREAK
+				}
+				cmp #' '
+				IF (==) {
+					lda #0
+					sta (@INPBUFFER),y
+					iny
+				}
+				BREAK
+			}
+
+			lda.w @INBUFPTR
+			clc
+			ady.w
+			sta.t.a16 %%0.1,x			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
+			inx
+			inx
+			inx
+			inc %%0
+			iny
+			BREAK
+		}
+		iny								; DO WHILE Y < 79 (leave one zero in the TEXT buffer)
+		cpx #79
+		IF (>=) {
+			BREAK
+		}
+	}
+
+	LOOP {
+		lda (@INPBUFFER),y				; Look for a comma between args
+		IF (== 0) {
+			BREAK
+		}
+		cmp #','
+		IF (==) {
+			lda #0
+			sta (@INPBUFFER),y
+			iny
+
+			LOOP {
+				lda (@INPBUFFER),y		; Skip over extra spaces
+				IF (== 0) {
+					BREAK
+				}
+				cmp #' '
+				IF (==) {
+					lda #0
+					sta (@INPBUFFER),y
+					iny
+				}
+				BREAK
+			}
+
+			lda.w @INBUFPTR
+			clc
+			ady.w
+			sta.t.a16 %%0.1,x			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
+			inx
+			inx
+			inx
+			inc %%0
+		}
+		iny								; DO WHILE Y < 79 (leave one zero in the TEXT buffer)
+		cpx #79
+		IF (>=) {
+			BREAK
+		}
+	}
+
+	RETURN
+}
+
+
+/*
  *  Clear the text input buffers (255 bytes, filled with zeros)
  */
 sub ClearInputBuffers() {

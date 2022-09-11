@@ -35,13 +35,13 @@ data ROMVectors @$FF0005 u24 {
 	CompareStartOfText
 	CopyString
 	CopyStringHigh
+	ParseInputParams
 	ParseNumber
 	ParseHexNumber
 	ParseDecimalNumber
 	Times10
 	Modulo
 	PlayBeep
-	AppleII4
 }
 
 data DOSVectors @$FF0100 u24 {
@@ -96,6 +96,9 @@ data CatalogHeaderStr string {
 }
 
 /*  Error string for load, view, etc. */
+data UnknownCommandErr string {
+	"*** Unknown COMMAND - see '?'"
+}
 data NoFilenameErrStr string {
 	"*** FILENAME must be specified"
 }

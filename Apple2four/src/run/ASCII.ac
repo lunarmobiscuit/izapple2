@@ -12,8 +12,8 @@
  *  Print the whole set of ASCII characters
  *  or convert a hex or decimal value into an ASCII character
  */
-sub Start(NUMP %%0, CMD %%0.1.t, CHAR %%0.4.t) @$10000 {
-	lda @NUMP
+sub Start(NPRM %%0, CMD %%0.1.t, CHAR %%0.4.t) @$10000 {
+	lda @NPRM
 	IF (==) {
 		jmp AsciiChart
 	}
@@ -67,7 +67,7 @@ sub AsciiChart() {
 /*
  *  Convert a hex or decimal value into an ASCII character
  */
-sub ConvertToAscii(NUMP %%0, CHAR %%0.4.t) {
+sub ConvertToAscii(NPRM %%0, CHAR %%0.4.t) {
 	var ASCII	= %R0.t
 
 	ldx.t @CHAR							; First character in the @CHAR parameter

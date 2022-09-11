@@ -56,7 +56,9 @@ sub Disk4Name() {
 /*
  *  Start a disk catalog
  */
-sub Disk4CatalogStart() {
+sub Disk4CatalogStart(DIRNAME %%6) {
+	jsr filenameToC800
+
 	lda #DISK4_CATALOG
 	sta @DISK4_CMD
 	lda @DISK4_GO
@@ -72,6 +74,7 @@ sub Disk4CatalogStart() {
  *    Name address returned in X (pointing to 0xC806)
  */
 sub Disk4CatalogNext() {
+	stz @PR_RAM
 	lda #DISK4_CATALOG_NEXT
 	sta @DISK4_CMD
 	lda @DISK4_GO
