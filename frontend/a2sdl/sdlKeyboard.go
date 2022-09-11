@@ -16,6 +16,11 @@ type sdlKeyboard struct {
 	showCharGen bool
 	showAltText bool
 	screenMode  int
+
+	modeMemory		bool
+	modeBreakpoint	bool
+	modeValue		uint32
+	runUntilPC		bool
 }
 
 func newSDLKeyBoard(a *izapple2.Apple2) *sdlKeyboard {
@@ -49,6 +54,57 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 	ctrl := key.Mod&sdl.KMOD_CTRL != 0
 	shift := key.Mod&sdl.KMOD_SHIFT != 0
 
+	// Step-by-step debugging mode
+	if k.a.IsPaused() && !k.a.IsRunningUntilPC() {
+fmt.Printf("MONITOR: %c\n", key.Sym)
+		switch key.Sym {
+		case ' ':
+			k.a.SendCommand(izapple2.CommandNextStep)
+			return
+		case sdl.K_RETURN:
+			if k.modeMemory {
+				fmt.Printf("0x%x :: \n", k.modeValue)
+				return
+			} else if k.modeBreakpoint {
+				fmt.Printf("0x%x :: \n", k.modeValue)
+				k.runUntilPC = true
+				k.a.SetUntilPC(k.modeValue)
+				return
+			}
+		case '0','1','2','3','4','5','6','7','8','9':
+			if k.modeMemory || k.modeBreakpoint {
+				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - '0'))
+				return
+			}
+		case 'A','B','C','D','E','F':
+			if k.modeMemory || k.modeBreakpoint {
+				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - 'A' + 10))
+				return
+			}
+		case 'a','b','c','d','e','f':
+			if k.modeMemory || k.modeBreakpoint {
+				k.modeValue = (k.modeValue * 16) + uint32((key.Sym - 'a' + 10))
+				return
+			}
+		case 'M','m':
+			fmt.Printf("Dump memory: ")
+			k.modeMemory = true
+			k.modeBreakpoint = false
+			k.modeValue = 0
+			return
+		case 'P','p':
+			fmt.Printf("Breakpoint: ")
+			k.modeMemory = false
+			k.modeBreakpoint = true
+			k.modeValue = 0
+			return
+		case sdl.K_ESCAPE:
+			k.a.SendCommand(izapple2.CommandStart)
+			k.a.SendCommand(izapple2.CommandCPUTraceOff)
+			return
+		}
+	}
+
 	if ctrl {
 		if key.Sym >= 'a' && key.Sym <= 'z' {
 			k.keyChannel.PutChar(uint8(key.Sym) - 97 + 1)
@@ -60,13 +116,20 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 
 	switch key.Sym {
 	case sdl.K_ESCAPE:
-		if (ctrl || shift) {
+		if (ctrl) {
 			k.a.SendCommand(izapple2.CommandReset)
+		} else if (shift) {
+			k.a.SendCommand(izapple2.CommandCPUTraceOn)
+			k.a.SendCommand(izapple2.CommandStep)
 		} else {
 			result = 27
 		}
 	case sdl.K_BACKSPACE:
-		result = 127 // was 8 = LEFT, but those two keys should be different behaviors
+		if (ctrl && shift) {
+			k.a.SendCommand(izapple2.CommandReset)
+		} else {
+			result = 127 // was 8 = LEFT, but those two keys should be different behaviors
+		}
 	case sdl.K_RETURN:
 		result = 13
 	case sdl.K_RETURN2:

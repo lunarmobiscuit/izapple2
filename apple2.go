@@ -27,6 +27,10 @@ type Apple2 struct {
 	profile             bool
 	showSpeed           bool
 	paused              bool
+	stepping            bool
+	nextStep            bool
+	stopAtPC			bool
+	stopAtAddr			uint32
 	tracers             []executionTracer
 	forceCaps           bool
 }
@@ -63,7 +67,7 @@ func (a *Apple2) Start(paused bool) {
 
 	for {
 		// Run 6502 steps
-		if !a.paused {
+		if !a.paused || (a.stepping && (a.nextStep || a.stopAtPC)) {
 			for i := 0; i < cpuSpinLoops; i++ {
 				// Conditional tracing
 				//a.cpu.SetTrace((pc >= 0xc300 && pc <= 0xc400) || (pc >= 0xc800 && pc <= 0xce00))
@@ -73,6 +77,19 @@ func (a *Apple2) Start(paused bool) {
 
 				// Special tracing
 				a.executionTrace()
+
+				// Waiting on PC or stepping instructions
+				if a.stopAtPC {
+					pc := a.cpu.GetPC()
+					if (pc == a.stopAtAddr) {
+						a.stopAtPC = false
+						a.cpu.SetTrace(true)
+						break
+					}
+				} else if (a.stepping) {
+					a.nextStep = false
+					break
+				}
 			}
 
 			if a.cycleBreakpoint != 0 && a.cpu.GetCycles() >= a.cycleBreakpoint {
@@ -95,10 +112,26 @@ func (a *Apple2) Start(paused bool) {
 				case CommandPause:
 					if !a.paused {
 						a.paused = true
+						a.stopAtPC = false
+					}
+				case CommandStep:
+					if !a.stepping {
+						a.paused = true
+						a.stepping = true
+						a.nextStep = true
+						a.stopAtPC = false
+					}
+				case CommandNextStep:
+					if a.stepping {
+						a.nextStep = true
+						a.stopAtPC = false
 					}
 				case CommandStart:
 					if a.paused {
 						a.paused = false
+						a.stepping = false
+						a.nextStep = false
+						a.stopAtPC = false
 						referenceTime = time.Now()
 						speedReferenceTime = referenceTime
 					}
@@ -106,6 +139,8 @@ func (a *Apple2) Start(paused bool) {
 					a.paused = !a.paused
 					referenceTime = time.Now()
 					speedReferenceTime = referenceTime
+				case CommandStepNostep:
+					a.stepping = !a.stepping
 				default:
 					// Execute the other commands
 					a.executeCommand(command)
@@ -158,6 +193,24 @@ func (a *Apple2) IsPaused() bool {
 	return a.paused
 }
 
+// IsStepping returns true when emulator is stepping cycle by cycle
+func (a *Apple2) IsStepping() bool {
+	return a.stepping
+}
+
+// SetUntilPC runs until the emulator reaches the specific PC
+func (a *Apple2) IsRunningUntilPC() bool {
+	return a.stopAtPC
+}
+
+// SetUntilPC runs until the emulator reaches the specific PC
+func (a *Apple2) SetUntilPC(pc uint32) {
+	a.cpu.SetTrace(false)
+	a.stepping = true
+	a.stopAtPC = true
+	a.stopAtAddr = pc
+}
+
 func (a *Apple2) GetCycles() uint64 {
 	return a.cpu.GetCycles()
 }
@@ -202,16 +255,26 @@ const (
 	CommandNextCharGenPage
 	// CommandToggleCPUTrace toggle tracing of CPU execution
 	CommandToggleCPUTrace
+	// CommandCPUTraceOn enables tracing of CPU execution
+	CommandCPUTraceOn
+	// CommandCPUTraceOn disable tracing of CPU execution
+	CommandCPUTraceOff
 	// CommandKill stops the cpu execution loop
 	CommandKill
 	// CommandReset executes a 6502 reset
 	CommandReset
 	// CommandPauseUnpause allows the Pause button to freeze the emulator for a coffee break
 	CommandPauseUnpause
+	// CommandStepNostep puts the emulator into insruction by instruction stepping
+	CommandStepNostep
 	// CommandPause pauses the emulator
 	CommandPause
 	// CommandStart restarts the emulator
 	CommandStart
+	// CommandStep enters step by step execution mode
+	CommandStep
+	// CommandNextStep executes the next instruction (in step by step mode)
+	CommandNextStep
 )
 
 // SendCommand enqueues a command to the emulator thread
@@ -238,6 +301,10 @@ func (a *Apple2) executeCommand(command int) {
 		fmt.Printf("Chargen page %v\n", a.cg.page)
 	case CommandToggleCPUTrace:
 		a.cpu.SetTrace(!a.cpu.GetTrace())
+	case CommandCPUTraceOn:
+		a.cpu.SetTrace(true)
+	case CommandCPUTraceOff:
+		a.cpu.SetTrace(false)
 	case CommandReset:
 		a.reset()
 	}
