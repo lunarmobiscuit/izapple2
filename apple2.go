@@ -31,6 +31,8 @@ type Apple2 struct {
 	nextStep            bool
 	stoppingAtPC		bool
 	stopAtPC			uint32
+	tracingAfterPC		bool
+	traceAfterPC		uint32
 	tracers             []executionTracer
 	forceCaps           bool
 }
@@ -69,8 +71,16 @@ func (a *Apple2) Start(paused bool) {
 		// Run 6502 steps
 		if !a.paused || (a.stepping && (a.nextStep || a.stoppingAtPC)) {
 			for i := 0; i < cpuSpinLoops; i++ {
+				pc := a.cpu.GetPC()
+
 				// Conditional tracing
 				//a.cpu.SetTrace((pc >= 0xc300 && pc <= 0xc400) || (pc >= 0xc800 && pc <= 0xce00))
+
+				// Turn on the tracing when a specific PC is reached
+				if a.tracingAfterPC && (pc == a.traceAfterPC) {
+					fmt.Printf("*** BEGIN TRACING AT PC 0x%06x\n", pc)
+					a.cpu.SetTrace(true)
+				}
 
 				// Execution
 				a.cpu.ExecuteInstruction()
@@ -80,7 +90,6 @@ func (a *Apple2) Start(paused bool) {
 
 				// Waiting on PC or stepping instructions
 				if a.stoppingAtPC {
-					pc := a.cpu.GetPC()
 					if (pc == a.stopAtPC) {
 						a.stoppingAtPC = false
 						a.paused = true
@@ -201,7 +210,7 @@ func (a *Apple2) IsStepping() bool {
 	return a.stepping
 }
 
-// SetUntilPC runs until the emulator reaches the specific PC
+// Is the emulator running until a specified PC is reached?
 func (a *Apple2) IsRunningUntilPC() bool {
 	return a.stoppingAtPC
 }
@@ -217,6 +226,16 @@ func (a *Apple2) SetUntilPC(pc uint32) {
 		a.stopAtPC = pc
 	}
 }
+
+// SetTraceAfterPC starts the CPU trace after the specified PC is reached
+func (a *Apple2) SetTraceAfterPC(pc uint32) {
+	if (pc != 0xffffff) {
+		a.tracingAfterPC = true
+		a.traceAfterPC = pc
+	}
+}
+
+
 
 func (a *Apple2) GetCycles() uint64 {
 	return a.cpu.GetCycles()

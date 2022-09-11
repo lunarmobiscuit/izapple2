@@ -130,6 +130,10 @@ func MainApple() *Apple2 {
 		"traceCpu",
 		false,
 		"dump to the console the CPU execution operations")
+	tracePC := flag.String(
+		"tracePC",
+		"",
+		"dump to the console the CPU execution operations after the specified PC is run")
 	traceSS := flag.Bool(
 		"traceSS",
 		false,
@@ -236,6 +240,17 @@ func MainApple() *Apple2 {
 		}
 		fmt.Printf("*** RUN until PC = 0x%06x\n", pc)
 		a.SetUntilPC(uint32(pc))
+	}
+
+	if *tracePC != "" {
+		var pc int64
+		if len(*tracePC) > 2 && (*tracePC)[:2] == "0x" {
+			pc, _ = strconv.ParseInt((*tracePC)[2:], 16, 32)
+		} else {
+			pc, _ = strconv.ParseInt(*tracePC, 16, 32)
+		}
+		fmt.Printf("*** TRACE after PC = 0x%06x\n", pc)
+		a.SetTraceAfterPC(uint32(pc))
 	}
 
 	// Disable incompatible cards
