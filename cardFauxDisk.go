@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"os"
+	"time"
 
 	//"github.com/lunarmobiscuit/izapple2/storage"
 )
@@ -22,16 +23,17 @@ const (
 	FAUX_WRITE
 	FAUX_WRITE_DMA
 	FAUX_CLOSE
-	FAUX_CHDIR
-	FAUX_CHDIR_UP
+	FAUX_SEEK
 )
 
 const (
 	FAUX_SUCCESS = iota
 	FAUX_END_OF_CATALOG
 	FAUX_END_OF_FILE
+	FAUX_ERR_EXISTS
 	FAUX_ERR_NOT_FOUND
 	FAUX_ERR_READ_ERROR
+	FAUX_ERR_WRITE_ERROR
 )
 
 /*
@@ -51,8 +53,8 @@ type CardFauxDisk struct {
 	files		[8]*os.File
 
 	cmd			uint8				// Which command to run
-	arg0		uint32
-	arg1		uint32
+	param0		uint32
+	param1		uint32
 	ret0		uint32
 	ret1		uint32
 	ret2		uint16
@@ -95,13 +97,15 @@ func (c *CardFauxDisk) LoadRoot(rootDirName string) error {
 		fmt.Printf("[CardFauxDisk] Faux root directory: '%s'\n", c.rootName)
 	}
 
+	return c.reloadRoot()
+}
+func (c *CardFauxDisk) reloadRoot() error {
 	// Load the root directory
 	dir, err := os.ReadDir(c.rootName)
 	if err != nil {
 		return err
 	}
 	c.root = c.processDirectory(dir)
-
 	return nil
 }
 
@@ -121,47 +125,47 @@ func (c *CardFauxDisk) assign(a *Apple2, slot int) {
 
 	c.addCardSoftSwitchW(1, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg0.l $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param0.l $%02x\n", value)
 		}
-		c.arg0 = uint32(value)
+		c.param0 = uint32(value)
 		return
-	}, "FAUXDISKARG0L")
+	}, "FAUXDISKPARAM1L")
 	c.addCardSoftSwitchW(2, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg0.m $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param0.m $%02x\n", value)
 		}
-		c.arg0 |= uint32(value) << 8 
+		c.param0 |= uint32(value) << 8 
 		return
-	}, "FAUXDISKARG0M")
+	}, "FAUXDISKPARAM1M")
 	c.addCardSoftSwitchW(3, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg0.h $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param0.h $%02x\n", value)
 		}
-		c.arg0 |= uint32(value) << 16 
+		c.param0 |= uint32(value) << 16 
 		return
-	}, "FAUXDISKARG0H")
+	}, "FAUXDISKPARAM1H")
 
 	c.addCardSoftSwitchW(4, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg1.l $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param1.l $%02x\n", value)
 		}
-		c.arg1 = uint32(value)
+		c.param1 = uint32(value)
 		return
-	}, "FAUXDISKARG0L")
+	}, "FAUXDISKPARAM1L")
 	c.addCardSoftSwitchW(5, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg1.m $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param1.m $%02x\n", value)
 		}
-		c.arg1 |= uint32(value) << 8 
+		c.param1 |= uint32(value) << 8 
 		return
-	}, "FAUXDISKARG0M")
+	}, "FAUXDISKPARAM1M")
 	c.addCardSoftSwitchW(6, func(value uint8) {
 		if c.trace {
-			fmt.Printf("[CardFauxDisk] Arg1.h $%02x\n", value)
+			fmt.Printf("[CardFauxDisk] Param1.h $%02x\n", value)
 		}
-		c.arg1 |= uint32(value) << 16 
+		c.param1 |= uint32(value) << 16 
 		return
-	}, "FAUXDISKARG0H")
+	}, "FAUXDISKPARAM1H")
 
 	c.addCardSoftSwitchR(7, func() uint8 {
 		if c.trace {
@@ -223,14 +227,13 @@ func (c *CardFauxDisk) assign(a *Apple2, slot int) {
 		case FAUX_CATALOG: return c.fauxDiskCatalog(true)
 		case FAUX_CATALOG_NEXT: return c.fauxDiskCatalog(false)
 		case FAUX_EXISTS: return c.fauxDiskExists()
+		case FAUX_CREATE: return c.fauxDiskCreate()
 		case FAUX_OPEN: return c.fauxDiskOpen()
 		case FAUX_READ: return c.fauxDiskRead()
 		case FAUX_READ_DMA: return c.fauxDiskReadDMA()
 		case FAUX_WRITE: return c.fauxDiskWrite()
 		case FAUX_WRITE_DMA: return c.fauxDiskWriteDMA()
 		case FAUX_CLOSE: return c.fauxDiskClose()
-		case FAUX_CHDIR: return c.fauxDiskChdir()
-		case FAUX_CHDIR_UP: return c.fauxDiskChdirUp()
 		}
 		return c.retErr
 	}, "FAUXDISKCMD")
@@ -369,6 +372,11 @@ func (c *CardFauxDisk) processDirectory(dir []fs.DirEntry) []fauxFile {
 	return files
 }
 
+
+//
+//  Does the file exist?
+//    0xC800 = zero-terminated name (high ASCII)
+//
 func (c *CardFauxDisk) fauxDiskExists() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_EXISTS\n")
@@ -409,6 +417,54 @@ func (c *CardFauxDisk) fauxDiskExists() uint8 {
 	return FAUX_ERR_NOT_FOUND
 }
 
+
+//
+//  Create a file
+//    0xC800 = zero-terminated name (high ASCII)
+//    PARAM1 = file type (3 chars)
+//
+func (c *CardFauxDisk) fauxDiskCreate() uint8 {
+	if c.trace {
+		fmt.Printf("[CardFauxDisk] FAUX_CREATE\n")
+	}
+
+	fname := c.c800toName()
+	fnameUC := strings.ToUpper(fname)
+	ftype := fmt.Sprintf("%c%c%c",
+		uint8(c.param0 & 0xff), uint8((c.param0 >> 8) & 0xff), uint8((c.param0 >> 16) & 0xff))
+	if c.trace {
+		fmt.Printf("[CardFauxDisk] CREATE '%s.%s'\n", fname, ftype)
+	}
+
+	// Check if the file already exists
+	for i := 0; i < len(c.root); i++ {
+		f := c.root[i]
+		if (fnameUC == strings.ToUpper(f.name)) {
+			if c.trace {
+				fmt.Printf("[CardFauxDisk] ERROR: '%s' already exists\n", fname)
+			}
+			return FAUX_ERR_EXISTS
+		}
+	}
+
+	file, err := os.Create(string(c.rootName + "/" + fname + "." + ftype))
+	if (err != nil) {
+		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		return FAUX_ERR_NOT_FOUND
+	}
+
+	c.reloadRoot()
+
+	c.files[0] = file
+	c.ret0 = 0
+	return FAUX_SUCCESS
+}
+
+
+//
+//  Open a file
+//    0xC800 = zero-terminated name (high ASCII)
+//
 func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_OPEN\n")
@@ -446,13 +502,19 @@ func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 	return FAUX_SUCCESS
 }
 
+
+//
+//  Read from a file
+//	  PARAM1 = FN
+//    0xC800 = bytes read
+//
 func (c *CardFauxDisk) fauxDiskRead() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_READ\n")
 	}
 
 	buffer := make([]byte, 1024)
-	actual, err := c.files[0].Read(buffer)
+	actual, err := c.files[int(c.param0)].Read(buffer)
 	if (actual == 0) {
 		fmt.Printf("[CardFauxDisk] END OF FILE\n")
 		return FAUX_END_OF_FILE
@@ -470,23 +532,28 @@ func (c *CardFauxDisk) fauxDiskRead() uint8 {
 	for i := 0; i < actual; i++ {
 		c.c800[addr-0xc800] = buffer[i]
 		addr += 1
-		
+
 		// @@@ TODO - Add wait to simulate clock cycles
+		time.Sleep(10 * time.Microsecond)
 	}
 
 	return FAUX_SUCCESS
 }
 
+
+//
+//  Read from a file and DMA the contents to a specified address @@@ TBD
+//
 func (c *CardFauxDisk) fauxDiskReadDMA() uint8 {
 	if c.trace {
-		fmt.Printf("[CardFauxDisk] FAUX_READ\n")
+		fmt.Printf("[CardFauxDisk] FAUX_READ_DMA\n")
 	}
 
-	dest := c.arg0
+	dest := c.param0
 	addr := dest
 	buffer := make([]byte, 256*1024)
 	for {
-		actual, err := c.files[0].Read(buffer)
+		actual, err := c.files[int(c.param0)].Read(buffer)
 		if (err != nil) {
 			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
 			return FAUX_ERR_NOT_FOUND
@@ -501,95 +568,77 @@ func (c *CardFauxDisk) fauxDiskReadDMA() uint8 {
 			addr += 1
 
 			// @@@ TODO - Add wait to simulate clock cycles
+			time.Sleep(10 * time.Microsecond)
 		}
 	}
 
 	return FAUX_SUCCESS
 }
 
+
+//
+//  Write to a file
+//	  PARAM1 = FN
+//    PARAM2 = number of bytes to write
+//    0xC800 = bytes to write
+//
 func (c *CardFauxDisk) fauxDiskWrite() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_WRITE\n")
 	}
 
-/*
-	buffer = make([]byte, 1024)
-	actual, err := c.files[0].Read(buffer)
+	buffer := make([]uint8, c.param1)
+	for i := 0; i < int(c.param1); i++ {
+		buffer[i] = c.c800[i]
+	}
+	actual, err := c.files[int(c.param0)].Write(buffer)
 	if (err != nil) {
 		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
-		return FAUX_ERR_NOT_FOUND
+		return FAUX_ERR_WRITE_ERROR
+	}
+	if (actual != int(c.param1)) {
+		fmt.Printf("[CardFauxDisk] ERROR: %d bytes written instead of %d\n", actual, c.param1)
+		return FAUX_ERR_WRITE_ERROR
 	}
 
-	c.ret0 = actual
-	addr := uint32(0xc800)
-	for i := 0; i < actual; i++ {
-		c.c800[addr-0xc800] = buffer[i]
-		addr += 1
-		
-		// @@@ TODO - Add wait to simulate clock cycles
-	}
-*/
+	// @@@ TODO - Add wait to simulate clock cycles
+	time.Sleep(1 * time.Microsecond)
 
 	return FAUX_SUCCESS
 }
 
+
+//
+//  Write to a file with DMA reading from memory
+//
 func (c *CardFauxDisk) fauxDiskWriteDMA() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_WRITE_DMA\n")
 	}
 
 /*
-	dest := c.arg0
-	addr := dest
-	buffer = make([]byte, 1024)
-	for {
-		actual, err := c.files[0].Read(buffer)
-		if (err != nil) {
-			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
-			return FAUX_ERR_NOT_FOUND
-		}
-		if (actual == 0) {
-			break
-		}
-
-		// Copy directly to CPU RAM
-		for i := 0; i < actual; i++ {
-			c.a.mem.Poke(addr, buffer[i])
-			addr += 1
-
-			// @@@ TODO - Add wait to simulate clock cycles
-		}
-	}
 */
 
 	return FAUX_SUCCESS
 }
 
+
+//
+//  Close a file @@@ FD
+//
 func (c *CardFauxDisk) fauxDiskClose() uint8 {
 	if c.trace {
 		fmt.Printf("[CardFauxDisk] FAUX_CLOSE\n")
 	}
 
-	c.files[0].Close()
+	c.files[c.param0].Close()
 	return FAUX_SUCCESS
 }
 
-func (c *CardFauxDisk) fauxDiskChdir() uint8 {
-	if c.trace {
-		fmt.Printf("[CardFauxDisk] FAUX_CHDIR\n")
-	}
 
-	return FAUX_SUCCESS
-}
-
-func (c *CardFauxDisk) fauxDiskChdirUp() uint8 {
-	if c.trace {
-		fmt.Printf("[CardFauxDisk] FAUX_CHDIR_UP\n")
-	}
-
-	return FAUX_SUCCESS
-}
-
+//
+//  Copy the filename from $C800 to a string
+//
 func (c *CardFauxDisk) c800toName() string {
 	name := make([]uint8, 16)
 	for i := 0; i < 16; i++ {
@@ -605,6 +654,9 @@ func (c *CardFauxDisk) c800toName() string {
 }
 
 
+//
+//  Read and write this card's $C800 RAM
+//
 func (c *CardFauxDisk) peek(address uint32) uint8 {
 //fmt.Printf("CardFauxDisk PEEK(%x) = %x\n", address, c.c800[address-0xC800])
 	return c.c800[address-0xC800]
@@ -617,6 +669,9 @@ func (c *CardFauxDisk) setBase(address uint32) {
 }
 
 
+//
+//  This card's ROM ($C700-$C7FF)
+//
 func buildFauxDiskRom(slot int) []uint8 {
 	data := make([]uint8, 256)
 
