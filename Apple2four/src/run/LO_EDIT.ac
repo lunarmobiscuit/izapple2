@@ -1,12 +1,12 @@
 /*
- *  ROM for the mythical Apple ][4
+ *  LO_EDIT - Editor for LORES graphics files
  *
- *  aCCembler -l 2run/lopaint.lst -o 2run/LOPAINT.run 2run/LOPAINT.ac; cp 2run/LOPAINT.run ../../izapple2/2four 
+ *  aCCemble -l run/LO_EDIT.lst -o ../root/OS4/LO_EDIT.run run/LO_EDIT.ac
  *
  */
 
-#include "2four/globals.ac"
-#include "2four/os4.ac"
+#include "os4/globals.ac"
+#include "os4/os4.ac"
 
 const N_COMMANDS	= 11		// The number of commands in CommandList
 

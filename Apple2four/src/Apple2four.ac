@@ -1,11 +1,12 @@
 /*
  *  ROM for the mythical Apple ][4
  *
- *  aCCemble -l Apple2four.lst -o Apple2four.rom Apple2four.ac; cp Apple2four.rom ../../../izapple2/resources 
+ *  aCCemble -l Apple2four.lst -o Apple2four.rom Apple2four.ac; cp Apple2four.rom ../../../izapple2/resources
+ *  go run . -faux ../../Apple2four/root/ -traceFD
  *
  */
 
-#include "2four/globals.ac"
+#include "os4/globals.ac"
 
 const N_COMMANDS	= 18		// The number of commands in CommandList
 
@@ -320,10 +321,10 @@ sub CompleteCommand() {
 	RETURN
 }
 
-#include "2four/util.ac"
-#include "2four/disk4.ac"
-#include "2four/commands.ac"
-#include "2four/data.ac"
+#include "os4/util.ac"
+#include "os4/disk4.ac"
+#include "os4/commands.ac"
+#include "os4/data.ac"
 
 /*
  *  The 6502 vectors
