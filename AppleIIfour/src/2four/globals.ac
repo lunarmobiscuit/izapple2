@@ -1,0 +1,64 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Constants and globals
+ *
+ */
+
+const KBD			= $c000		// R last key pressed + 128
+const KBDSTRB		= $c010		// RW keyboard strobe
+const TAPEOUT		= $c020		// RW toggle caseette tape output
+const SPKR			= $c030		// RW toggle speaker
+const TXTCLR		= $c050		// RW display graphics
+const TXTSET		= $c051		// RW display text
+const MIXSET		= $c053		// RW display split screen
+const TXTPAGE1		= $c054		// RW display page 1
+const TXTPAGE2		= $c055		// RW display page 2
+const LORES			= $c056		// RW display lo-res graphics
+const HIRES			= $c057		// RW display lo-res graphics
+const SETAN0		= $c058		// RW annunciator 0 off
+const SETAN1		= $c05a		// RW annunciator 1 off
+const CLRAN2		= $c05d		// RW annunciator 2 on
+const CLRAN3		= $c05f		// RW annunciator 3 on
+const TAPEIN		= $c060		// R cassete tape input
+const PADDL0		= $c064		// R analog input 0
+const PTRIG			= $c070		// RW analog input reset
+const LANGCLR		= $c082		// Disable "Language card" RAM
+const LANGSET		= $c083		// Enable "Language card" RAM (requires two writes)
+const CLRROM		= $cfff		// disable slot C8 ROM
+
+const TOP_OF_STACK	= $fdff		// Put the stack in the "Language card" RAM
+
+const RSTVECTOR		= $fffc		// Apple ][ 6502 reset vector
+const PWREDUP		= $03f4		// Apple ][ stores #$A5 to make RST a soft reboot
+
+global TXTPTR 		= @$FE.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
+global TXTROW 		= @$FF00	// The current row on the text screen
+global TXTPOS 		= @$FF01	// The current position (column) in the text screen
+global TXTPGROWS 	= @$FF02	// The number of rows output to the screen (used for pagination)
+global DISPMODE 	= @$FF03	// The current display mode (see DISP_xxxx constants)
+
+global TYPBUFFER 	= @$fe00	// $FE00-$FE4F holds the line of text being typed
+global TYPBUFFER2 	= @$fe50	// $FE50-$FEBF holds the previous line of text typed
+global TYPBUFFER3 	= @$feA0	// $FEA0-$FEEF holds the previous previous line of text typed
+
+const DISP_PAGE_1		= $00		// MSB is page 1|2 
+const DISP_PAGE_2		= $80
+const DISP_40COL		= $00		// MSB-1 is 40|80 column 
+const DISP_80COL		= $40
+const DISP_TEXT			= $00
+const DISP_TEXT_MASK	= $7F
+const DISP_LORES		= $20
+const DISP_HIRES		= $10
+const DISP_II4			= $08
+
+const DISP_TEXT_1	= $00		// PAGE 1 | 40COL | TEXT
+const DISP_TEXT_2	= $80		// PAGE 2 | 40COL | TEXT 
+const DISP_80COL_1	= $40		// PAGE 1 | 80COL | TEXT 
+const DISP_80COL_2	= $C0		// PAGE 2 | 80COL | TEXT 
+const DISP_LORES_1	= $20		// PAGE 1 | LORES 
+const DISP_LORES_2	= $A0		// PAGE 2 | LORES 
+const DISP_HIRES_1	= $10		// PAGE 1 | HIRES 
+const DISP_HIRES_2	= $90		// PAGE 2 | HIRES 
+
+const PAGINATE_LINES_PER_PAGE = 22

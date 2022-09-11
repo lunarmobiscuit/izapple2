@@ -1,0 +1,86 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  OS4 subroutine vectors
+ *
+ */
+
+const os4_Reset					= $ff0002
+const os4_Wait					= $ff0005
+const os4_SetScreenMode			= $ff0008
+const os4_SetScreenBase		 	= $ff000b
+const os4_GetChar				= $ff000e
+const os4_PrintChar				= $ff0011
+const os4_PrintSpace			= $ff0014
+const os4_PrintCursor			= $ff0017
+const os4_ClearCursor			= $ff001a
+const os4_PrintString			= $ff001d
+const os4_PrintError			= $ff0020
+const os4_PrintHexDigit			= $ff0023
+const os4_PrintHexByte			= $ff0026
+const os4_PrintHexWord			= $ff0029
+const os4_PrintHex24			= $ff002c
+const os4_PaginateLine		 	= $ff002f
+const os4_NextLine			 	= $ff0032
+const os4_ScrollScreen		 	= $ff0035
+const os4_ClearRow				= $ff0038
+const os4_ClearScreen			= $ff003b
+const os4_ClearLores			= $ff003e
+const os4_ClearHires			= $ff0041
+const os4_CompareText			= $ff0044
+const os4_CompareStartOfText	= $ff0047
+const os4_CopyString			= $ff004a
+const os4_CopyStringHigh		= $ff004d
+const os4_ParseNumber			= $ff0050
+const os4_ParseHexNumber		= $ff0053
+const os4_ParseDecimalNumber	= $ff0056
+const os4_Times10				= $ff0059
+const os4_Modulo				= $ff005c
+const os4_PlayBeep				= $ff005f
+const os4_AppleII4				= $ff0062
+
+const os4_Disk4Name				= $ff0100
+const os4_Disk4CatalogStart		= $ff0103
+const os4_Disk4CatalogNext		= $ff0106
+const os4_Disk4Create			= $ff0109
+const os4_Disk4Open				= $ff010c
+const os4_Disk4Close			= $ff010f
+const os4_Disk4Read				= $ff0112
+const os4_Disk4Write			= $ff0115
+const os4_Disk4C800				= $ff0118
+const os4_Disk4PrintError		= $ff011b
+
+
+global DISK4_CMD		= @$c0f0	// Disk][4 command (1 byte) WRITE
+global DISK4_PARAM0		= @$c0f1	// Disk][4 argument 0 (3 bytes) WRITE
+global DISK4_PARAM1		= @$c0f4	// Disk][4 argument 1 (3 bytes) WRITE
+global DISK4_RET0		= @$c0f7	// Disk][4 return value 0 (3 bytes) READ
+global DISK4_RET1		= @$c0fa	// Disk][4 return value 1 (3 bytes) READ
+global DISK4_RET2		= @$c0fd	// Disk][4 return value 2 (2 bytes) READ
+global DISK4_GO			= @$c0ff	// Disk][4 execute-error (1 byte) READ/WRITE
+global DISK4_RAM		= @$c800	// Disk][4 RAM for passing large values in/out
+
+global SLOT_7_ROM		= @$c700	// Start of slot 7 ROM, to enable $C800 RAM
+global PR_RAM			= @$c800	// Disk][4 stores long return values in $C800 RAM
+
+const DISK4_VOLUME_NAME		= 0
+const DISK4_CATALOG			= 1
+const DISK4_CATALOG_NEXT 	= 2
+const DISK4_EXISTS			= 3
+const DISK4_CREATE			= 4
+const DISK4_OPEN			= 5
+const DISK4_READ			= 6
+const DISK4_READ_DMA		= 7
+const DISK4_WRITE			= 8
+const DISK4_WRITE_DMA		= 9
+const DISK4_CLOSE			= 10
+const DISK4_SEEK			= 11
+
+const DISK4_SUCCESS			= 0
+const DISK4_END_OF_CATALOG	= 1
+const DISK4_END_OF_FILE		= 2
+const DISK4_ERR_EXISTS		= 3
+const DISK4_ERR_NOT_FOUND	= 4
+const DISK4_ERR_READ_ERROR	= 5
+const DISK4_ERR_WRITE_ERROR	= 6
+

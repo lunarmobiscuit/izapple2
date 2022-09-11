@@ -1,0 +1,141 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  aCCembler -l 2run/ascii.lst -o 2run/ASCII.run 2run/ascii.ac; cp 2run/ASCII.run ../../izapple2/2four 
+ *
+ */
+
+#include "2four/globals.ac"
+#include "2four/os4.ac"
+
+/*
+ *  Print the whole set of ASCII characters
+ *  or convert a hex or decimal value into an ASCII character
+ */
+sub Start(NUMP %%0, CMD %%0.1.t, CHAR %%0.4.t) @$10000 {
+	lda @NUMP
+	IF (==) {
+		jmp AsciiChart
+	}
+	ELSE {
+		jmp ConvertToAscii
+	}
+}
+
+/*
+ *  Print the whole set of ASCII characters
+ */
+sub AsciiChart() {
+	var I	= %R0						; outer loop variable
+	var J	= %R1						; inner loop variable
+	var C	= %R2						; (@I << 4) + J
+
+	lda.t #ASCIIHeaderStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_NextLine)
+
+	lda.t #ASCIIDashesStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_NextLine)
+
+	stz @C
+	FOR @I = 0 TO 15 {
+		lda @I							; Print 0-F row value
+		jsr (os4_PrintHexDigit)
+		lda #'-'H
+		jsr (os4_PrintChar)
+
+		FOR @J = 0 TO 15 {
+			lda @C						; A = (@I << 4) + J
+			jsr (os4_PrintChar)
+			inc @C
+		}
+
+		jsr (os4_NextLine)
+	}
+
+	lda.t #ASCIIDashesStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_NextLine)
+
+	RETURN 0
+}
+
+/*
+ *  Convert a hex or decimal value into an ASCII character
+ */
+sub ConvertToAscii(NUMP %%0, CHAR %%0.4.t) {
+	var ASCII	= %R0.t
+
+	ldx.t @CHAR							; First character in the @CHAR parameter
+	lda.a24 X
+	sta.t @ASCII
+
+	lda @ASCII
+	jsr (os4_PrintChar)
+	lda #'-'H
+	jsr (os4_PrintChar)
+	lda @ASCII
+	jsr (os4_PrintHexByte)
+	jsr (os4_PrintSpace)
+	jsr (os4_PrintSpace)
+
+	lda @ASCII
+	and #$3f
+	jsr (os4_PrintChar)
+	lda #'-'H
+	jsr (os4_PrintChar)
+	lda @ASCII
+	and #$3f
+	jsr (os4_PrintHexByte)
+	jsr (os4_PrintSpace)
+
+	lda @ASCII
+	and #$7f
+	jsr (os4_PrintChar)
+	lda #'-'H
+	jsr (os4_PrintChar)
+	lda @ASCII
+	and #$7f
+	jsr (os4_PrintHexByte)
+	jsr (os4_PrintSpace)
+
+	lda @ASCII
+	ora #$80
+	and #$Bf
+	jsr (os4_PrintChar)
+	lda #'-'H
+	jsr (os4_PrintChar)
+	lda @ASCII
+	ora #$80
+	and #$Bf
+	jsr (os4_PrintHexByte)
+	jsr (os4_PrintSpace)
+
+	lda @ASCII
+	ora #$C0
+	jsr (os4_PrintChar)
+	lda #'-'H
+	jsr (os4_PrintChar)
+	lda @ASCII
+	ora #$C0
+	jsr (os4_PrintHexByte)
+	jsr (os4_PrintSpace)
+
+	jsr (os4_NextLine)
+	jsr (os4_NextLine)
+	RETURN 0
+}
+
+
+/*  The headers when printing the ASCII charset */
+data ASCIIHeaderStr string {
+	"  0123456789ABCDEF"
+}
+data ASCIIDashesStr string {
+	"  ----------------"
+}
+

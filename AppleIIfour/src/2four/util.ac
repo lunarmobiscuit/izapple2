@@ -1,0 +1,854 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Utility subroutines
+ *
+ */
+
+
+/*
+ *  Compute the TEXT screen pointer
+ */
+sub SetScreenBase() {
+	X = @TXTROW							; X = @TXTROW
+	xsl									; X = X * 2
+
+	lda.w TextScreenBase,x				; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	rts.a24
+}
+
+
+/*
+ *  Which screen to display: TEXT, LORES, HIRES, etc.
+ */
+sub SetScreenMode(MODE A) {
+	sta @DISPMODE
+	cmp #DISP_TEXT_1
+	IF (==) {
+		lda TXTSET
+		lda TXTPAGE1
+		RETURN
+	}
+	cmp #DISP_TEXT_2
+	IF (==) {
+		lda TXTSET
+		lda TXTPAGE2
+		RETURN
+	}
+	cmp #DISP_LORES_1
+	IF (==) {
+		lda TXTCLR
+		lda TXTPAGE1
+		lda LORES
+		RETURN
+	}
+	cmp #DISP_LORES_2
+	IF (==) {
+		lda TXTCLR
+		lda TXTPAGE2
+		lda LORES
+		RETURN
+	}
+	cmp #DISP_HIRES_1
+	IF (==) {
+		lda TXTCLR
+		lda TXTPAGE1
+		lda HIRES
+		RETURN
+	}
+	cmp #DISP_HIRES_2
+	IF (==) {
+		lda TXTCLR
+		lda TXTPAGE2
+		lda HIRES
+		RETURN
+	}
+
+	lda TXTSET				; Default is TEXT1
+	lda TXTPAGE1
+	RETURN
+}
+
+
+/*
+ *  Compare the text buffer with a string
+ *  Return in A = #FF if match, #00 if not
+ */
+sub CompareText(STR_A %%7.t, STR_B %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_A
+		lda.a24 XY
+		ldx.t @STR_B
+		cmp.a24 XY
+		IF != {
+			RETURN 0
+		}
+		IF == 0 {
+			lda.a24 XY
+			IF == 0 {
+				RETURN $FF
+			}
+			RETURN 0
+		}
+	}
+	RETURN 0
+}
+
+/*
+ *  Compare the text buffer with a string
+ *  Return in A = #FF if STR_A matches the start of STR_B, #00 if not
+ */
+sub CompareStartOfText(STR_A %%7.t, STR_B %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_A
+		lda.a24 XY
+		IF == 0 {
+			RETURN $FF
+		}
+		ldx.t @STR_B
+		cmp.a24 XY
+		IF != {
+			RETURN 0
+		}
+	}
+	RETURN 0
+}
+
+
+/*
+ *  Copy one string to another
+ */
+sub CopyString(STR_FROM %%7.t, STR_TO %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_FROM
+		lda.a24 XY
+		IF == {
+			RETURN
+		}
+		ldx.t @STR_TO
+		sta.a24 XY
+	}
+	RETURN
+}
+
+
+/*
+ *  Copy one string to another
+ */
+sub CopyStringHigh(STR_FROM %%7.t, STR_TO %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_FROM
+		lda.a24 XY
+		IF == {
+			RETURN
+		}
+		ora #$80
+		ldx.t @STR_TO
+		sta.a24 XY
+	}
+	RETURN
+}
+
+
+/*
+ *  Print a 24-bit hex value
+ */
+sub PrintHex24(triple A.t) {
+	sta.t %%7.252
+	sr8.t
+	sr8.t
+	jsr PrintHexByte
+	lda.t %%7.252
+	sr8.w
+	jsr PrintHexByte
+	lda.t %%7.252
+	jsr PrintHexByte
+	rts.a24
+}
+
+
+/*
+ *  Print a 16-bit hex value
+ */
+sub PrintHexWord(word A.w) {
+	sta.w %%7.253
+	sr8.w
+	jsr PrintHexByte
+	lda.w %%7.253
+	jsr PrintHexByte
+	rts.a24
+}
+
+
+/*
+ *  Print a hex byte
+ *  A = value to print
+ */
+sub PrintHexByte(byte A.b) {
+	sta %%7.255
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr PrintHexDigit
+	lda %%7.255
+	and #$0F
+	jsr PrintHexDigit
+	rts.a24
+}
+
+
+/*
+ *  Print a hex digit
+ *  A = nibble to print
+ */
+sub PrintHexDigit(nibble A.b) {
+	cmp #10
+	IF (<) {				; '0-9'
+		adc #$B0
+	}
+	ELSE {					; 'A-F'
+		clc
+		adc #$B7
+	}
+	ldx.w @TXTPTR
+	ldy @TXTPOS
+	sta.a24 XY
+
+	inc @TXTPOS
+	rts.a24
+}
+
+
+/*
+ *  Parse a value
+ *	  Returns value in A
+ */
+sub ParseNumber(STR %%7.t) {
+	ldx.t @STR
+	lda.a24 X
+	cmp #'$'
+	IF (==) {						; $HEX value
+		jmp ParseHexNumber
+	}
+	ELSE {							; DECIMAL value
+		jmp ParseDecimalNumber
+	}
+}
+sub ParseHexNumber(STR X) {
+	var VAL = %R247.t				; Holds the value being generated
+	stz.t @VAL
+
+	ldy #1							; Y = 1, to skip the leading '$'
+	LOOP {
+		lda.a24 XY
+		IF (==) {					; Zero terminated string
+			BREAK
+		}
+
+		lda.t @VAL					; @VAL <<= 4, making space for the next nibble
+		asl.t
+		asl.t
+		asl.t
+		asl.t
+		sta.t @VAL
+
+		lda.a24 XY
+		cmp #'0'
+		IF (>=) {
+			cmp #'9'
+			IF (<=) {
+				sec
+				sbc #'0'			; @VAL += C - '0'
+				clc
+				adc.t @VAL
+				sta.t @VAL
+				iny
+				CONTINUE
+			}
+			cmp #'A'
+			IF (>=) {
+				cmp #'G'
+				IF (<=) {
+					sec
+					sbc #55			; @VAL += C - 'A' + 10
+					clc
+					adc.t @VAL
+					sta.t @VAL
+					iny
+					CONTINUE
+				}
+				cmp #'a'
+				IF (>=) {
+					cmp #'g'
+					IF (<=) {
+						sec
+						sbc #87	; @VAL += C - 'a' + 10
+						clc
+						adc.t @VAL
+						sta.t @VAL
+						iny
+						CONTINUE
+					}
+				}
+			}
+			}
+			BREAK						; Stop for any character not 0-9A-Za-z
+	}
+
+	lda.t @VAL
+	RETURN
+}
+sub ParseDecimalNumber(STR X) {
+	var VAL = %R247.t				; Holds the value being generated
+	var STR = %R244.t				; Saves the string address
+	stz.t @VAL
+	stx.t @STR
+
+	ldy #0
+	LOOP {
+		lda.a24 XY
+		IF (==) {					; Zero terminated string
+			BREAK
+		}
+
+		lda.t @VAL					; @VAL *= 10 (VAL = VAL*8 + VAL*2)
+		jsr Times10
+		sta.t @VAL
+
+		ldx.t @STR
+		lda.a24 XY
+		cmp #'0'
+		IF (>=) {
+			cmp #'9'
+			IF (<=) {
+				sec
+				sbc #'0'			; @VAL += C - '0'
+				clc
+				adc.t @VAL
+				sta.t @VAL
+				iny
+				CONTINUE
+			}
+			BREAK
+		}
+	}
+
+	lda.t @VAL
+	RETURN
+}
+
+
+/*
+ *  Calculate A * 10
+ *	  Returns A = A * 10
+ */
+sub Times10(VALUE A) {
+	asl.t							; A *= 10 (A = A*8 + A*2)
+	tax.t
+	asl.t
+	asl.t
+	clc
+	adx.t
+	rts.a24
+}
+
+
+/*
+ *  Calculate A.t mod X.t
+ *	  Returns Y = A mod X, X = A / X
+ */
+sub Modulo(VALUE A, MOD X) {
+	var MODULO = %R247.t
+	stx.t @MODULO
+	ldy #0
+	LOOP {
+		sec
+		sbc.t @MODULO
+		IF (-) {
+			clc
+			adc.t @MODULO
+			RETURN
+		}
+		iny
+	}
+}
+
+
+/*
+ *  Print a string
+ *  @ARGT0.a24 points to the string
+ */
+sub PrintString(STR %%7.t) {
+	var IDX = %R247
+	FOR @IDX = 0 TO 39 {
+		ldx.t @STR
+		ldy @IDX
+		lda.a24 XY
+		IF (==) {
+			RETURN
+		}
+		ora #$80
+		ldx.w @TXTPTR				; .w as we know TXTPTR is inside the first 64K
+		ldy @TXTPOS
+		cpy #40 					; ignore if >= column 40
+		IF (<) {
+			sta.a24 XY
+			inc @TXTPOS
+		}
+	}
+	RETURN
+}
+sub PrintError(ERR_STR %%7) {
+	jsr NextLine
+	jsr PrintString
+	jsr NextLine
+	jsr NextLine
+	RETURN
+}
+
+
+/*
+ *  Print a character
+ */
+sub PrintChar(ASCII A) {
+	ldx.w @TXTPTR				; .w as we know TXTPTR is inside the first 64K
+	ldy @TXTPOS
+	cpy #40 					; ignore if >= column 40
+	IF < {
+		sta.a24 XY
+		inc @TXTPOS
+	}
+	RETURN
+}
+
+
+/*
+ *  Print a blank space
+ */
+sub PrintSpace() {
+	lda #' 'H
+	ldx.w @TXTPTR
+	ldy @TXTPOS
+	cpy #40 					; ignore if >= column 40
+	IF < {
+		sta.a24 XY
+		inc @TXTPOS
+	}
+	RETURN
+}
+
+
+/*
+ *  Print the cursor
+ *    TXTPOS is NOT updated
+ */
+sub PrintCursor(ASCII A) {
+	ldx.w @TXTPTR
+	ldy @TXTPOS
+	cpy #40 					; ignore if >= column 40
+	IF < {
+		lda #'_'H
+		sta.a24 XY
+	}
+	RETURN
+}
+
+
+/*
+ *  Unprint the cursor
+ *    TXTPOS is NOT updated
+ */
+sub ClearCursor() {
+	ldy @TXTPOS
+	cpy #40 					; ignore if >= column 40
+	IF < {
+		lda #' 'H
+		ldx.w @TXTPTR			; .w as we know TXTPTR is inside the first 64K
+		sta.a24 XY
+	}
+	RETURN
+}
+
+
+/*
+ *  Play a beep sound - waveform is in BeepTimes
+ */
+sub PlayBeep() {
+	FOR X = 0 TO 8 {
+		lda BeepTimes,X				; for Wait $nn = .01 seconds
+		FOR Y = 0 TO 16 {
+			jsr Wait
+			bit SPKR				; toggle the speaker
+		}
+	}
+	RETURN
+}
+
+
+/*
+ *  Pause for A/100000 seconds
+ */
+sub Wait(TIME A) {
+	phx.t
+	pha.t
+	FOR X = 1 TO 3 {			; 3 times is the magic number for 4Mhz
+		pla.t
+		pha.t					; countdown A to zero
+		DO {
+			dec.t
+			cmp.t #0
+		}
+		WHILE (!=)
+	}
+	pla.t
+	plx.t
+	RETURN
+}
+
+
+/*
+ *  Print a hex byte in the top right corner of the screen
+ */
+sub PrintDebugValue(VALUE A) {
+	pha						; Save A
+	pha						; Copy A for 2nd digit
+	A >>= 4					; Draw hex of 1st nibble
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $426				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Draw hex of 2nd nibble
+	A &= $0F
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $427				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Restore A
+	RETURN
+}
+
+/*
+ *  Print one character in the top right corner of the screen
+ */
+sub PrintDebugChar(CHAR A) {
+	sta $427
+	lda #$A0
+	sta $426
+	rts.a24
+}
+sub PrintDebug2Chars(TWO_CHARS A.w) {
+	sta.w $426
+	rts.a24
+}
+
+
+/*
+ *  Fill the TEXT row with spaces
+ */
+sub ClearRow(ROW X) {
+	xsl									; X = X * 2
+	lda.w TextScreenBase,x				; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	tax.w								; Copy of @TXTPTR in X
+	lda #$A0 							; $20 (space) | $80 (high ASCII)
+	ldy #0
+ loop_clear_char:
+	sta.a24 XY
+	iny
+	cpy #40								; 40 columns wide
+	bne -loop_clear_char
+	rts.a24
+}
+
+
+/*
+ *  Fill the TEXT screen with spaces from row X to row 23
+ *    First row (X) is ignored for TEXT page 2
+ */
+sub ClearScreen(FIRST_ROW X) {
+	var ROWPTR = %R251.w
+
+	xsl									; X = X * 2
+	DO {
+		lda.w TextScreenBase,X			; Pre-calculated row values
+		sta.w @ROWPTR
+
+		lda @DISPMODE
+		and #DISP_TEXT_MASK
+		IF (==) {						; only check the page if DISP_TEXT
+			bit @DISPMODE
+			IF (-) {					; MSB is page 1 or page 2
+				lda.w @ROWPTR
+				clc
+				adc.t #$400
+				sta.w @ROWPTR
+			}
+		}
+
+		lda #$A0 						; $20 (space) | $80 (high ASCII)
+		FOR Y = 0 TO 39 {				; 40 columns
+			sta (@ROWPTR),y
+		}
+		inx
+		inx
+		cpx #48							; 24 rows (x2 bytes pre row pointer)
+	}
+	WHILE (!=)
+	RETURN
+}
+
+
+/*
+ *  Clears LORES screen
+ */
+sub ClearLores() {
+	var ROWPTR = %R251.w
+
+	ldx #0
+	DO {
+		lda.w TextScreenBase,X			; Pre-calculated row values
+		sta.w @ROWPTR
+
+		lda @DISPMODE
+		and #DISP_LORES
+		IF (==) {						; if not DISP_LORES, then clear TEXT page 2
+			lda.w @ROWPTR
+			clc
+			adc.t #$400
+			sta.w @ROWPTR
+		}
+		ELSE {
+			bit @DISPMODE
+			IF (-) {					; MSB is page 1 or page 2
+				lda.w @ROWPTR
+				clc
+				adc.t #$400
+				sta.w @ROWPTR
+			}
+		}
+
+		lda #0
+		FOR Y = 0 TO 39 {				; 40 columns
+			sta (@ROWPTR),y
+		}
+		inx
+		inx
+		cpx #48							; 24 rows (x2 bytes pre row pointer)
+	}
+	WHILE (!=)
+	RETURN
+}
+
+
+/*
+ *  Clears HIRES screen
+ */
+sub ClearHires() {
+	// @@@ TBD
+	RETURN
+}
+
+
+
+/*
+ *  Go to the next line on the TEXT screen, scrolling if needed, and paginating after L_P_P lines
+ *	  Returns 1 if the output is cancelled
+ */
+sub PaginateLine(LINES_PER_PAGE %%7) {
+	inc @TXTPGROWS						; Pause every LINES_PER_PAGE lines
+	lda @TXTPGROWS
+	cmp @LINES_PER_PAGE
+	if (>=) {
+		jsr GetChar
+		if (== $83) {						; Stop scrolling on ^C
+			RETURN 1
+		}
+		if (== $9B) {						; Stop scrolling on ESC
+			RETURN 1
+		}
+		stz @TXTPGROWS
+	}
+
+	jsr NextLine
+
+	RETURN 0
+}
+
+
+/*
+ *  Go to the next line on the TEXT screen, scrolling if needed
+ */
+sub NextLine() {
+	lda @TXTROW							; 24 rows tall (0-23)
+	cmp #23
+	IF < {
+		inc @TXTROW						; Increment the current row
+		jsr SetScreenBase				; Update the @TXTPTR
+		lda #0
+		sta @TXTPOS						; Reset to position 0
+	}
+	ELSE {
+		ldx #2
+		jsr ScrollScreen				; Scroll the screen, from row X=2
+		lda #23
+		sta @TXTROW						; Set to row 23
+		stz @TXTPOS						; Reset to position 0
+	}
+	RETURN
+}
+
+
+/*
+ *  Scroll the TEXT screen with spaces from row X to row 23
+ */
+sub ScrollScreen(FIRST_ROW X) {
+	var NEXTPTR = %R249.w
+	xsl										; X = X * 2
+ loop_scroll_line:
+	lda.w TextScreenBase,x					; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda.w TextScreenBase+2,x
+	sta.w @NEXTPTR							; address of the next line on the TEXT screen
+	ldy #0
+ loop_scroll_char:
+	lda (@NEXTPTR),y
+	sta (@TXTPTR),y
+	iny
+	cpy #40									; 40 columns
+	bne -loop_scroll_char
+	inx
+	inx
+	cpx #46									; Only 23 rows (46 = 23 x 2), as the the last line gets cleared
+	bne -loop_scroll_line
+ scroll_clear_last_line:
+	lda.w TextScreenBase,x	; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda.w #$A0A0							; Two high ASCII ' 's
+	ldy #0
+ loop_scroll_clear_line:
+	sta.w (@TXTPTR),y
+	iny
+	iny
+	cpy #40
+	bne -loop_scroll_clear_line
+ done_with_scroll:
+	rts.a24
+}
+
+
+/*
+ *  Clear the text input buffers (255 bytes, filled with zeros)
+ */
+sub ClearInputBuffers() {
+	lda #0
+	FOR X = 0 TO 255 {
+		sta @TYPBUFFER,x
+	}
+	rts.a24
+}
+
+
+/*
+ *  Clear the text input buffer (128 bytes, filled with zeros)
+ */
+sub ClearCurrentInputBuffer() {
+	lda #0
+	FOR X = 0 TO 79 {
+		sta @TYPBUFFER,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub PrevToCurrentInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @TYPBUFFER2,x
+		sta @TYPBUFFER,x
+
+		lda @TYPBUFFER3,x
+		sta @TYPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub CurrentToPrevInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @TYPBUFFER2,x
+		sta @TYPBUFFER3,x
+
+		lda @TYPBUFFER,x
+		sta @TYPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the current text input buffer to the current line on the TEXT screen
+ */
+sub InputBufferToTextScreen() {
+	ldy #1
+	FOR X = 0 TO 39 {
+		lda @TYPBUFFER,x
+		IF (== 0) {
+			sty @TXTPOS
+			BREAK
+		} 
+		ora #$80
+		sta (@TXTPTR),y
+		iny
+	}
+	lda #' 'H
+	LOOP {
+		cpy #40
+		IF (==) {
+			BREAK
+		}
+		sta (@TXTPTR),y
+		iny
+	}
+	RETURN
+}
+
+
+/*
+ *  Wait for a key to be pressed
+ *  Returns: ASCII (high bit set) in A
+ */
+sub GetChar() {
+	LOOP {
+		bit KBD 					; check keyboard for next key
+		IF - {
+			BREAK
+		}
+	}
+	lda KBD 						; get the key code from the keyboard
+	bit KBDSTRB						; clear keyboard strobe (a.k.a. ack keyboard read)
+	rts.a24
+}
+
+
+/*
+ *  Print Apple ][4 at the top of the screen
+ */
+sub AppleII4() {
+	FOR X = 0 TO 39 {
+		lda Hello,x
+		beq +BREAK
+		ora #$80
+		sta $400,x
+	}
+	RETURN
+}

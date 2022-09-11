@@ -1,0 +1,195 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Data blocks
+ *
+ */
+
+
+/*
+ *  The ROM vector table
+ */
+data ROMVectors @$FF0005 u24 {
+	Wait
+	SetScreenMode
+	SetScreenBase
+	GetChar
+	PrintChar
+	PrintSpace
+	PrintCursor
+	ClearCursor
+	PrintString
+	PrintError
+	PrintHexDigit
+	PrintHexByte
+	PrintHexWord
+	PrintHex24
+	PaginateLine
+	NextLine
+	ScrollScreen
+	ClearRow
+	ClearScreen
+	ClearLores
+	ClearHires
+	CompareText
+	CompareStartOfText
+	CopyString
+	CopyStringHigh
+	ParseNumber
+	ParseHexNumber
+	ParseDecimalNumber
+	Times10
+	Modulo
+	PlayBeep
+	AppleII4
+}
+
+data DOSVectors @$FF0100 u24 {
+	Disk4Name
+	Disk4CatalogStart
+	Disk4CatalogNext
+	Disk4Create
+	Disk4Open
+	Disk4Close
+	Disk4Read
+	Disk4Write
+	Disk4C800
+	Disk4PrintError
+}
+
+/*
+ *  The addresses of the 24 TEXT rows
+ */
+data TextScreenBase @$FF8000 word {
+	$0400, $0480, $0500, $0580, $0600, $0680, $0700, $0780
+	$0428, $04A8, $0528, $05A8, $0628, $06A8, $0728, $07A8
+	$0450, $04D0, $0550, $05D0, $0650, $06D0, $0750, $07D0
+}
+
+
+/*  The title of the reset screen */
+data Hello string {
+	"Apple ][4"
+}
+
+/*  The header when listing commands */
+data CommandListStr string {
+	"COMMANDS:"
+}
+
+/*  The program has ended */
+data EndProgramStr string {
+	">> END PROGRAM"
+}
+
+/*  The headers when printing the ASCII charset */
+data ASCIIHeaderStr string {
+	"  0123456789ABCDEF"
+}
+data ASCIIDashesStr string {
+	"  ----------------"
+}
+
+/*  The header for the catalog */
+data CatalogHeaderStr string {
+	"CATALOG for "
+}
+
+/*  Error string for load, view, etc. */
+data NoFilenameErrStr string {
+	"*** FILENAME must be specified"
+}
+data NoFileTypeErrStr string {
+	"*** FILE TYPE must be specified"
+}
+data NoAddressErrStr string {
+	"*** ADDRESS must be specified"
+}
+data NoValueErrStr string {
+	"*** VALUE must be specified"
+}
+data NoLengthErrStr string {
+	"*** LENGTH must be specified"
+}
+data EndBeforeStartErrStr string {
+	"*** The END value is less than START"
+}
+data LoadedStr string {
+	"LOADED "
+}
+data LoadedBytesToStr string {
+	" bytes to $"
+}
+
+data NotRUNFileError string {
+	"*** FILE Must be a RUN file"
+}
+
+/*  General error message for bad argument */
+data InvalidValue string {
+	"*** INVALID VALUE"
+}
+
+
+/*  The header for the catalog */
+data Disk4ErrorStr string {
+	"*** DISK4 ERROR"
+}
+data Disk4ErrorNotFoundStr string {
+	"*** DISK4: FILE NOT FOUND"
+}
+data Disk4ErrorExistsStr string {
+	"*** DISK4: FILE ALREADY EXISTS"
+}
+data Disk4ErrorReadStr string {
+	"*** DISK4: READ ERROR"
+}
+
+/*  The waveform of the beep tone */
+data BeepTimes byte {
+	220, 220, 220, 60, 60, 60, 60, 60,
+}
+
+
+/*
+ *  The list of commands
+ */
+data CMD_Help string { "?" }
+data CMD_Ascii string { "ascii" }
+data CMD_Beep string { "beep" }
+data CMD_Catalog string { "catalog" }
+data CMD_Clear string { "clear" }
+data CMD_Echo string { "echo" }
+data CMD_Hires string { "hires" }
+data CMD_Load string { "load" }
+data CMD_Lores string { "lores" }
+data CMD_Peek string { "peek" }
+data CMD_Poke string { "poke" }
+data CMD_Reset string { "reset" }
+data CMD_Run string { "run" }
+data CMD_Store string { "store" }
+data CMD_Text string { "text" }
+data CMD_Wait string { "wait" }
+data CMD_View string { "view" }
+data CMD_2Plus string { "2+" }
+
+data CommandList u24 {
+	CMD_Help, DoHelp
+	CMD_Ascii, DoAscii
+	CMD_Catalog, DoCatalog
+	CMD_Beep, PlayBeep
+	CMD_Clear, DoClear
+	CMD_Echo, DoEcho
+	CMD_Hires, DoHires
+	CMD_Load, DoLoad
+	CMD_Lores, DoLores
+	CMD_Peek, DoPeek
+	CMD_Poke, DoPoke
+	CMD_Reset, DoReset
+	CMD_Run, DoRun
+	CMD_Store, DoStore
+	CMD_Text, DoText
+	CMD_View, DoView
+	CMD_Wait, Wait
+	CMD_2Plus, Do2Plus
+}

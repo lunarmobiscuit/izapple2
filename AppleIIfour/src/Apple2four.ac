@@ -1,0 +1,335 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  aCCemble -l Apple2four.lst -o Apple2four.rom Apple2four.ac; cp Apple2four.rom ../../../izapple2/resources 
+ *
+ */
+
+#include "2four/globals.ac"
+
+const N_COMMANDS	= 18		// The number of commands in CommandList
+
+
+/*
+ *  The code begins with a JMPs to the OS functions
+ *  followed by a table of addresses for JSR ($aaaa) indirect calls
+ */
+sub Start() @$FF0000 {
+	jmp Reset
+}
+
+/*
+ *  RST vector points here
+ */
+sub Reset() @$FF0200 {
+	cld
+	sta LANGSET					; turn on ][+ "upper" 16K (write twice)
+	sta LANGSET
+	r16							; set the stack to be 16-bit wide
+	sws
+	ldx.w #TOP_OF_STACK			; initialize the stack to start at $FEFF
+	txs.w
+
+	lda TXTSET					; Start in TEXT mode
+	lda TXTPAGE1				;  Page 1
+	lda SETAN0					; AN0 = TTL hi
+	lda SETAN1					; AN1 = TTL hi
+	lda CLRAN2					; AN2 = TTL lo
+	lda CLRAN3					; AN3 = TTL lo
+	lda CLRROM					; turn off extension ROM
+	bit KBDSTRB					; clear keyboard
+	
+	lda #2
+	sta @TXTROW					; Start at TEXT row 2
+	stz @TXTPOS					; Start at TEXT position 0
+	
+	lda #DISP_TEXT_1			; Start in TEXT mode, page 1
+	jsr SetScreenMode
+	ldx #0
+	jsr ClearScreen				; Clear TEXT page 1
+	jsr ClearLoRes				; Clear LORES page 2
+	jsr ClearHiRes				; Clear LORES page 1
+
+	jsr AppleII4				; draw the header
+	; drop through to CommandLoop
+}
+
+/*
+ *  Interpret and run commands
+ *  echoing the keys as they are typed and store in @TYPBUFFER
+ */
+sub CommandLoop() {
+	jsr ClearInputBuffers
+	LOOP {
+		jsr SetScreenBase				; Set the @TXTPTR based on @TXTROW
+		lda @TXTPOS
+		IF == {
+			lda #':'H					; Draw the prompt
+			jsr PrintChar
+			jsr PrintCursor				; Draw the cursor
+		}
+		LOOP {
+			bit KBD 					; check keyboard for next key
+			IF - {
+				BREAK
+			}
+		}
+		lda KBD 						; get the key code from the keyboard and ack the read
+		bit KBDSTRB
+		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
+			jsr ClearCursor
+			jsr NextLine
+			jsr CurrentToPrevInputBuffer
+			jsr CommandLine
+			jsr ClearCurrentInputBuffer
+			CONTINUE
+		}
+		IF == $FF {						; 127 = DEL ($80 | $7F in high ASCII)
+			lda @TXTPOS
+			IF > 1 {
+				jsr ClearCursor			; Erase the cursor
+				lda #' 'H				; Erase the current character
+				ldy @TXTPOS
+				dey
+				sta (@TXTPTR),y
+				dey						; Delete the last character in the text buffer
+				lda #0
+				sta @TYPBUFFER,y
+				dec @TXTPOS				; Decrement the text position
+				jsr PrintCursor			; Draw the cursor
+			}
+			CONTINUE
+		}
+		IF == $88 {						; 8 = BS ($80 | $08 in high ASCII)
+			lda @TXTPOS
+			IF > 1 {
+				jsr ClearCursor			; Erase the cursor
+				lda #' 'H				; Erase the current character
+				ldy @TXTPOS
+				dey
+				sta (@TXTPTR),y
+				dey						; Delete the last character in the text buffer
+				lda #0
+				sta @TYPBUFFER,y
+				dec @TXTPOS				; Decrement the text position
+				jsr PrintCursor			; Draw the cursor
+			}
+			CONTINUE
+		}
+		IF == $89 {						; 9 = Tab ($80 | $09 in high ASCII)
+			jsr CompleteCommand
+			CONTINUE
+		}
+		IF == $8B {						; 11 = Up Arrow ($80 | $0B in high ASCII)
+			jsr PrevToCurrentInputBuffer
+			jsr InputBufferToTextScreen
+			jsr PrintCursor				; Draw the cursor
+			CONTINUE
+		}
+		IF == $9B {						; 27 = ESC ($80 | $1B in high ASCII)
+			ldx @TXTROW					; Clear the current text buffer
+			jsr ClearRow
+			jsr ClearCurrentInputBuffer
+			lda #0
+			sta @TXTPOS					; Reset to position 0
+
+			lda TXTPAGE1				; Return to TEXT page 1
+			jsr SetScreenMode
+
+			CONTINUE
+		}
+		IF > $9F {						; >31 = Not a control character ($80 | $1F in high ASCII)
+			ldy @TXTPOS
+			jsr PrintChar
+			cpy #40 					; Ignore IF >= column 40
+			IF < {
+				and #$7F				; store (low) ASCII in TEXT buffer
+				dey 					; Y-1 as TEXT position starts at 1, making space for the prompt
+				sta @TYPBUFFER,y
+				jsr PrintCursor
+			}
+		}
+	}
+	; loop forever
+}
+
+
+/*
+ *  Lookup and execute the typed command
+ */
+sub CommandLine() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda #@TYPBUFFER						; %%0.1 <- the command text
+	sta.t %%0.1
+
+	lda #0								; %%0 <- the number of args (not including the command)
+	sta %%0
+
+	ldy #3								; Index to the next %%0.parameter
+	ldx #0
+	LOOP {
+		lda @TYPBUFFER,x				; Look for a space
+		IF (== 0) {
+			BREAK
+		}
+		cmp #' '
+		IF (==) {
+			LOOP {
+				lda @TYPBUFFER,x		; Skip over extra spaces
+				IF (== 0) {
+					BREAK
+				}
+				cmp #' '
+				IF (==) {
+					lda #0
+					sta @TYPBUFFER,x
+					inx
+				}
+				BREAK
+			}
+
+			lda #@TYPBUFFER
+			clc
+			adx.w
+			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
+			iny
+			iny
+			iny
+			inc %%0
+			inx
+			BREAK
+		}
+		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
+		cpx #127
+		IF (>=) {
+			BREAK
+		}
+	}
+
+	LOOP {
+		lda @TYPBUFFER,x				; Look for a comma between args
+		IF (== 0) {
+			BREAK
+		}
+		cmp #','
+		IF (==) {
+			lda #0
+			sta @TYPBUFFER,x
+			inx
+
+			LOOP {
+				lda @TYPBUFFER,x		; Skip over extra spaces
+				IF (== 0) {
+					BREAK
+				}
+				cmp #' '
+				IF (==) {
+					lda #0
+					sta @TYPBUFFER,x
+					inx
+				}
+				BREAK
+			}
+
+			lda #@TYPBUFFER
+			clc
+			adx.w
+			sta.t.a16 %%0.1,y			; CMD is %%0.1, PARAM1 is %%0.4, PARAM2 is %00.7, ... %%0.10, etc.
+			iny
+			iny
+			iny
+			inc %%0
+		}
+		inx								; DO WHILE X < 127 (leave one zero in the TEXT buffer)
+		cpx #127
+		IF (>=) {
+			BREAK
+		}
+	}
+
+	lda.t %%0.1							; strA for CompareText
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr CompareText
+		IF - {
+			ldx @I6
+	  		lda.t CommandList+3,X		; CommandList[X].func
+	  		sta.t %R0
+			jsr.a24 (%R0)
+			RETURN
+		}
+	}
+	RETURN
+}
+
+/*
+ *  Try and complete the command
+ */
+sub CompleteCommand() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda #@TYPBUFFER						; %%7 <- TEXT buffer
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr CompareStartOfText
+		IF - {
+			ldx @I6
+	  		lda.t CommandList,X			; %%0.1 <- CommandList[X].string
+	  		sta.t %%7
+			lda #@TYPBUFFER				; %%7.3 <- TEXT buffer
+			sta.t %%7.3
+			jsr CopyString
+			lda.w @TXTPTR				; @TXTPTR <- Current line on TEXT screen
+			inc.w						;  +1 for the cursor
+			sta.t %%7.3
+			jsr CopyStringHigh
+			iny
+			sty @TXTPOS					; CopyString leaves the length of the string in Y
+			jsr PrintCursor
+			RETURN
+		}
+	}
+
+	RETURN
+}
+
+#include "2four/util.ac"
+#include "2four/disk4.ac"
+#include "2four/commands.ac"
+#include "2four/data.ac"
+
+/*
+ *  The 6502 vectors
+ */
+data Vectors @$FFFFF7 u24 {
+	$000000 	; NMI
+	$FF0000 	; RESET
+	$000000 	; IRQ
+}

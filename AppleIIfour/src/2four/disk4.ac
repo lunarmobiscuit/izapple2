@@ -1,0 +1,237 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Disk][4 subroutines
+ *
+ */
+
+global DISK4_CMD		= @$c0f0	// Disk][4 command (1 byte) WRITE
+global DISK4_PARAM0		= @$c0f1	// Disk][4 parameter 0 (3 bytes) WRITE
+global DISK4_PARAM1		= @$c0f4	// Disk][4 parameter 1 (3 bytes) WRITE
+global DISK4_RET0		= @$c0f7	// Disk][4 return value 0 (3 bytes) READ
+global DISK4_RET1		= @$c0fa	// Disk][4 return value 1 (3 bytes) READ
+global DISK4_RET2		= @$c0fd	// Disk][4 return value 2 (2 bytes) READ
+global DISK4_GO			= @$c0ff	// Disk][4 execute-error (1 byte) READ/WRITE
+global DISK4_RAM		= @$c800	// Disk][4 RAM for passing large values in/out
+
+global SLOT_7_ROM		= @$c700	// Start of slot 7 ROM, to enable $C800 RAM
+global PR_RAM			= @$c800	// Disk][4 stores long return values in $C800 RAM
+
+const DISK4_VOLUME_NAME		= 0
+const DISK4_CATALOG			= 1
+const DISK4_CATALOG_NEXT 	= 2
+const DISK4_EXISTS			= 3
+const DISK4_CREATE			= 4
+const DISK4_OPEN			= 5
+const DISK4_READ			= 6
+const DISK4_READ_DMA		= 7
+const DISK4_WRITE			= 8
+const DISK4_WRITE_DMA		= 9
+const DISK4_CLOSE			= 10
+const DISK4_SEEK			= 11
+
+const DISK4_SUCCESS			= 0
+const DISK4_END_OF_CATALOG	= 1
+const DISK4_END_OF_FILE		= 2
+const DISK4_ERR_EXISTS		= 3
+const DISK4_ERR_NOT_FOUND	= 4
+const DISK4_ERR_READ_ERROR	= 5
+const DISK4_ERR_WRITE_ERROR	= 6
+
+/*
+ *  Ask for the disk name
+ *    Name returned in X (pointing to 0xC800)
+ */
+sub Disk4Name() {
+	lda #DISK4_VOLUME_NAME
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	sta %R0
+
+	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
+	ldx.w #@PR_RAM
+	RETURN
+}
+
+/*
+ *  Start a disk catalog
+ */
+sub Disk4CatalogStart() {
+	lda #DISK4_CATALOG
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	RETURN
+}
+
+/*
+ *  Returns the next item in the catalog
+ *    Type in 0xC800-0xC802
+ *    Size in 0xC803-0xC805
+ *    Name in 0xC806-
+ *    Success/Error returned in A
+ *    Name address returned in X (pointing to 0xC806)
+ */
+sub Disk4CatalogNext() {
+	lda #DISK4_CATALOG_NEXT
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	sta %R0
+
+	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
+	ldx.w #@PR_RAM+6			; Return the address of the 
+
+	lda %R0
+	RETURN
+}
+
+/*
+ *  Returns the type and size of the file, if it exists
+ *    Type in 0xC800-0xC802
+ *    Size (chars) in 0xC803-0xC805
+ *    Size (24-bit value) in 0xC806-0xC807
+ *    Success/Error returned in A
+ */
+sub Disk4Exists(FILENAME %%6) {
+	jsr filenameToC800
+
+	lda #DISK4_EXISTS
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	RETURN
+}
+
+/*
+ *  Create a file
+ *    Returns A = DISK4_SUCCESS or DISK4_ERR_NOT_FOUND
+ *    Returns X = file number
+ */
+sub Disk4Create(FILENAME %%6, TYPE %%6.3.t) {
+	jsr filenameToC800
+	ldx.t @TYPE
+	lda.a24.t X
+	sta.t @DISK4_PARAM0
+
+	lda #DISK4_CREATE
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	sta %R0
+	ldx @DISK4_RET0
+	lda %R0						; the lda/sta isn't superflous, it resets the Z flag from DISK4_GO
+	RETURN
+}
+
+
+/*
+ *  Open a file
+ *    Returns A = DISK4_SUCCESS or DISK4_ERR_NOT_FOUND
+ *    Returns X = file number
+ */
+sub Disk4Open(FILENAME %%6) {
+	jsr filenameToC800
+
+	lda #DISK4_OPEN
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	sta %R0
+	ldx @DISK4_RET0
+	lda %R0						; the lda/sta isn't superflous, it resets the Z flag from DISK4_GO
+	RETURN
+}
+
+
+/*
+ *  Close a file
+ */
+sub Disk4Close(FN A) {
+	sta @DISK4_PARAM0
+	lda #DISK4_CLOSE
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	RETURN
+}
+
+
+/*
+ *  Read a file
+ *    Returns number of bytes in @DISK4_RET0
+ *    Returns the bytes in @DISK4_RAM
+ */
+sub Disk4Read() {
+	lda #DISK4_READ
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	IF (!=) {
+		RETURN
+	}
+	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
+	RETURN DISK4_SUCCESS
+}
+
+
+/*
+ *  Write a file
+ *    FN stored in @DISK4_PARAM0
+ *    N_BYTES stored in @DISK4_PARAM1
+ *    BYTES stored in @DISK4_RAM
+ */
+sub Disk4Write() {
+	lda #DISK4_WRITE
+	sta @DISK4_CMD
+	lda @DISK4_GO
+	IF (!=) {
+		RETURN
+	}
+	RETURN DISK4_SUCCESS
+}
+
+
+/*
+ *  Print the Disk4 error (@@@ add switch for error code)
+ */
+sub Disk4PrintError() {
+	IF (== DISK4_ERR_NOT_FOUND) {
+		lda.t #Disk4ErrorNotFoundStr
+	}
+	ELSE {
+		IF (== DISK4_ERR_EXISTS) {
+			lda.t #Disk4ErrorExistsStr
+		}
+		ELSE {
+			lda.t #Disk4ErrorStr
+		}
+	}
+	sta.t %%7
+	jsr PrintError
+
+	RETURN
+}
+
+
+/*
+ *  Enable Disk4's access to $C800 RAM
+ */
+sub Disk4C800() {
+	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
+	RETURN
+}
+
+
+/*
+ *  Copies the filename to $C800
+ */
+sub filenameToC800(FILENAME %%6) {
+	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
+
+	ldx.t @FILENAME
+	FOR Y = 0 TO 16 {			; Copy the filename into $C800
+		lda.a24 XY
+		sta @PR_RAM,Y
+		if (==) {
+			BREAK
+		}
+	}
+
+	RETURN
+}
+
+
