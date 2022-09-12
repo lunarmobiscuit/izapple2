@@ -447,7 +447,7 @@ func (c *CardFauxDisk) fauxDiskExists() uint8 {
 
 	fname := strings.ToUpper(c.c800toName())
 	if c.trace {
-		fmt.Printf("[CardFauxDisk] EXISTS '%s'\n", fname)
+		fmt.Printf("[CardFauxDisk] - EXISTS '%s'\n", fname)
 	}
 
 	// Subdir is specified by a colon 
@@ -511,7 +511,7 @@ func (c *CardFauxDisk) fauxDiskCreate() uint8 {
 	ftype := fmt.Sprintf("%c%c%c",
 		uint8(c.param0 & 0xff), uint8((c.param0 >> 8) & 0xff), uint8((c.param0 >> 16) & 0xff))
 	if c.trace {
-		fmt.Printf("[CardFauxDisk] CREATE '%s.%s'\n", fname, ftype)
+		fmt.Printf("[CardFauxDisk] - CREATE '%s.%s'\n", fname, ftype)
 	}
 
 	// Subdir is specified by a colon 
@@ -565,7 +565,7 @@ func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 
 	fname := strings.ToUpper(c.c800toName())
 	if c.trace {
-		fmt.Printf("[CardFauxDisk] OPEN '%s'\n", fname)
+		fmt.Printf("[CardFauxDisk] - OPEN '%s'\n", fname)
 	}
 
 	// Subdir is specified by a colon 

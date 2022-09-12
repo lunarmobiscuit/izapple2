@@ -1,0 +1,379 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Viewers for TXT, BIN, LO_, HI_
+ *  Loader for raw binary files
+ *  Run the RUN files
+ *
+ */
+
+
+/*
+ *  'view' a TXT file
+ */
+sub View_TXT(FILENAME %%5, SIZE %%5.3) {
+	var FN = %R3.b
+	lda.t @FILENAME
+	sta.t %%6
+	jsr Disk4Open
+	IF (!=) {
+		jsr Disk4PrintError
+		RETURN
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var R_IDX 		= %R4.t				; index into the read buffer
+	var ACTUAL 		= %R7.t				; actual bytes read per Disk4Read
+
+	jsr ResetPaginate
+	LOOP {
+		jsr Disk4Read
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		IF (==) {
+			BREAK
+		}
+		sta.t @ACTUAL
+
+		stz.t @R_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @R_IDX
+			lda.a24 XY
+			IF (== 10) {
+				lda #PAGINATE_LINES_PER_PAGE
+				sta %%7
+				jsr PaginateLine
+				IF (!=) {
+					bra +done
+				}
+			}
+			IF (>= 32) {				; Only visible characters
+				ldy @TXTPOS
+				cpy #40					; The next pos is off the screen, so newline
+				IF (>=) {
+					lda #PAGINATE_LINES_PER_PAGE
+					sta %%7
+					jsr PaginateLine
+					IF (!=) {
+						bra +done
+					}
+					CONTINUE
+				}
+				ora #$80				; High ASCII
+				sta (@TXTPTR),y
+				inc @TXTPOS
+			}
+
+			inc.t @R_IDX
+			lda.t @R_IDX
+			cmp.t @ACTUAL
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr PaginateLine
+
+  done:
+	lda @FN
+	jsr Disk4Close
+
+	RETURN
+}
+
+
+/*
+ *  'view' a BIN file
+ */
+sub View_BIN(FILENAME %%5, SIZE %%5.3) {
+	var FN = %R3.b
+	lda.t @FILENAME
+	sta.t %%6
+	jsr Disk4Open
+	IF (!=) {
+		jsr Disk4PrintError
+		RETURN
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var R_IDX 		= %R4.t				; index into the read buffer
+	var ACTUAL 		= %R7.t				; actual bytes read per Disk4Read
+
+	jsr ResetPaginate
+	LOOP {
+		jsr Disk4Read
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		IF (==) {
+			BREAK
+		}
+		sta.t @ACTUAL
+
+		stz.t @R_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @R_IDX
+			lda.a24 XY
+			IF (== 10) {
+				lda #PAGINATE_LINES_PER_PAGE
+				sta %%7
+				jsr PaginateLine
+				IF (!=) {
+					bra +done
+				}
+			}
+			IF (>= 32) {				; Only visible characters
+				ldy @TXTPOS
+				cpy #40					; The next pos is off the screen, so newline
+				IF (>=) {
+					lda #PAGINATE_LINES_PER_PAGE
+					sta %%7
+					jsr PaginateLine
+					IF (!=) {
+						bra +done
+					}
+					CONTINUE
+				}
+				ora #$80				; High ASCII
+				sta (@TXTPTR),y
+				inc @TXTPOS
+			}
+
+			inc.t @R_IDX
+			lda.t @R_IDX
+			cmp.t @ACTUAL
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr PaginateLine
+
+  done:
+	lda @FN
+	jsr Disk4Close
+
+	RETURN
+}
+
+
+/*
+ *  'view' a LORES file
+ */
+sub View_LORES(FILENAME %%5, SIZE %%5.3) {
+	lda.t #$800						; address $800 is LORES page 2
+	sta.t %%0.7
+	jsr Load_File
+
+	lda #DISP_LORES_2
+	jsr SetScreenMode
+
+	RETURN
+}
+
+
+/*
+ *  'view' a HIRES file
+ */
+sub View_HIRES(FILENAME %%5, SIZE %%5.3) {
+	lda.t #$2000					; address $2000 is HIRES page 1
+	sta.t %%0.7
+	jsr Load_File
+
+	lda #DISP_HIRES_1
+	jsr SetScreenMode
+
+	RETURN
+}
+
+/*
+ *  Load a file into the (already parsed) address
+ *	  Returns # of bytes read
+ */
+sub Load_File(NPRM %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
+	var FN = %R3.b
+	lda.t @FILENAME
+	sta.t %%6
+	jsr Disk4Open
+	IF (!=) {
+		jsr Disk4PrintError
+		RETURN 0
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var R_IDX = %R4.t					; index of total bytes read across all loops
+	var ACTUAL = %R7.w					; actual bytes read per Disk4Read
+	var C_IDX = %R9.w					; bytes copied from the read buffer
+
+	stz.t @R_IDX
+	LOOP {
+		jsr Disk4Read
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		IF (==) {
+			BREAK
+		}
+		sta.w @ACTUAL
+
+		stz.w @C_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @C_IDX
+			lda.a24 XY
+			inc.t @C_IDX
+
+			ldx.t @ADDRESS				; Store in @ADDRESS,Y
+			ldy.t @R_IDX
+			sta.a24 XY
+			inc.t @R_IDX
+
+			ldy.w @C_IDX				; Until @C_IDX == @ACTUAL
+			cpy.w @ACTUAL
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda @FN
+	jsr Disk4Close
+
+	RETURN @ACTUAL
+}
+
+
+/*
+ *  Load a program into $10000 and run it, shifting over the %%0.n parameters
+ */
+sub Run_Program(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
+	var FN = %R3.b
+	lda.t @FILENAME
+	sta.t %%6
+	jsr Disk4Open
+	IF (!=) {
+		jsr Disk4PrintError
+		RETURN
+	}
+	stx @FN
+	sta @DISK4_PARAM0
+
+	var R_IDX = %R4.t					; index of total bytes read across all loops
+	var ACTUAL = %R7.w					; actual bytes read per Disk4Read
+	var C_IDX = %R9.w					; bytes copied from the read buffer
+
+	stz.t @R_IDX
+	LOOP {
+		jsr Disk4Read
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		IF (==) {
+			BREAK
+		}
+		sta.t @ACTUAL
+
+		stz.w @C_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @C_IDX
+			lda.a24 XY
+			inc.t @C_IDX
+
+			ldx.t #$10000				; Store in $10000 (after the first 64K ends)
+			ldy.t @R_IDX
+			sta.a24 XY
+			inc.t @R_IDX
+
+			ldy.w @C_IDX				; Until @C_IDX == @ACTUAL
+			cpy.w @ACTUAL
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda @FN
+	jsr Disk4Close
+
+	ldx #1								; Shift the args run FILENAME [ARG...] --> FILENAME [ARG...]
+	jsr shiftParameters
+	jsr $10000							; Run the program
+
+	lda.t #EndProgramStr				; Announce that the program has ended
+	sta.t %%7
+	jsr PrintError
+
+	ldx #0
+	jsr ClearRow
+	inx
+	jsr ClearRow
+	jsr AppleII4
+
+	RETURN
+}
+
+
+/*
+ *  Shift all the args down X position(s)
+ */
+sub shiftParameters(NPRM %%0, SHIFT X) {
+	var IDX = %R127
+	stx @IDX
+	var N3 = %R126
+	var MOVETO = %R123.t
+
+	; Shift one position at a time (which isn't efficient, but simpler)
+	LOOP {
+		lda @NPRM				; Topmost ARG is $D001 + (NPRM * 3)
+		IF (==) {
+			RETURN
+		}
+		dec						; Shift up to $D001 + (NPRM-1 * 3) = @MOVETO
+		sta @N3
+		clc
+		adc @N3
+		adc @N3
+		adc.t #$D001
+		sta.t @MOVETO
+
+		ldx.t #$D001
+		LOOP {
+			ldy #3				; Copy @MOVETO+3 (XY) to @MOVETO (X)
+			lda.a24.t XY
+			sta.a24.t X
+
+			inx.t
+			inx.t
+			inx.t
+			cpx.t @MOVETO		; End the loop after copying to $D001
+			IF (>) {
+				BREAK
+			}
+		}
+
+		dec @NPRM				; Decrement the count of parameters
+		dec @IDX				; Decrement the shift counter
+		IF (==) {				; Stop if done shifting
+			BREAK
+		}
+	}
+
+	RETURN
+}

@@ -511,7 +511,7 @@ sub Wait(TIME A) {
 /*
  *  Print a hex byte in the top right corner of the screen
  */
-sub PrintDebugValue(VALUE A) {
+sub printDebugValue(VALUE A) {
 	pha						; Save A
 	pha						; Copy A for 2nd digit
 	A >>= 4					; Draw hex of 1st nibble
@@ -662,16 +662,22 @@ sub ClearHires() {
  *  Go to the next line on the TEXT screen, scrolling if needed, and paginating after L_P_P lines
  *	  Returns 1 if the output is cancelled
  */
+sub ResetPaginate() {
+	stz @TXTPGROWS							; Reset the LINES_PER_PAGE count
+	rts.a24
+}
 sub PaginateLine(LINES_PER_PAGE %%7) {
-	inc @TXTPGROWS						; Pause every LINES_PER_PAGE lines
+	inc @TXTPGROWS							; Pause every LINES_PER_PAGE lines
 	lda @TXTPGROWS
 	cmp @LINES_PER_PAGE
 	if (>=) {
 		jsr GetChar
 		if (== $83) {						; Stop scrolling on ^C
+			jsr NextLine
 			RETURN 1
 		}
 		if (== $9B) {						; Stop scrolling on ESC
+			jsr NextLine
 			RETURN 1
 		}
 		stz @TXTPGROWS
@@ -947,7 +953,7 @@ sub AppleII4() {
 		lda Hello,x
 		beq +BREAK
 		ora #$80
-		sta $400,x
+		sta $410,x
 	}
 	RETURN
 }

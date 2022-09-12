@@ -42,10 +42,9 @@ const CLR_AQUA		= $E
 const CLR_WHITE		= $F
 
 /*
- *  Print the whole set of ASCII characters
- *  or convert a hex or decimal value into an ASCII character
+ *  Edit a LORES image
  */
-sub Lopaint(NPRM %%0, CMD %%0.1.t) @$10000 {
+sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 	lda #DISP_LORES_2
 	jsr (os4_SetScreenMode)
 	jsr (os4_ClearLores)
@@ -67,7 +66,12 @@ sub Lopaint(NPRM %%0, CMD %%0.1.t) @$10000 {
 		lda Header,x
 		beq +BREAK
 		ora #$80
-		sta $400,x
+		sta $406,x
+	}
+
+	lda @NPRM
+	IF (!=) {
+		jsr DoLoad
 	}
 
 	jsr saveBehindCursor
@@ -390,7 +394,7 @@ sub DoHelp() {
 
 	@I = 1
 	@COL = 0
-	stz @TXTPGROWS
+	jsr (os4_ResetPaginate)
 	DO {
 		jsr (os4_PrintSpace)
 
@@ -1215,7 +1219,7 @@ sub debugValueC(VALUE A) {
 
 /*  The title of the screen */
 data Header string {
-	"Lopaint ][4 - a LORES editor"
+	"LO_Edit ][4 - a LORES editor"
 }
 
 /*  Help information */
@@ -1235,7 +1239,7 @@ data HelpSetColorStr string {
 	" 0-15 - Set the color"
 }
 data HelpListStr string {
-	"Lopaint COMMANDS:"
+	"LO_Edit COMMANDS:"
 }
 data LoadedStr string {
 	"LOADED: "

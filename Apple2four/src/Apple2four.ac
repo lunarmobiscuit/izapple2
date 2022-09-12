@@ -8,7 +8,7 @@
 
 #include "os4/globals.ac"
 
-const N_COMMANDS	= 18		// The number of commands in CommandList
+const N_COMMANDS	= 17		// The number of commands in CommandList
 
 
 /*
@@ -75,6 +75,7 @@ sub CommandLoop() {
 				BREAK
 			}
 		}
+
 		lda KBD 						; get the key code from the keyboard and ack the read
 		bit KBDSTRB
 		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
@@ -196,11 +197,22 @@ sub CommandLine() {
 		}
 	}
 
-	lda.t #UnknownCommandErr
-	sta.t %%7
-	jsr PrintError
-
-	RETURN
+	ldx.t %%0.1							; Check for all spaces
+	ldy #0
+	LOOP {
+		lda.a24 XY
+		if (==) {
+			RETURN
+		}
+		cmp #' '
+		if (!=) {
+			lda.t #UnknownCommandErr
+			sta.t %%7
+			jsr PrintError
+			RETURN
+		}
+		iny
+	}
 }
 
 /*
@@ -250,6 +262,7 @@ sub CompleteCommand() {
 #include "os4/util.ac"
 #include "os4/disk4.ac"
 #include "os4/commands.ac"
+#include "os4/view.ac"
 #include "os4/data.ac"
 
 /*
