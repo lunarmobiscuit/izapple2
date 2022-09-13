@@ -106,6 +106,7 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 
 	var R_IDX 		= %R4.t				; index into the read buffer
 	var ACTUAL 		= %R7.t				; actual bytes read per Disk4Read
+	var B			= %R10				; loop index across the bytes
 
 	jsr ResetPaginate
 	LOOP {
@@ -121,38 +122,55 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 
 		stz.t @R_IDX
 		LOOP {
-			ldx.w #@DISK4_RAM			; Load from $C800,Y
-			ldy.w @R_IDX
-			lda.a24 XY
-			IF (== 10) {
-				lda #PAGINATE_LINES_PER_PAGE
-				sta %%7
-				jsr PaginateLine
-				IF (!=) {
-					bra +done
-				}
+			lda #'$'H						; $addr- xx xx xx xx xx xx xx xx ........
+			jsr PrintChar
+			lda.t @R_IDX
+			jsr PrintHex24
+			lda #'-'H
+			jsr PrintChar
+
+			FOR @B = 0 to 7 {
+				ldx.w #@DISK4_RAM			; Load from $C800,Y
+				clc
+				lda.w @R_IDX
+				adc @B
+				tay
+				lda.a24 XY
+				jsr PrintHexByte
+				jsr PrintSpace
 			}
-			IF (>= 32) {				; Only visible characters
-				ldy @TXTPOS
-				cpy #40					; The next pos is off the screen, so newline
-				IF (>=) {
-					lda #PAGINATE_LINES_PER_PAGE
-					sta %%7
-					jsr PaginateLine
-					IF (!=) {
-						bra +done
+			FOR @B = 0 to 7 {
+				ldx.w #@DISK4_RAM			; Load from $C800,Y
+				clc
+				lda.w @R_IDX
+				adc @B
+				tay
+				lda.a24 XY
+				IF (< 128) {				; Print the (HIGH) ASCII equivalent of the value (except $00 = '.')
+					IF (== 0) {
+						lda #'.'H
 					}
-					CONTINUE
+					ELSE {
+						clc
+						adc #128
+					}
 				}
-				ora #$80				; High ASCII
-				sta (@TXTPTR),y
-				inc @TXTPOS
+				jsr PrintChar
 			}
 
-			inc.t @R_IDX
+			lda #PAGINATE_LINES_PER_PAGE
+			sta %%7
+			jsr PaginateLine
+			IF (!=) {
+				bra +done
+			}
+
+			clc
 			lda.t @R_IDX
+			adc.t #8
+			sta.t @R_IDX
 			cmp.t @ACTUAL
-			IF (==) {
+			IF (>=) {
 				BREAK
 			}
 		}
@@ -174,7 +192,7 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
  *  'view' a LORES file
  */
 sub View_LORES(FILENAME %%5, SIZE %%5.3) {
-	lda.t #$800						; address $800 is LORES page 2
+	lda.t #$800							; address $800 is LORES page 2
 	sta.t %%0.7
 	jsr Load_File
 

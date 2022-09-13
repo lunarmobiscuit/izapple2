@@ -637,6 +637,52 @@ func (c *CardFauxDisk) fauxDiskRead() uint8 {
 		fmt.Printf("[CardFauxDisk] READ %d/0x%x bytes\n", actual, actual)
 	}
 
+	// Special case to reformat 960 byte LORES files
+	if (actual == 960) {
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] -  960 byte LORES FILE\n")
+		}
+
+		fixed := make([]byte, 1024)
+		i := 0
+		for r := 0; r < 24; r++ {
+			var base int
+			switch r {
+				case 0: base = 0
+				case 1: base = 0x80
+				case 2: base = 0x100
+				case 3: base = 0x180
+				case 4: base = 0x200
+				case 5: base = 0x280
+				case 6: base = 0x300
+				case 7: base = 0x380
+				case 8: base = 0x28
+				case 9: base = 0xA8
+				case 10: base = 0x128
+				case 11: base = 0x1A8
+				case 12: base = 0x228
+				case 13: base = 0x2A8
+				case 14: base = 0x328
+				case 15: base = 0x3A8
+				case 16: base = 0x050
+				case 17: base = 0x0D0
+				case 18: base = 0x150
+				case 19: base = 0x1D0
+				case 20: base = 0x250
+				case 21: base = 0x2D0
+				case 22: base = 0x350
+				case 23: base = 0x3D0
+			}
+			
+			for c := 0; c < 40; c++ {
+				fixed[base + c] = buffer[i]
+				i += 1
+			}
+		}
+		buffer = fixed
+		actual = 1024
+	}
+
 	c.ret0 = uint32(actual)
 	addr := uint32(0xc800)
 	for i := 0; i < actual; i++ {
@@ -750,8 +796,8 @@ func (c *CardFauxDisk) fauxDiskClose() uint8 {
 //  Copy the filename from $C800 to a string
 //
 func (c *CardFauxDisk) c800toName() string {
-	name := make([]uint8, 16)
-	for i := 0; i < 16; i++ {
+	name := make([]uint8, 32)
+	for i := 0; i < 32; i++ {
 		name[i] = c.c800[i]
 		if c.c800[i] == 0x00 {
 			name = name[:i]

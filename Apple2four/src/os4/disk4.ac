@@ -226,7 +226,7 @@ sub filenameToC800(FILENAME %%6) {
 	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
 
 	ldx.t @FILENAME
-	FOR Y = 0 TO 16 {			; Copy the filename into $C800
+	FOR Y = 0 TO 32 {			; Copy the filename into $C800
 		lda.a24 XY
 		sta @PR_RAM,Y
 		if (==) {

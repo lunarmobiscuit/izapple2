@@ -1,0 +1,1317 @@
+/*
+ *  LO_EDIT - Editor for LORES graphics files
+ *
+ *  aCCemble -l run/LO__EDIT.lst -o ../root/OS4/LO__EDIT.run run/LO__EDIT.ac
+ *
+ */
+
+#include "os4/globals.ac"
+#include "os4/os4.ac"
+
+const N_COMMANDS	= 11		// The number of commands in CommandList
+
+global LORES2BASE	= @$800
+const LORESSIZE		= 1024
+
+global INPBUFFER 	= @$100		// $100-$14F holds the line of text being typed
+global INPBUFFER2 	= @$150		// $150-$1BF holds the previous line of text typed
+global INPBUFFER3 	= @$1A0		// $1A0-$1EF holds the previous previous line of text typed
+
+global COLOR		= %R128
+global CURSORX		= %R129
+global CURSORY		= %R130
+global HIDECUR		= %R131
+global CURSAVE		= %R132
+global PENDOWN		= %R133
+
+const CLR_BLACK		= $0
+const CLR_RED		= $1
+const CLR_PURPLE	= $2
+const CLR_MAGENTA	= $3
+const CLR_DKGREEN	= $4
+const CLR_GREY		= $5
+const CLR_BLUE		= $6
+const CLR_VIOLET	= $7
+const CLR_VDKGREEN	= $8
+const CLR_ORANGE	= $9
+const CLR_GREY2		= $A
+const CLR_PINK		= $B
+const CLR_GREEN		= $C
+const CLR_LTGREEN	= $D
+const CLR_AQUA		= $E
+const CLR_WHITE		= $F
+
+/*
+ *  Edit a LORES image
+ */
+sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
+	lda #DISP_LORES_2
+	jsr (os4_SetScreenMode)
+	jsr (os4_ClearLores)
+	lda #2
+	sta @TXTROW
+	stz @TXTPOS
+	ldx #0
+	jsr (os4_ClearScreen)
+
+	lda #CLR_RED
+	sta @COLOR
+	stz @CURSORX
+	stz @CURSORY
+	stz @HIDECUR
+	stz @CURSAVE
+	stz @PENDOWN
+
+	FOR X = 0 TO 39 {
+		lda Header,x
+		beq +BREAK
+		ora #$80
+		sta $406,x
+	}
+
+	lda @NPRM
+	IF (!=) {
+		jsr DoLoad
+	}
+
+	jsr saveBehindCursor
+	jsr drawCursor
+
+	jsr ClearInputBuffers
+	LOOP {
+		jsr (os4_SetScreenBase)			; Set the @TXTPTR based on @TXTROW
+		lda @TXTPOS
+		IF == {
+			lda #'L'H					; Draw the 'lo:' prompt
+			jsr (os4_PrintChar)
+			lda #'O'H
+			jsr (os4_PrintChar)
+			lda #':'H
+			jsr (os4_PrintChar)
+			jsr (os4_PrintCursor)		; Draw the cursor
+		}
+		LOOP {
+			bit KBD 					; check keyboard for next key
+			IF - {
+				BREAK
+			}
+		}
+		lda KBD 						; get the key code from the keyboard and ack the read
+		bit KBDSTRB
+		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
+			jsr (os4_ClearCursor)
+			jsr (os4_NextLine)
+			jsr CurrentToPrevInputBuffer
+			stz %%0.255
+			jsr CommandLine
+			sta %%0.255
+			jsr ClearCurrentInputBuffer
+
+			lda %%0.255					; End the program?
+			if (== $ff) {
+				RETURN 0
+			}
+			CONTINUE
+		}
+		IF == $FF {						; 127 = DEL ($80 | $7F in high ASCII)
+			lda @TXTPOS
+			IF > 3 {
+				jsr (os4_ClearCursor)	; Erase the cursor
+				lda #' 'H				; Erase the current character
+				ldy @TXTPOS
+				dey
+				sta (@TXTPTR),y
+				dey						; Delete the last character in the text buffer
+				lda #0
+				sta @INPBUFFER,y
+				dec @TXTPOS				; Decrement the text position
+				jsr (os4_PrintCursor)
+			}
+			CONTINUE
+		}
+		IF == $89 {						; 9 = Tab ($80 | $09 in high ASCII)
+			jsr CompleteCommand
+			CONTINUE
+		}
+		IF == $9A {						; 26 = Control-Z ($80 | $1A in high ASCII)
+			jsr PrevToCurrentInputBuffer
+			jsr InputBufferToTextScreen
+			jsr (os4_PrintCursor)
+			CONTINUE
+		}
+		IF == $9B {						; 27 = ESC ($80 | $1B in high ASCII)
+			lda @DISPMODE
+			and #DISP_LORES
+			IF (==) {
+				lda #DISP_LORES_2		; Toggle to LORES 2
+			}
+			ELSE {
+				lda #DISP_TEXT_1		; Toggle to TEXT page 1
+			}
+			jsr (os4_SetScreenMode)
+			CONTINUE
+		}
+		IF == $88 {						; 8 = Left Arrow ($80 | $08 in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda @CURSORX
+			cmp #0
+			IF (>) {
+				dec
+				sta @CURSORX
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $95 {						; 21 = Right Arrow ($80 | $15 in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda @CURSORX
+			cmp #39
+			IF (<) {
+				inc
+				sta @CURSORX
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $8B {						; 11 = Up Arrow ($80 | $0B in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda @CURSORY
+			cmp #0
+			IF (>) {
+				dec
+				sta @CURSORY
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $8A {						; 11 = Down Arrow ($80 | $0A in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda @CURSORY
+			cmp #47
+			IF (<) {
+				inc
+				sta @CURSORY
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $AE {						; '.' = Pen DOWN ($80 | $2E in high ASCII)
+			lda #1
+			sta @PENDOWN
+			CONTINUE
+		}
+		IF == $AF {						; '/' = Pen UP ($80 | $2F in high ASCII)
+			stz @PENDOWN
+			CONTINUE
+		}
+		IF == $AD {						; '-' = HIDE Cursor ($80 | $2D in high ASCII)
+			lda #1
+			sta @HIDECUR
+			jsr restoreBehindCursor
+			CONTINUE
+		}
+		IF == $AB {						; '+' = SHOW Cursor ($80 | $2B in high ASCII)
+			stz @HIDECUR
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF > $9F {						; >31 = Not a control character ($80 | $1F in high ASCII)
+			ldy @TXTPOS
+			jsr (os4_PrintChar)
+			cpy #40 					; Ignore IF >= column 40
+			IF < {
+				and #$7F				; store (low) ASCII in TEXT buffer
+				dey 					; Y-3 as the command starts at POS=3, after the 'lo:' prompt
+				dey
+				dey
+				sta @INPBUFFER,y
+				jsr (os4_PrintCursor)
+			}
+		}
+	}
+	; loop forever
+}
+
+
+/*
+ *  Save and restore the value behind the cursor
+ */
+sub saveBehindCursor() {
+	var ROWPTR = %R251.w		; Save the value hiding behind the cursor
+
+	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
+	and #$FE
+	tax
+	lda.w LoresScreenBase,X
+	ldy @CURSORX
+	sta.w @ROWPTR
+	lda (@ROWPTR),y
+	sta @CURSAVE
+
+	RETURN
+}
+sub restoreBehindCursor() {
+	var ROWPTR = %R251.w		; Pointer to the row of pixels on LORES 2
+
+	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
+	and #$FE
+	tax
+	lda.w LoresScreenBase,X
+	ldy @CURSORX
+	sta.w @ROWPTR
+	lda @CURSAVE
+	sta (@ROWPTR),y
+
+	RETURN
+}
+sub drawCursor() {
+	var ROWPTR = %R251.w		; Pointer to the row of pixels on LORES 2
+	var CURPXL = %R250
+
+	lda @CURSORY				; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
+	and #$01
+	IF (==) {
+		lda #$0F
+	}
+	ELSE {
+		lda #$F0
+	}
+	sta @CURPXL
+
+	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
+	and #$FE
+	tax
+	lda.w LoresScreenBase,X
+	ldy @CURSORX
+	sta.w @ROWPTR
+	lda (@ROWPTR),y
+	ora @CURPXL
+	sta (@ROWPTR),y
+
+	RETURN
+}
+sub drawPixel() {
+	var ROWPTR = %R251.w		; Pointer to the row of pixels on LORES 2
+	var CURMSK = %R250
+	var CURPXL = %R249
+
+	lda @CURSORY				; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
+	and #$01
+	IF (==) {
+		lda #$F0
+		sta @CURMSK
+		lda @COLOR
+		sta @CURPXL
+	}
+	ELSE {
+		lda #$0F
+		sta @CURMSK
+		lda @COLOR
+		asl
+		asl
+		asl
+		asl
+		sta @CURPXL
+	}
+
+	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
+	and #$FE
+	tax
+	lda.w LoresScreenBase,X
+	ldy @CURSORX
+	sta.w @ROWPTR
+	lda (@ROWPTR),y
+	and @CURMSK
+	ora @CURPXL
+	sta (@ROWPTR),y
+
+	RETURN
+}
+
+/*
+ *  Lookup and execute the typed command
+ */
+sub DoHelp() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+	var COL	= @$06						; column 0/12/24
+
+	jsr (os4_ResetPaginate)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpPenStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpPenUpStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpHideCursorStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpShowCursorStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpSetColorStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpListStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_PaginateLine)
+	jsr (os4_PaginateLine)
+
+	@I = 1
+	@COL = 0
+	DO {
+		jsr (os4_PrintSpace)
+
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7
+		jsr (os4_PrintString)
+
+		lda @COL
+		IF ==  {
+			@COL = 1
+			@TXTPOS = 12
+		}
+		ELSE {
+			IF == 1 {
+				@COL = 2
+				@TXTPOS = 24
+			}
+			IF == 2 {
+				@COL = 0
+				lda #PAGINATE_LINES_PER_PAGE
+				sta %%7
+				jsr (os4_PaginateLine)
+			}
+		}
+
+		inc @I
+		lda @I
+	}
+	WHILE (< N_COMMANDS)
+
+	jsr (os4_NextLine)
+	jsr (os4_NextLine)
+	RETURN 0
+}
+
+/*
+ *  Set the color for drawing
+ */
+sub DoColor(NPRM %%0, CMD %%0.1, SETCOLOR %%0.4) {
+	lda @NPRM						; no color specified
+	if (< 1) {
+		lda.t #MissingColorErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @SETCOLOR					; parse the color
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	and #$F
+	sta @COLOR
+
+	RETURN 0
+}
+
+/*
+ *  Clear the screen
+ */
+sub DoClear() {
+	jsr (os4_ClearLores)
+	RETURN 0
+}
+
+/*
+ *  Fill the screen with one color
+ */
+sub DoFill(NPRM %%0, CMD %%0.1, FILLCOLOR %%0.4) {
+	lda @NPRM						; no color specified
+	if (< 1) {
+		lda.t #MissingValueErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	ELSE {
+		lda.t @FILLCOLOR			; parse the color
+		sta.t %%7
+		jsr (os4_ParseNumber)
+	}
+	jsr FillScreen
+
+	RETURN 0
+}
+
+/*
+ *  Draw a horizontal line
+ */
+sub DoHLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
+	var ROWPTR = %R251.w
+	var CURMSK = %R250
+	var CURPXL = %R249
+
+	lda @NPRM
+	if (< 1) {
+		lda.t #MissingStartErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	if (< 2) {
+		lda.t #MissingEndErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @STARTPOS					; parse the starting positon
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #39
+	IF (>) {
+		lda #39
+	}
+	sta @STARTPOS
+
+	lda.t @ENDPOS					; parse the ending positon
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #39
+	IF (>) {
+		lda #39
+	}
+	sta @ENDPOS
+
+	lda @CURSORY					; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
+	and #$01
+	IF (==) {
+		lda #$F0
+		sta @CURMSK
+		lda @COLOR
+		sta @CURPXL
+	}
+	ELSE {
+		lda #$0F
+		sta @CURMSK
+		lda @COLOR
+		asl
+		asl
+		asl
+		asl
+		sta @CURPXL
+	}
+
+	jsr restoreBehindCursor
+	lda @CURSORY					; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
+	and #$FE
+	tax
+	lda.w LoresScreenBase,X
+	sta.w @ROWPTR
+
+	ldy @STARTPOS
+	LOOP {
+		lda (@ROWPTR),y
+		and @CURMSK
+		ora @CURPXL
+		sta (@ROWPTR),y
+		iny
+		cpy @ENDPOS
+		if (>) {
+			BREAK
+		}
+	}
+	jsr saveBehindCursor
+
+	RETURN 0
+}
+
+
+/*
+ *  Draw a vertical line
+ */
+sub DoVLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
+	var ROWPTR = %R251.w
+	var CURMSK = %R250
+	var CURPXL = %R249
+	var I = %R248
+
+	lda @NPRM
+	if (< 1) {
+		lda.t #MissingStartErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	if (< 2) {
+		lda.t #MissingEndErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @STARTPOS					; parse the starting positon
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #47
+	IF (>) {
+		lda #47
+	}
+	sta @STARTPOS
+
+	lda.t @ENDPOS					; parse the ending positon
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #41
+	IF (>) {
+		lda #47
+	}
+	sta @ENDPOS
+
+	jsr restoreBehindCursor
+	lda @STARTPOS
+	sta @I
+	ldy @CURSORX
+	LOOP {
+		lda @I							; CURPXL is $0F or $F0 depending on if @I is odd or even
+		and #$01
+		IF (==) {
+			lda #$F0
+			sta @CURMSK
+			lda @COLOR
+			sta @CURPXL
+		}
+		ELSE {
+			lda #$0F
+			sta @CURMSK
+			lda @COLOR
+			asl
+			asl
+			asl
+			asl
+			sta @CURPXL
+		}
+
+		lda @I							; draw in row @I
+		and #$FE						; lookup should be Y*2 but LOWRES is already Y*2, so floor(Y)
+		tax
+		lda.w LoresScreenBase,x
+		sta.w @ROWPTR
+
+		lda (@ROWPTR),y
+		and @CURMSK
+		ora @CURPXL
+		sta (@ROWPTR),y
+
+		inc @I
+		lda @I
+		cpx @ENDPOS
+		if (>) {
+			BREAK
+		}
+	}
+	jsr saveBehindCursor
+
+	RETURN 0
+}
+
+
+/*
+ *  'load' filename
+ *
+ */
+sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
+	jsr (os4_NextLine)
+
+	lda @NPRM						; must specify a filename
+	if (< 1) {
+		lda.t #NoFilenameErrStr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	lda.t @FILENAME					; filename exists?
+	if (==) {
+		lda #NoFilenameErrStr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	sta.t %%6
+
+	var FN = %R3.b
+	jsr (os4_Disk4Open)
+	if (!=) {
+		jsr (os4_Disk4PrintError)
+		RETURN
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var R_IDX = %R4.t					; index of total bytes read across all loops
+	var ACTUAL = %R7.w					; actual bytes read per Disk4Read
+	var C_IDX = %R9.w					; bytes copied from the read buffer
+
+	stz.t @R_IDX
+	LOOP {
+		jsr (os4_Disk4Read)
+		if (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		if (==) {
+			BREAK
+		}
+		sta.w @ACTUAL
+
+		stz.w @C_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @C_IDX
+			lda.a24 XY
+			inc.t @C_IDX
+
+			ldx.t #@LORES2BASE			; Store in @LORES2BASE,Y (LORES page 2)
+			ldy.t @R_IDX
+			sta.a24 XY
+			inc.t @R_IDX
+
+			ldy.w @C_IDX				; Until @C_IDX == @ACTUAL
+			cpy.w @ACTUAL
+			IF (==) {
+				BREAK
+			}
+			cpy.w #LORESSIZE			; or Until @C_IDX == 1024 (one LORES screen)
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda @FN
+	jsr (os4_Disk4Close)
+
+	lda.t #LoadedStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	lda.t @FILENAME
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_NextLine)
+	jsr (os4_NextLine)
+
+	RETURN
+}
+
+
+/*
+ *  'store' - Store memory to a file
+ */
+sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
+	jsr restoreBehindCursor
+	jsr (os4_NextLine)
+
+	lda @NPRM						; must specify a filename
+	if (< 1) {
+		lda.t #NoFilenameErrStr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	lda.t @FILENAME					; filename exists?
+	if (==) {
+		lda #NoFilenameErrStr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+	sta.t %%6
+
+	lda.t #LoresFileType
+	sta.t %%6.3
+
+	var FN = %R3.b
+	jsr (os4_Disk4Create)
+	if (!=) {
+		jsr (os4_Disk4PrintError)
+		RETURN
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var REMAINING = %R4.w				; bytes remaining to be written
+	var W_IDX = %R7.t					; index of total bytes read across all loops
+	var C_IDX = %R10.t					; bytes copied to the write buffer
+
+	lda.w #LORESSIZE					; the LORES page is 1024 bytes
+	sta.w @REMAINING
+
+	stz.t @W_IDX
+	LOOP {
+		jsr (os4_Disk4C800)				; Enable writing to $C800
+		stz.t @C_IDX
+		LOOP {
+			ldx.t #@LORES2BASE			; Load from @LORES2BASE,Y
+			ldy.t @W_IDX
+			lda.a24 XY
+			inc.t @W_IDX
+
+			ldx.w #@DISK4_RAM			; Store in $C800,Y
+			ldy.t @C_IDX
+			sta.a24 XY
+			inc.t @C_IDX
+
+			lda.t @C_IDX				; Until @C_IDX == @ACTUAL
+			cmp.t @REMAINING
+			IF (==) {
+				BREAK
+			}
+			cmp.t #1024					; Or up to 1024 bytes
+			IF (==) {
+				BREAK
+			}
+		}
+		sta.t @DISK4_PARAM1				; Number of bytes
+
+		lda.t @REMAINING				; @REMAINING -= @C_IDX
+		sec
+		sbc @C_IDX
+		sta.w @REMAINING
+
+		jsr (os4_Disk4Write)
+		if (!=) {						; All errors are bad
+			jsr (os4_Disk4PrintError)
+			BREAK
+		}
+
+		lda.t @REMAINING				; Stop when all the bytes are written
+		if (==) {
+			BREAK
+		}
+	}
+
+	lda @FN
+	jsr (os4_Disk4Close)
+
+	lda.t #StoredStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	lda.t @FILENAME
+	sta.t %%7
+	jsr (os4_PrintString)
+	jsr (os4_NextLine)
+	jsr (os4_NextLine)
+
+	RETURN
+}
+
+
+/*
+ *  Move the cursor
+ */
+sub DoX(NPRM %%0, CMD %%0.1, XPOS %%0.4) {
+	lda @NPRM						; no coordinate specified
+	if (< 1) {
+		lda.t #MissingValueErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @XPOS						; parse the position
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #39
+	IF (>) {
+		lda #39
+	}
+	sta @XPOS
+
+	jsr restoreBehindCursor
+	lda @XPOS
+	sta @CURSORX
+	jsr saveBehindCursor
+	jsr drawCursor
+
+	RETURN 0
+}
+sub DoY(NPRM %%0, CMD %%0.1, YPOS %%0.4) {
+	lda @NPRM						; no coordinate specified
+	if (< 1) {
+		lda.t #MissingValueErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @YPOS						; parse the position
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #47
+	IF (>) {
+		lda #47
+	}
+	sta @YPOS
+
+	jsr restoreBehindCursor
+	lda @YPOS
+	sta @CURSORY
+	jsr saveBehindCursor
+	jsr drawCursor
+
+	RETURN 0
+}
+
+/*
+ *  Quit the program
+ */
+sub DoQuit() {
+	lda #DISP_TEXT_1
+	jsr (os4_SetScreenMode)
+
+	RETURN $ff
+}
+
+
+/*
+ *  Fill the LORES screen
+ */
+sub FillScreen(BGCOLOR A) {
+	var ROWPTR = %R251.w
+	var FILLCOLOR = %R250
+
+	and #$0F							; FILLCOLOR = BGCOLOR << 4 | BGCOLOR
+	sta @FILLCOLOR
+	asl
+	asl
+	asl
+	asl
+	ora @FILLCOLOR
+	sta @FILLCOLOR
+
+	ldx #0
+	DO {
+		lda.w LoresScreenBase,X			; Pre-calculated row values
+		sta.w @ROWPTR
+
+		lda @FILLCOLOR
+		FOR Y = 0 TO 39 {				; 40 columns
+			sta (@ROWPTR),y
+		}
+		inx
+		inx
+		cpx #48							; 24 rows (x2 bytes pre row pointer)
+	}
+	WHILE (!=)
+
+	jsr saveBehindCursor
+	RETURN
+}
+
+
+/*
+ *  Lookup and execute the typed command
+ */
+sub CommandLine() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda @INPBUFFER						; Check for blank line
+	if (==) {
+		RETURN
+	}
+
+	lda.t #@INPBUFFER
+	sta.t %%7
+	jsr (os4_ParseInputParams)
+
+	ldx.t %%0.1							; 0, 1, 2, ... 15 sets the color
+	lda.a24 X
+	cmp #'0'
+	if (>=) {
+		cmp #'9'
+		if (<=) {
+			stx.t %%7
+			jsr (os4_ParseNumber)
+			and #$F
+			sta @COLOR
+			RETURN
+		}
+	} 
+
+	lda.t %%0.1							; strA for CompareText
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr (os4_CompareText)
+		IF - {
+			ldx @I6
+	  		lda.t CommandList+3,X		; CommandList[X].func
+	  		sta.t %R0
+			jsr.a24 (%R0)
+			sta %%0.255					; Store the return code (!= is quit)
+			RETURN
+		}
+	}
+
+	lda.t #UnknownCommandErr
+	sta.t %%7
+	jsr (os4_PrintError)
+	stz %%0.255							; Doubly sure not to quit over this
+	RETURN
+}
+
+/*
+ *  Try and complete the command
+ */
+sub CompleteCommand() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda #@INPBUFFER						; %%7 <- TEXT buffer
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr (os4_CompareStartOfText)
+		IF - {
+			ldx @I6
+	  		lda.t CommandList,X			; %%0.1 <- CommandList[X].string
+	  		sta.t %%7
+			lda #@INPBUFFER				; %%7.3 <- TEXT buffer
+			sta.t %%7.3
+			jsr (os4_CopyString)
+			lda.w @TXTPTR				; @TXTPTR <- Current line on TEXT screen
+			inc.w						;  +3 for the cursor
+			inc.w
+			inc.w
+			sta.t %%7.3
+			jsr (os4_CopyStringHigh)
+			iny							;  +3 for the cursor
+			iny
+			iny
+			sty @TXTPOS					; CopyString leaves the length of the string in Y
+			jsr (os4_PrintCursor)
+			RETURN
+		}
+	}
+
+	RETURN
+}
+
+
+/*
+ *  Clear the text input buffers (255 bytes, filled with zeros)
+ */
+sub ClearInputBuffers() {
+	lda #0
+	FOR X = 0 TO 255 {
+		sta @INPBUFFER,x
+	}
+	rts.a24
+}
+
+/*
+ *  Clear the text input buffer (128 bytes, filled with zeros)
+ */
+sub ClearCurrentInputBuffer() {
+	lda #0
+	FOR X = 0 TO 79 {
+		sta @INPBUFFER,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub PrevToCurrentInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER2,x
+		sta @INPBUFFER,x
+
+		lda @INPBUFFER3,x
+		sta @INPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub CurrentToPrevInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER2,x
+		sta @INPBUFFER3,x
+
+		lda @INPBUFFER,x
+		sta @INPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the current text input buffer to the current line on the TEXT screen
+ */
+sub InputBufferToTextScreen() {
+	ldy #3
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER,x
+		IF (== 0) {
+			sty @TXTPOS
+			BREAK
+		} 
+		ora #$80
+		sta (@TXTPTR),y
+		iny
+	}
+	lda #' 'H
+	LOOP {
+		cpy #40
+		IF (==) {
+			BREAK
+		}
+		sta (@TXTPTR),y
+		iny
+	}
+	RETURN
+}
+
+/*
+ *  Print a hex byte in the top right corner of the screen
+ */
+sub debugValueA(VALUE A) {
+	pha						; Save A
+	pha						; Copy A for 2nd digit
+	A >>= 4					; Draw hex of 1st nibble
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $426				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Draw hex of 2nd nibble
+	A &= $0F
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $427				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Restore A
+	RETURN
+}
+sub debugValueB(VALUE A) {
+	pha						; Save A
+	pha						; Copy A for 2nd digit
+	A >>= 4					; Draw hex of 1st nibble
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $423				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Draw hex of 2nd nibble
+	A &= $0F
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $424				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Restore A
+	RETURN
+}
+sub debugValueC(VALUE A) {
+	pha						; Save A
+	pha						; Copy A for 2nd digit
+	A >>= 4					; Draw hex of 1st nibble
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $420				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Draw hex of 2nd nibble
+	A &= $0F
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $421				; Hardcoded to top-right corner of the TEXT screen
+	pla						; Restore A
+	RETURN
+}
+
+/*  The title of the screen */
+data Header string {
+	"LO_Edit ][4 - a LORES editor"
+}
+
+/*  Help information */
+data HelpPenStr string {
+	" . - Pen DOWN"
+}
+data HelpPenUpStr string {
+	" / - Pen UP"
+}
+data HelpHideCursorStr string {
+	" - - HIDE Cursor"
+}
+data HelpShowCursorStr string {
+	" + - SHOW Cursor"
+}
+data HelpSetColorStr string {
+	" 0-15 - Set the color"
+}
+data HelpListStr string {
+	"LO_Edit COMMANDS:"
+}
+data LoadedStr string {
+	"LOADED: "
+}
+data StoredStr string {
+	"STORED: "
+}
+
+data LoresFileType string {
+	"LO_"
+}
+
+/*  The command was unknown */
+data UnknownCommandErr string {
+	"** ERROR: Unknown command"
+}
+data NoFilenameErrStr string {
+	"** FILENAME must be specified"
+}
+
+/*  Error strings */
+data MissingColorErr string {
+	"** ERROR: Missing COLOR value"
+}
+data MissingValueErr string {
+	"** ERROR: Missing VALUE"
+}
+data MissingStartErr string {
+	"** ERROR: Missing START value"
+}
+data MissingEndErr string {
+	"** ERROR: Missing END value"
+}
+
+
+
+
+/*
+ *  The addresses of the 24 LORES rows
+ */
+data LoresScreenBase word {
+	$0800, $0880, $0900, $0980, $0A00, $0A80, $0B00, $0B80
+	$0828, $08A8, $0928, $09A8, $0A28, $0AA8, $0B28, $0BA8
+	$0850, $08D0, $0950, $09D0, $0A50, $0AD0, $0B50, $0BD0
+}
+
+/*
+ *  The list of commands
+ */
+data CMD_Help string { "?" }
+data CMD_Color string { "color" }
+data CMD_Clear string { "clear" }
+data CMD_Fill string { "fill" }
+data CMD_HLine string { "hline" }
+data CMD_Load string { "load" }
+data CMD_Store string { "store" }
+data CMD_VLine string { "vline" }
+data CMD_X string { "x" }
+data CMD_Y string { "y" }
+data CMD_Quit string { "quit" }
+
+data CommandList u24 {
+	CMD_Help, DoHelp
+	CMD_Color, DoColor
+	CMD_Clear, DoClear
+	CMD_Fill, DoFill
+	CMD_HLine, DoHLine
+	CMD_Load, DoLoad
+	CMD_Store, DoStore
+	CMD_VLine, DoVLine
+	CMD_X, DoX
+	CMD_Y, DoY
+	CMD_Quit, DoQuit
+}
