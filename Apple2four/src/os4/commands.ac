@@ -442,16 +442,16 @@ sub DoView(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 
 	lda.t #$34534f						; "4SO"
-	sta.t %%0.$80						; Lookup OS4:TYP_VIEW to view the file (build the filename in %%0.$80)
+	sta.t %%0.$80						; Lookup OS4:TYP-VIEW to view the file (build the filename in %%0.$80)
 	lda.b #$3a							; ":"
 	sta.b %%0.$83
 	lda.t @DISK4_RAM
 	and.t #$7f7f7f						; convert to LOW ASCII
 	sta.t %%0.$84
-	lda.t #$454956						; "EIV"
+	lda.t #$49562D						; "IV_"
 	sta.t %%0.$87
-	lda.b #$57							; "W"
-	sta.b %%0.$8A
+	lda.t #$005745						; "WE"+zero
+	sta.t %%0.$8A
 	lda.t #%%0.$80
 	sta.t %%6
 	jsr Disk4Exists
@@ -504,16 +504,16 @@ sub DoEdit(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 
 	lda.t #$34534f						; "4SO"
-	sta.t %%0.$80						; Lookup OS4:TYP_EDIT to edit the file (build the filename in %%0.$80)
+	sta.t %%0.$80						; Lookup OS4:TYP-EDIT to edit the file (build the filename in %%0.$80)
 	lda.b #$3a							; ":"
 	sta.b %%0.$83
 	lda.t @DISK4_RAM
 	and.t #$7f7f7f						; convert to LOW ASCII
 	sta.t %%0.$84
-	lda.t #$494445						; "IDE"
+	lda.t #$44452D						; "DE_"
 	sta.t %%0.$87
-	lda.b #$54							; "T"
-	sta.b %%0.$8A
+	lda.t #$005449						; "TI"+zero
+	sta.t %%0.$8A
 	lda.t #%%0.$80
 	sta.t %%6
 	jsr Disk4Exists
