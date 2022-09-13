@@ -480,22 +480,30 @@ sub DoHelp() {
 	var COL	= @$06						; column 0/12/24
 
 	jsr (os4_ResetPaginate)
-	jsr (os4_PaginateLine)
-
-	lda.t #HelpEditStr
-	sta.t %%7
-	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpUDLRStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpEditStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpListStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 	jsr (os4_PaginateLine)
 
@@ -1092,7 +1100,7 @@ sub debugValueC(VALUE A) {
 
 /*  The title of the screen */
 data Header string {
-	"BINEdit ][4 - a BIN file editor"
+	"BIN-Edit ][4 - a BIN file editor"
 }
 
 /*  Display when editing */
@@ -1108,7 +1116,7 @@ data HelpUDLRStr string {
 	" up/down/left/right - Move Cursor"
 }
 data HelpListStr string {
-	"BINEdit COMMANDS:"
+	" BIN-Edit COMMANDS:"
 }
 data LoadedStr string {
 	"LOADED: "

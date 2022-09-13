@@ -358,38 +358,52 @@ sub DoHelp() {
 	var COL	= @$06						; column 0/12/24
 
 	jsr (os4_ResetPaginate)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpPenStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpPenUpStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpHideCursorStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpShowCursorStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpSetColorStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpListStr
 	sta.t %%7
 	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
 	jsr (os4_PaginateLine)
 	jsr (os4_PaginateLine)
 
@@ -1220,7 +1234,7 @@ sub debugValueC(VALUE A) {
 
 /*  The title of the screen */
 data Header string {
-	"LO_Edit ][4 - a LORES editor"
+	"LO-Edit ][4 - a LORES editor"
 }
 
 /*  Help information */
@@ -1240,7 +1254,7 @@ data HelpSetColorStr string {
 	" 0-15 - Set the color"
 }
 data HelpListStr string {
-	"LO_Edit COMMANDS:"
+	" LO-Edit COMMANDS:"
 }
 data LoadedStr string {
 	"LOADED: "
