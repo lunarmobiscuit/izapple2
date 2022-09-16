@@ -638,6 +638,7 @@ func (c *CardFauxDisk) fauxDiskRead() uint8 {
 	}
 
 	// Special case to reformat 960 byte LORES files
+	/*
 	if (actual == 960) {
 		if c.trace {
 			fmt.Printf("[CardFauxDisk] -  960 byte LORES FILE\n")
@@ -682,6 +683,7 @@ func (c *CardFauxDisk) fauxDiskRead() uint8 {
 		buffer = fixed
 		actual = 1024
 	}
+	*/
 
 	c.ret0 = uint32(actual)
 	addr := uint32(0xc800)
