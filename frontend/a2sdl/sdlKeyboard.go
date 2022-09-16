@@ -19,6 +19,7 @@ type sdlKeyboard struct {
 
 	modeMemory		bool
 	modeBreakpoint	bool
+	modeSetValue	bool
 	modeValue		uint32
 }
 
@@ -94,18 +95,22 @@ func (k *sdlKeyboard) putKey(keyEvent *sdl.KeyboardEvent) {
 			fmt.Printf("*** MEMORY: \n")
 			k.modeMemory = true
 			k.modeBreakpoint = false
+			k.modeSetValue = true
 			k.modeValue = 0
 		case 'P','p':
 			fmt.Printf("*** Run to PC: ")
 			k.modeMemory = false
 			k.modeBreakpoint = true
+			k.modeSetValue = true
 			k.modeValue = 0
 		case '.':
 			fmt.Printf("*** Run to PC (again)\n", )
 			k.a.SetUntilPC(0xffffff)
+			k.modeSetValue = false
 		case 'R', 'r', sdl.K_ESCAPE:
 			k.a.SendCommand(izapple2.CommandStart)
 			k.a.SendCommand(izapple2.CommandCPUTraceOff)
+			k.modeSetValue = false
 		}
 
 		return

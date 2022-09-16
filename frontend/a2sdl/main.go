@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"os"
 	"unsafe"
 
 	"github.com/lunarmobiscuit/izapple2"
@@ -50,10 +51,84 @@ func sdlRun(a *izapple2.Apple2) {
 	a.SetMouseProvider(m)
 
 	go a.Run()
+	go debugIO(a)
 
 	paused := false
 	running := true
 	for running {
+		select {
+			case debugChar := <- a.DebugChannel:
+				if a.IsPaused() == false {
+					switch debugChar {
+					case '`': // ` pauses the CPU
+						a.SendCommand(izapple2.CommandCPUTraceOn)
+						a.SendCommand(izapple2.CommandStep)
+						continue
+					}
+				}
+
+				switch debugChar {
+				case 10: // Return steps the instruction
+					if a.IsStepping() && !kp.modeSetValue {
+						a.SendCommand(izapple2.CommandNextStep)
+					} else if kp.modeMemory {
+						kp.modeSetValue = false
+						address := kp.modeValue & 0x0FFFFF0
+						fmt.Printf("0x%06x :: ", address)
+						for i := 0; i < 16; i++ {
+							fmt.Printf("%02x ", a.Peek(address + uint32(i)))
+						}
+						fmt.Printf("  ")
+						for i := 0; i < 16; i++ {
+							ch := a.Peek(address + uint32(i))
+							if (ch == 0) { ch = '.' } else if (ch < 32) { ch += 32 }
+							fmt.Printf("%c", ch)
+						}
+						fmt.Printf("\n")
+						kp.modeValue += 16
+					} else if kp.modeBreakpoint {
+						kp.modeSetValue = false
+						kp.modeBreakpoint = false
+						fmt.Printf("0x%x :: \n", kp.modeValue)
+						a.SetUntilPC(kp.modeValue)
+					}
+				case '0','1','2','3','4','5','6','7','8','9':
+					if kp.modeMemory || kp.modeBreakpoint {
+						kp.modeValue = (kp.modeValue * 16) + uint32((debugChar - '0'))
+					}
+				case 'A','B','C','D','E','F':
+					if kp.modeMemory || kp.modeBreakpoint {
+						kp.modeValue = (kp.modeValue * 16) + uint32((debugChar - 'A' + 10))
+					}
+				case 'a','b','c','d','e','f':
+					if kp.modeMemory || kp.modeBreakpoint {
+						kp.modeValue = (kp.modeValue * 16) + uint32((debugChar - 'a' + 10))
+					}
+				case 'M','m':
+					fmt.Printf("*** MEMORY: \n")
+					kp.modeMemory = true
+					kp.modeBreakpoint = false
+					kp.modeSetValue = true
+					kp.modeValue = 0
+				case 'P','p':
+					fmt.Printf("*** Run to PC: ")
+					kp.modeMemory = false
+					kp.modeBreakpoint = true
+					kp.modeSetValue = true
+					kp.modeValue = 0
+				case '.':
+					fmt.Printf("*** Run to PC (again)\n", )
+					a.SetUntilPC(0xffffff)
+					kp.modeSetValue = false
+				case 'R', 'r', sdl.K_ESCAPE:
+					kp.modeSetValue = false
+					a.SendCommand(izapple2.CommandStart)
+					a.SendCommand(izapple2.CommandCPUTraceOff)
+				}
+			default:
+		       // no character to process (but if you don't have the default: then the channel is ignored?!)
+		}
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
@@ -124,5 +199,16 @@ func sdlRun(a *izapple2.Apple2) {
 		}
 		sdl.Delay(1000 / 30)
 	}
+}
+
+// Run starts the Apple2 emulation
+func debugIO(a *izapple2.Apple2) {
+    var b []byte = make([]byte, 1)
+
+	for {
+        os.Stdin.Read(b)
+		a.DebugChannel <- b[0]
+	}
 
 }
+

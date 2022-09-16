@@ -2,6 +2,7 @@ package izapple2
 
 import (
 	"fmt"
+	"os/exec"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,7 @@ type Apple2 struct {
 	breakPoint          bool
 	profile             bool
 	showSpeed           bool
+	DebugChannel      	chan uint8
 	paused              bool
 	stepping            bool
 	nextStep            bool
@@ -66,6 +68,8 @@ func (a *Apple2) Start(paused bool) {
 	speedReferenceCycles := uint64(0)
 
 	a.paused = paused
+    exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
+    a.DebugChannel = make(chan uint8, 100)
 
 	for {
 		// Run 6502 steps
@@ -79,6 +83,15 @@ func (a *Apple2) Start(paused bool) {
 				// Turn on the tracing when a specific PC is reached
 				if a.tracingAfterPC && (pc == a.traceAfterPC) {
 					fmt.Printf("*** BEGIN TRACING AT PC 0x%06x\n", pc)
+					a.cpu.SetTrace(true)
+				}
+
+				// Break if a BRK instruction is next
+				if a.mmu.Peek(pc) == 0x00 {
+					fmt.Printf("*** BRK at PC 0x%06x\n", pc)
+					a.paused = true
+					a.stepping = true
+					a.nextStep = false
 					a.cpu.SetTrace(true)
 				}
 
