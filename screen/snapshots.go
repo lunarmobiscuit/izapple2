@@ -91,6 +91,9 @@ func snapshotByMode(vs VideoSource, videoMode uint16, screenMode int) *image.RGB
 	case VideoVidex:
 		snap = vs.GetCardImage(lightColor)
 		applyNTSCFilter = false
+	case VideoText80II4:
+		snap = snapshotText80II4(vs, isSecondPage, isAltText, lightColor)
+		applyNTSCFilter = false
 	}
 
 	if applyNTSCFilter {

@@ -10,8 +10,6 @@
 
 const N_COMMANDS	= 6		// The number of commands in CommandList
 
-global LOADFILEHERE	= @$2000
-
 global INPBUFFER 	= @$100		// $100-$14F holds the line of text being typed
 global INPBUFFER2 	= @$150		// $150-$1BF holds the previous line of text typed
 global INPBUFFER3 	= @$1A0		// $1A0-$1EF holds the previous previous line of text typed
@@ -21,10 +19,14 @@ global CURSORX		= %R130
 global CURSORY		= %R131
 global LASTKEY		= %R132
 global EDITING		= %R133
-global NEWVALUEH	= %R134
-global NEWVALUEL	= %R135
-global FILESIZE		= %R136.w
-global NFILEROWS	= %R138.w
+global VIEWYFROM	= %R134.w
+global VIEWYTO		= %R136.w
+global NEWVALUEH	= %R138
+global NEWVALUEL	= %R139
+global FILESIZE		= %R141.w
+global NFILEROWS	= %R143.w
+global SAVEDROW		= %R145
+global SAVEDPOS		= %R146
 
 /*
  *  Edit a BIN file
@@ -47,6 +49,8 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 	stz @EDITING
 	stz @NEWVALUEH
 	stz @NEWVALUEL
+	stz.w @VIEWYFROM
+	stz.w @VIEWYTO
 
 	FOR X = 0 TO 39 {
 		lda Header,x
@@ -64,6 +68,7 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 	ELSE {
 		jsr DoLoad
 	}
+	jsr drawValues
 	jsr drawCursor
 
 	jsr ClearInputBuffers
@@ -85,6 +90,8 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 		}
 		lda KBD 						; get the key code from the keyboard and ack the read
 		sta @LASTKEY
+jsr debugValueT2
+lda @LASTKEY
 		bit KBDSTRB
 		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
 			lda @EDITING
@@ -214,7 +221,7 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			jsr drawCursor
 			CONTINUE
 		}
-		IF == $8B {						; 11 = Up Arrow ($80 | $0B in high ASCII)
+		IF == $8B {						; 12 = Up Arrow ($80 | $0B in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
 				jsr endEditing
@@ -223,9 +230,19 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			jsr hideCursor
 			lda @CURSORY
 			cmp #0
-			IF (>) {
-				dec
-				sta @CURSORY
+			IF (==) {
+				lda.w @VIEWYFROM
+				if (>) {
+					dec.w @VIEWYFROM
+					jsr updateViewableRows
+					jsr drawValues
+				}
+			}
+			ELSE {
+				IF (>) {
+					dec
+					sta @CURSORY
+				}
 			}
 			jsr drawCursor
 			CONTINUE
@@ -238,10 +255,55 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			}
 			jsr hideCursor
 			lda @CURSORY
-			cmp @NFILEROWS
+			IF (== 23) {
+				inc.w @VIEWYFROM
+				jsr updateViewableRows
+				jsr drawValues
+			}
+			ELSE {
+				cmp.w @VIEWYTO
+				IF (<) {
+					inc
+					sta @CURSORY
+				}
+			}
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $AB {						; 43 = + = PLUS ($80 | $2B in high ASCII)
+			lda @EDITING
+			IF (!=) {					; if editing, stop editing
+				jsr endEditing
+				CONTINUE
+			}
+			jsr hideCursor
+			lda.w @VIEWYFROM			; page down 24 rows
+			clc
+			adc.w #24
+			cmp.w @VIEWYTO
 			IF (<) {
-				inc
-				sta @CURSORY
+				sta.w @VIEWYFROM
+				jsr updateViewableRows
+				jsr drawValues
+			}
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $AD {						; 45 = - = MINUS ($80 | $2D in high ASCII)
+			lda @EDITING
+			IF (!=) {					; if editing, stop editing
+				jsr endEditing
+				CONTINUE
+			}
+			jsr hideCursor
+			lda.w @VIEWYFROM			; page down 24 rows
+			cmp #24
+			IF (>) {
+				sec
+				sbc.w #24
+				sta.w @VIEWYFROM
+				jsr updateViewableRows
+				jsr drawValues
 			}
 			jsr drawCursor
 			CONTINUE
@@ -348,23 +410,134 @@ sub endEditing() {
 	RETURN	
 }
 
+
+/*
+ *  Draw the values from the file
+ */
+sub drawValues() {
+	var ROWNUM 		= %R64
+	var FILEPTR 	= %R65.t
+	var OFFSET		= %R68.w
+	var IDX 		= %R70
+
+	lda.t @HEAPSTART					; Load the file in the heap memory above the program
+	sta.t @FILEPTR						; Store this in zp for (zp),Y lookups
+
+	lda.w @VIEWYFROM					; File offset starts at  first visible Y row * 8
+	asl.w
+	asl.w
+	asl.w
+	sta.w @OFFSET
+
+	jsr overwriteScreenBase				; Setup to write to TEXT page 2
+
+	stz @ROWNUM
+	LOOP {
+		lda #'$'H						; $offset- xx xx xx xx xx xx xx xx ........
+		jsr (os4_PrintChar)
+		lda.t @OFFSET
+		jsr (os4_PrintHexWord)
+		lda #'-'H
+		jsr (os4_PrintChar)
+
+		FOR @IDX = 0 to 7 {				; Print the value as $HH
+			clc
+			lda.w @OFFSET
+			adc.w @IDX
+			tay.w
+			lda.a24 (@FILEPTR),Y
+			jsr (os4_PrintHexByte)
+			jsr (os4_PrintSpace)
+		}
+		FOR @IDX = 0 to 7 {
+			clc
+			lda.w @OFFSET
+			adc.w @IDX
+			tay.w
+			lda.a24 (@FILEPTR),Y
+			IF (< 128) {				; Print the (HIGH) ASCII equivalent of the value (except $00 = '.')
+				IF (== 0) {
+					lda #'.'H
+				}
+				ELSE {
+					clc
+					adc #128
+				}
+			}
+			jsr (os4_PrintChar)
+		}
+
+		clc
+		lda.w @OFFSET
+		adc.w #8
+		sta.w @OFFSET
+
+		jsr nextLineText2
+		; @@@ check if fewer than 23 rows to display, and BREAK
+
+		inc @ROWNUM
+		lda @ROWNUM
+		if (> 11) {
+			nop
+		}
+		if (> 23) {
+			BREAK
+		}
+	}
+
+	jsr restoreScreenBase			; Restore back to TEXT page 1
+
+	RETURN
+}
+sub overwriteScreenBase() {
+	lda @TXTROW						; Save the TXT row and pos
+	sta @SAVEDROW
+	lda @TXTPOS
+	sta @SAVEDPOS
+
+	stz @TXTROW						; Reset to 0,0
+	stz @TXTPOS
+	lda.w Text2ScreenBase			; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	rts.a24
+}
+sub nextLineText2() {
+	stz @TXTPOS						; Reset to position 0
+	inc @TXTROW						; Increment the current row
+	ldx @TXTROW
+	xsl
+	lda.w Text2ScreenBase,X			; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	rts.a24
+}
+sub restoreScreenBase() {
+	lda @SAVEDROW					; Restore the TXT row and pos
+	sta @TXTROW
+	lda @SAVEDPOS
+	sta @TXTPOS
+	jsr (os4_SetScreenBase)			; Restore the TXTPTR
+	rts.a24
+}
+
+
+
 /*
  *  Draw and undraw the cursor
  */
 sub drawCursor() {
-	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
+	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
 	var CURXPOS = %R250
 
-	lda @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	lda @CURSORY					; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
 	asl
 	tax
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
-	lda @CURSORX				; Y = 8 + CURSORX * 3, for 0 <= X <= 7
+	lda @CURSORX					; Y = 6 + CURSORX * 3, for 0 <= X <= 7
 	adc @CURSORX
 	adc @CURSORX
-	adc #8
+	adc #6
 	tay
 	lda (@ROWPTR),y
 	and #$3f						; Invert top nibble
@@ -386,10 +559,10 @@ sub hideCursor() {
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
-	lda @CURSORX				; Y = 8 + CURSORX * 3, for 0 <= X <= 7
+	lda @CURSORX				; Y = 6 + CURSORX * 3, for 0 <= X <= 7
 	adc @CURSORX
 	adc @CURSORX
-	adc #8
+	adc #6
 	tay
 	lda (@ROWPTR),y
 	ora #$80					; Uninvert top nibble
@@ -416,10 +589,10 @@ sub showEditCursor() {
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
-	lda @CURSORX				; Y = 8 + CURSORX * 3, for 0 <= X <= 7
+	lda @CURSORX				; Y = 6 + CURSORX * 3, for 0 <= X <= 7
 	adc @CURSORX
 	adc @CURSORX
-	adc #8
+	adc #6
 	tay
 	lda @NEWVALUEH
 	IF (==) {
@@ -447,10 +620,10 @@ sub hideEditCursor() {
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
-	lda @CURSORX				; Y = 8 + CURSORX * 3, for 0 <= X <= 7
+	lda @CURSORX				; Y = 6 + CURSORX * 3, for 0 <= X <= 7
 	adc @CURSORX
 	adc @CURSORX
-	adc #8
+	adc #6
 	tay
 	lda (@ROWPTR),y
 	ora #$80					; Uninvert top nibble
@@ -485,6 +658,13 @@ sub DoHelp() {
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpUDLRStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpPMStr
 	sta.t %%7
 	jsr (os4_PrintString)
 	lda #PAGINATE_LINES_PER_PAGE
@@ -610,7 +790,7 @@ sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 			lda.a24 XY
 			inc.t @C_IDX
 
-			ldx.t #@LOADFILEHERE		; Store in $2000,Y (HIRES page 1)
+			ldx.t @HEAPSTART			; Store in the heap
 			ldy.t @R_IDX
 			sta.a24 XY
 			inc.t @R_IDX
@@ -691,7 +871,7 @@ sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 		jsr (os4_Disk4C800)				; Enable writing to $C800
 		stz.t @C_IDX
 		LOOP {
-			ldx.t #@LOADFILEHERE		; Load from @LOADFILEHERE,Y
+			ldx.t @HEAPSTART			; Load from @HEAPSTART,Y
 			ldy.t @W_IDX
 			lda.a24 XY
 			inc.t @W_IDX
@@ -998,9 +1178,35 @@ sub calculateRows() {
 	lsr.w
 	lsr.w
 	sta.w @NFILEROWS
+
+	stz.w @VIEWYFROM					; View from Y coordinate @VIEWYFROM to @VIEWYTO
+	lda #23
+	cmp.w @NFILEROWS
+	if (>) {
+		lda.w @NFILEROWS
+		sta.w @VIEWYTO
+	}
+	ELSE {
+		sta.w @VIEWYTO
+	}
+
 	RETURN
 }
+sub updateViewableRows() {
+	lda.w @VIEWYFROM					; View from Y coordinate @VIEWYFROM to @VIEWYTO
+	clc
+	adc.w #23
+	cmp.w @NFILEROWS
+	if (>) {
+		lda.w @NFILEROWS
+		sta.w @VIEWYTO
+	}
+	ELSE {
+		sta.w @VIEWYTO
+	}
 
+	RETURN
+}
 
 /*
  *  Fill TEXT page 2 with spaces from row 0 to row 23
@@ -1028,6 +1234,29 @@ sub clearText2Screen(FIRST_ROW X) {
 /*
  *  Print a hex byte in the top right corner of the screen
  */
+sub debugValueT2(VALUE A) {
+	pha						; Save A
+	pha						; Copy A for 2nd digit
+	A >>= 4					; Draw hex of 1st nibble
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $826				; Hardcoded to top-right corner of the TEXT 2 screen
+	pla						; Draw hex of 2nd nibble
+	A &= $0F
+	IF >= 10 {
+		A += $B7
+	}
+	ELSE {
+		A += $B0
+	}
+	sta $827				; Hardcoded to top-right corner of the TEXT 2 screen
+	pla						; Restore A
+	RETURN
+}
 sub debugValueA(VALUE A) {
 	pha						; Save A
 	pha						; Copy A for 2nd digit
@@ -1114,6 +1343,9 @@ data HelpEditStr string {
 }
 data HelpUDLRStr string {
 	" up/down/left/right - Move Cursor"
+}
+data HelpPMStr string {
+	" +/- - Next/Previous Page"
 }
 data HelpListStr string {
 	" BIN-Edit COMMANDS:"

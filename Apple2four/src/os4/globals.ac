@@ -20,7 +20,8 @@ const SETAN0		= $c058		// RW annunciator 0 off
 const SETAN1		= $c05a		// RW annunciator 1 off
 const CLRAN2		= $c05d		// RW annunciator 2 on
 const CLRAN3		= $c05f		// RW annunciator 3 on
-const TAPEIN		= $c060		// R cassete tape input
+const TXT80CLR      = $c060     // RW 80column mode off (was casette in on II+)
+const TXT80SET   	= $c068     // RW 80column mode on (was casette in on II+)
 const PADDL0		= $c064		// R analog input 0
 const PTRIG			= $c070		// RW analog input reset
 const LANGCLR		= $c082		// Disable "Language card" RAM
@@ -32,11 +33,16 @@ const TOP_OF_STACK	= $fdff		// Put the stack in the "Language card" RAM
 const RSTVECTOR		= $fffc		// Apple ][ 6502 reset vector
 const PWREDUP		= $03f4		// Apple ][ stores #$A5 to make RST a soft reboot
 
-global TXTPTR 		= @$FE.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
-global TXTROW 		= @$FF00	// The current row on the text screen
-global TXTPOS 		= @$FF01	// The current position (column) in the text screen
-global TXTPGROWS 	= @$FF02	// The number of rows output to the screen (used for pagination)
-global DISPMODE 	= @$FF03	// The current display mode (see DISP_xxxx constants)
+global TXTPTR 		= @$fe.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
+global TXTROW 		= @$ff00	// The current row on the text screen
+global TXTPOS 		= @$ff01	// The current position (column) in the text screen
+global TXTPGROWS 	= @$ff02	// The number of rows output to the screen (used for pagination)
+global DISPMODE 	= @$ff03	// The current display mode (see DISP_xxxx constants)
+
+const _64K          = $010000
+global RAMTOP       = @$ff10.t  // The highest RAM memory address
+global HEAPSTART    = @$ff13.t  // The start of the heap (initially $10000, then the page after the loaded program)
+global RUNLENGTH    = @$ff16.t  // The length of the loaded program
 
 global TYPBUFFER 	= @$fe00	// $FE00-$FE4F holds the line of text being typed
 global TYPBUFFER2 	= @$fe50	// $FE50-$FEBF holds the previous line of text typed

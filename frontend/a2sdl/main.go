@@ -169,9 +169,10 @@ func sdlRun(a *izapple2.Apple2) {
 				window.SetTitle(fmt.Sprintf("%v character map", a.Name))
 			} else if kp.showPages {
 				img = screen.SnapshotParts(a, kp.screenMode)
-				window.SetTitle(fmt.Sprintf("%v %v %vx%v", a.Name, screen.VideoModeName(a), img.Rect.Dx()/2, img.Rect.Dy()/2))
+				window.SetTitle(fmt.Sprintf("%v - TEXT 1/2 - LORES 2/HIRES 1 - %vx%v", a.Name, img.Rect.Dx()/2, img.Rect.Dy()/2))
 			} else {
 				img = screen.Snapshot(a, kp.screenMode)
+				window.SetTitle(a.Name)
 			}
 			if img != nil {
 				surface, err := sdl.CreateRGBSurfaceFrom(unsafe.Pointer(&img.Pix[0]),

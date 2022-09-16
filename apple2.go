@@ -19,6 +19,7 @@ type Apple2 struct {
 	cards               [8]Card
 	softVideoSwitch     *SoftVideoSwitch
 	isApple2e           bool
+	isApple24           bool
 	commandChannel      chan int
 	cycleDurationNs     float64 // Current speed. Inverse of the cpu clock in Ghz
 	fastMode            bool

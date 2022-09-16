@@ -10,6 +10,7 @@ const (
 	charWidth     = 7
 	charHeight    = 8
 	text40Columns = 40
+	text80Columns = 80
 	textLines     = 24
 )
 
@@ -20,6 +21,11 @@ func snapshotText40(vs VideoSource, isSecondPage bool, isAltText bool, light col
 
 func snapshotText80(vs VideoSource, isSecondPage bool, isAltText bool, light color.Color) *image.RGBA {
 	text := getText80FromMemory(vs, isSecondPage)
+	return renderText(vs, text, isAltText, nil /*colorMap*/, light)
+}
+
+func snapshotText80II4(vs VideoSource, isSecondPage bool, isAltText bool, light color.Color) *image.RGBA {
+	text := getText80II4FromMemory(vs, isSecondPage)
 	return renderText(vs, text, isAltText, nil /*colorMap*/, light)
 }
 
@@ -48,6 +54,19 @@ func getText80FromMemory(vs VideoSource, isSecondPage bool) []uint8 {
 	return text80Columns
 }
 
+func getText80II4FromMemory(vs VideoSource, isSecondPage bool) []uint8 {
+	data := vs.GetII4TextMemory(isSecondPage)
+
+	text := make([]uint8, textLines*text80Columns)
+	for l := 0; l < textLines; l++ {
+		for c := 0; c < text80Columns; c++ {
+			char := data[get80II4CharOffset(c, l)]
+			text[text80Columns*l+c] = char
+		}
+	}
+	return text
+}
+
 func getTextFromMemory(vs VideoSource, isSecondPage bool, isExt bool) []uint8 {
 	data := vs.GetTextMemory(isSecondPage, isExt)
 
@@ -67,6 +86,13 @@ func getTextCharOffset(col int, line int) uint16 {
 	section := line / 8 // Top, middle and bottom
 	eighth := line % 8
 	return uint16(section*40 + eighth*0x80 + col)
+}
+
+func get80II4CharOffset(col int, line int) uint16 {
+	// Similar to the TEXT offsets
+	section := line / 8 // Top, middle and bottom
+	eighth := line % 8
+	return uint16(section*80 + eighth*0x100 + col)
 }
 
 func getRGBTextColor(pixel bool, colorKey uint8) color.Color {

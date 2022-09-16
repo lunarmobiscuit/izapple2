@@ -28,9 +28,11 @@ func (a *Apple2) setup(clockMhz float64, fastMode bool) {
 
 func setApple2four(a *Apple2) {
 	a.Name = "Apple ][4"
+	a.isApple24 = true
 	a.cpu = iz6502.NewMythical65c24T8(a.mmu)
 	a.mmu.add24BitMemory(256*1024) // 256K total, including original 64K
 	addApple2SoftSwitches(a.io)
+	addApple24SoftSwitches(a.io)
 }
 
 func setApple2test(a *Apple2) {

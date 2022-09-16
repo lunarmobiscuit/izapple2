@@ -92,7 +92,7 @@ func fyneRun(s *state) {
 					var img *image.RGBA
 					if s.showPages {
 						img = screen.SnapshotParts(s.a, s.screenMode)
-						s.win.SetTitle(fmt.Sprintf("%v %v %vx%v", s.a.Name, screen.VideoModeName(s.a), img.Rect.Dx()/2, img.Rect.Dy()/2))
+						s.win.SetTitle(fmt.Sprintf("%v TEXT 1/2 - LORES 2/HIRES 1 - %vx%v", s.a.Name, img.Rect.Dx()/2, img.Rect.Dy()/2))
 					} else {
 						img = screen.Snapshot(s.a, s.screenMode)
 					}

@@ -39,6 +39,7 @@ sub Reset() @$FF0200 {
 	lda CLRAN3					; AN3 = TTL lo
 	lda CLRROM					; turn off extension ROM
 	bit KBDSTRB					; clear keyboard
+;lda TXT80SET
 	
 	lda #2
 	sta @TXTROW					; Start at TEXT row 2
@@ -50,6 +51,12 @@ sub Reset() @$FF0200 {
 	jsr ClearScreen				; Clear TEXT page 1
 	jsr ClearLoRes				; Clear LORES page 2
 	jsr ClearHiRes				; Clear LORES page 1
+
+	lda.t #_64K					; Reset the memory heap to start at $10000 (64K)
+	sta.t @HEAPSTART
+	stz.t @RUNLENGTH
+
+	jsr FindTopOfRAM			; search for the highest RAM address
 
 	jsr AppleII4				; draw the header
 	; drop through to CommandLoop
@@ -266,10 +273,18 @@ sub CompleteCommand() {
 #include "os4/data.ac"
 
 /*
+ *  IRQ vector points here
+ */
+sub Reset() @$FFFF00 {
+	a24
+	rti
+}
+
+/*
  *  The 6502 vectors
  */
 data Vectors @$FFFFF7 u24 {
 	$000000 	; NMI
 	$FF0000 	; RESET
-	$000000 	; IRQ
+	$FFFF00 	; IRQ
 }

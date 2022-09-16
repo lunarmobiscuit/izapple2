@@ -7,19 +7,20 @@ import (
 
 // Base Video Modes
 const (
-	VideoBaseMask  uint16 = 0x1f
-	VideoText40    uint16 = 0x01
-	VideoGR        uint16 = 0x02
-	VideoHGR       uint16 = 0x03
-	VideoText80    uint16 = 0x08
-	VideoDGR       uint16 = 0x09
-	VideoDHGR      uint16 = 0x0a
-	VideoText40RGB uint16 = 0x10
-	VideoMono560   uint16 = 0x11
-	VideoRGBMix    uint16 = 0x12
-	VideoRGB160    uint16 = 0x13
-	VideoSHR       uint16 = 0x14
-	VideoVidex     uint16 = 0x15
+	VideoBaseMask   uint16 = 0x1f
+	VideoText40     uint16 = 0x01
+	VideoGR         uint16 = 0x02
+	VideoHGR        uint16 = 0x03
+	VideoText80     uint16 = 0x08
+	VideoDGR        uint16 = 0x09
+	VideoDHGR       uint16 = 0x0a
+	VideoText40RGB  uint16 = 0x10
+	VideoMono560    uint16 = 0x11
+	VideoRGBMix     uint16 = 0x12
+	VideoRGB160     uint16 = 0x13
+	VideoSHR        uint16 = 0x14
+	VideoVidex     	uint16 = 0x15
+	VideoText80II4  uint16 = 0x16
 )
 
 // Mix text video mdes modifiers
@@ -47,6 +48,8 @@ type VideoSource interface {
 	GetVideoMemory(secondPage bool, ext bool) []uint8
 	// GetCharactePixel returns the pixel as output by the character generator
 	GetCharacterPixel(char uint8, rowInChar int, colInChar int, isAltText bool, isFlashedFrame bool) bool
+	// GetII4VideoMemory returns a slice to the II4 video memory
+	GetII4TextMemory(secondPage bool) []uint8
 	// GetSuperVideoMemory returns a slice to the SHR video memory
 	GetSuperVideoMemory() []uint8
 	// GetCardImage returns an image provided by a card, like the videx card

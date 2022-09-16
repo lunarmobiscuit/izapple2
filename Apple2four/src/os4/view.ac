@@ -330,6 +330,14 @@ sub Run_Program(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	lda @FN
 	jsr Disk4Close
 
+	lda.t @R_IDX						; Store the length of the program
+	sta.t @RUNLENGTH
+
+	clc									; The heap starts at 64K + the next page of RAM
+	adc.t #$0100FF
+	and.t #$FFFF00
+	sta.t @HEAPSTART
+
 	ldx #1								; Shift the args run FILENAME [ARG...] --> FILENAME [ARG...]
 	jsr shiftParameters
 	jsr $10000							; Run the program

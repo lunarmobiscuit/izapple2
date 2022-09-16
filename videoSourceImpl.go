@@ -24,7 +24,7 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 	isHiResMode := a.io.isSoftSwitchActive(ioFlagHiRes)
 	is80Columns := a.io.isSoftSwitchActive(ioFlag80Col)
 	isStore80Active := a.mmu.store80Active
-	isDoubleResMode := !isTextMode && is80Columns && !a.io.isSoftSwitchActive(ioFlagAnnunciator3)
+	isDoubleResMode := !a.isApple24 && !isTextMode && is80Columns && !a.io.isSoftSwitchActive(ioFlagAnnunciator3)
 	isSuperHighResMode := a.io.isSoftSwitchActive(ioDataNewVideo)
 	isVidex := a.softVideoSwitch.isActive()
 
@@ -48,7 +48,11 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 		isMixMode = false
 	} else if isTextMode {
 		if is80Columns {
-			mode = screen.VideoText80
+			if a.isApple24 {
+				mode = screen.VideoText80II4
+			} else {
+				mode = screen.VideoText80
+			}
 		} else if isRGBCard && isStore80Active {
 			mode = screen.VideoText40RGB
 		} else {
@@ -75,7 +79,7 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 
 	// Modifiers
 	if isMixMode {
-		if is80Columns {
+		if is80Columns && !a.isApple24 {
 			mode |= screen.VideoMixText80
 		} else /* if isStore80Active {
 			mode |= screen.VideoMixText40RGB
@@ -111,6 +115,12 @@ func (a *Apple2) GetVideoMemory(secondPage bool, ext bool) []uint8 {
 		addressStart = hiResPage2Address
 	}
 	return mem.subRange(addressStart, addressStart+hiResPageSize)
+}
+
+// GetII4VideoMemory returns a slice to the II4 video memory
+func (a *Apple2) GetII4TextMemory(secondPage bool) []uint8 {
+	mem := a.mmu.getVideoRAM(false)
+	return mem.subRange(0x2000, 0x2000+2048)
 }
 
 // GetSuperVideoMemory returns a slice to the SHR video memory

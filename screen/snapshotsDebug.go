@@ -7,22 +7,23 @@ import (
 
 // SnapshotParts the currently visible screen
 func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
+	snapScreen := snapshotByMode(vs, VideoText40, screenMode)
+	snapPage1 := snapshotByMode(vs, VideoGR|VideoSecondPage, screenMode)
+	snapPage2 := snapshotByMode(vs, VideoHGR, screenMode)
+	var snapAux *image.RGBA
+	snapAux = snapshotByMode(vs, VideoText40|VideoSecondPage, screenMode)
+
+	/*
 	videoMode := vs.GetCurrentVideoMode()
 	isSecondPage := (videoMode & VideoSecondPage) != 0
 	videoBase := videoMode & VideoBaseMask
 	mixMode := videoMode & VideoMixTextMask
 	modifiers := videoMode & VideoModifiersMask
 
-	snapScreen := snapshotByMode(vs, videoMode, screenMode)
-	snapPage1 := snapshotByMode(vs, videoMode&^VideoSecondPage, screenMode)
-	snapPage2 := snapshotByMode(vs, videoMode|VideoSecondPage, screenMode)
-	var snapAux *image.RGBA
-
-	/*
-		if videoBase == videoRGBMix {
+	if videoBase == videoRGBMix {
 		_, mask := snapshotDoubleHiResModeMono(a, isSecondPage, true /*isRGBMixMode*/ /*, color.White)
 		snapAux = filterMask(mask)
-	}*/
+	}
 
 	if videoBase == VideoText40RGB {
 		snapAux = snapshotText40RGBColors(vs, isSecondPage)
@@ -36,6 +37,7 @@ func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
 			snapAux = snapshotByMode(vs, VideoText40|modifiers, screenMode)
 		}
 	}
+	*/
 
 	return mixFourSnapshots([]*image.RGBA{snapScreen, snapAux, snapPage1, snapPage2})
 }
@@ -73,6 +75,8 @@ func VideoModeName(vs VideoSource) string {
 		name = "SHR"
 	case VideoVidex:
 		name = "VIDEX"
+	case VideoText80II4:
+		name = "TEXT80COL(II4)"
 	default:
 		name = "Unknown video mode"
 	}

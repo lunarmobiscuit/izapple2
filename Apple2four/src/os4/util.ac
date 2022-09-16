@@ -698,16 +698,14 @@ sub NextLine() {
 	IF < {
 		inc @TXTROW						; Increment the current row
 		jsr SetScreenBase				; Update the @TXTPTR
-		lda #0
-		sta @TXTPOS						; Reset to position 0
 	}
 	ELSE {
 		ldx #2
 		jsr ScrollScreen				; Scroll the screen, from row X=2
 		lda #23
 		sta @TXTROW						; Set to row 23
-		stz @TXTPOS						; Reset to position 0
 	}
+	stz @TXTPOS							; Reset to position 0
 	RETURN
 }
 
@@ -942,6 +940,45 @@ sub GetChar() {
 	lda KBD 						; get the key code from the keyboard
 	bit KBDSTRB						; clear keyboard strobe (a.k.a. ack keyboard read)
 	rts.a24
+}
+
+
+/*
+ *  Find the highest memory location
+ */
+sub FindTopOfRAM() {
+	ldx.t #$020000					; start at 128K (no Apple ][4 is going to have just 64K)
+	ldy.t #0
+	LOOP {
+		lda.a24 X					; save the existing value
+		tay
+
+		lda #$a5					; the test value is $A5, as unredable memory is more likely $00 or $FF
+		sta.a24 X
+		lda.a24 X
+		cmp #$a5
+		if (==) {					; restore the old value
+			tya
+			sta.a24 X
+
+			clc						; X += 64K
+			txa.t
+			adc.t #_64K
+			tax.t
+		}
+		ELSE {
+			dex.t					; @RAMTOP = X - 1
+			stx.t @RAMTOP
+			RETURN
+		}
+
+		cpx #$ff0000				; stop at the start of ROM
+		if (==) {
+			dex.t					; @RAMTOP = X - 1
+			stx.t @RAMTOP
+		}
+	}
+	RETURN
 }
 
 

@@ -216,6 +216,10 @@ func (mmu *memoryManager) accessRead(address uint32) memoryHandler {
 //fmt.Printf("READ(0x%x) 24-bit ROM\n", address) // @@@
 		return mmu.physical24bitROM
 	}
+	if address == mmu.addressLimit24BitRAM {
+		// Quietly ignore the invalid access (as the reset code searches will find this address)
+		return nil
+	}
 fmt.Printf("READ(0x%x) INVALID MEMORY\n", address) // @@@
 	return nil
 }
@@ -262,6 +266,10 @@ func (mmu *memoryManager) accessWrite(address uint32) memoryHandler {
 	if address >= address24BitROM {
 //fmt.Printf("WRITE(0x%x) 24-bit ROM\n", address) // @@@
 		return mmu.physical24bitROM
+	}
+	if address == mmu.addressLimit24BitRAM {
+		// Quietly ignore the invalid access (as the reset code searches will find this address)
+		return nil
 	}
 fmt.Printf("WRITE(0x%x) INVALID MEMORY\n", address) // @@@
 	return nil
