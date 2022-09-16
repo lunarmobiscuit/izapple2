@@ -310,6 +310,23 @@ sub DoClear(NPRM %%0) {
 		jsr ClearScreen
 		RETURN
 	}
+	cmp #DISP_80COL_1
+	IF (==) {
+		ldx #0
+		jsr ClearScreen
+		jsr AppleII4
+		lda #2
+		sta @TXTROW						; Start at row 2
+		lda #0
+		sta @TXTPOS						; Start at position 0
+		RETURN
+	}
+	cmp #DISP_80COL_2
+	IF (==) {
+		ldx #0
+		jsr ClearScreen
+		RETURN
+	}
 	cmp #DISP_LORES_1
 	IF (==) {
 		jsr ClearLores
@@ -921,9 +938,21 @@ sub DoText(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 				jsr SetScreenMode
 			}
 		}
-		lda.t #InvalidValue
-		sta.t %%7
-		jsr PrintError
+		RETURN
+	}
+	cmp #'4'
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'0'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #DISP_TEXT_1
+				jsr SetScreenMode
+			}
+		}
 		RETURN
 	}
 	cmp #'1'
@@ -1001,7 +1030,7 @@ sub DoLores(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 	lda @NPRM
 	IF (< 1) {
-		lda #DISP_HIRES_1
+		lda #DISP_HIRES_2
 		jsr SetScreenMode
 		RETURN
 	}
@@ -1040,6 +1069,9 @@ sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
  *  Jump to the 6502 RST vector
  */
 sub Do2Plus(NPRM %%0) {
+	lda #DISP_TEXT_1
+	jsr SetScreenMode
+
 	sta LANGCLR					; disable the ][+ "upper" 16K (one write is sufficent)
 	sws							; Reset the stack width to 8-bits
 	ldx #$ff 					; Reset the stack to $1FF

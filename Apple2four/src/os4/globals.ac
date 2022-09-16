@@ -34,10 +34,12 @@ const RSTVECTOR		= $fffc		// Apple ][ 6502 reset vector
 const PWREDUP		= $03f4		// Apple ][ stores #$A5 to make RST a soft reboot
 
 global TXTPTR 		= @$fe.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
+global TXTWIDTH 	= @$fd		// The width of the current screen (typically #40 or #80 columns)
 global TXTROW 		= @$ff00	// The current row on the text screen
 global TXTPOS 		= @$ff01	// The current position (column) in the text screen
 global TXTPGROWS 	= @$ff02	// The number of rows output to the screen (used for pagination)
 global DISPMODE 	= @$ff03	// The current display mode (see DISP_xxxx constants)
+global PREVDISP 	= @$ff04	// The previous display mode (see DISP_xxxx constants)
 
 const _64K          = $010000
 global RAMTOP       = @$ff10.t  // The highest RAM memory address

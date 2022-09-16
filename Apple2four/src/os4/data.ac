@@ -67,6 +67,14 @@ data TextScreenBase @$FF8000 word {
 	$0450, $04D0, $0550, $05D0, $0650, $06D0, $0750, $07D0
 }
 
+/*
+ *  The addresses of the 24 88-column TEXT rows
+ */
+data Text80ScreenBase word {
+	$2000, $2100, $2200, $2300, $2400, $2500, $2600, $2700,
+	$2050, $2150, $2250, $2350, $2450, $2550, $2650, $2750,
+	$20a0, $21a0, $22a0, $23a0, $24a0, $25a0, $26a0, $27a0
+}
 
 /*  The title of the reset screen */
 data Hello string {

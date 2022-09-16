@@ -21,12 +21,14 @@ global LASTKEY		= %R132
 global EDITING		= %R133
 global VIEWYFROM	= %R134.w
 global VIEWYTO		= %R136.w
-global NEWVALUEH	= %R138
-global NEWVALUEL	= %R139
-global FILESIZE		= %R141.w
-global NFILEROWS	= %R143.w
-global SAVEDROW		= %R145
-global SAVEDPOS		= %R146
+global OLDVALUEH	= %R138
+global OLDVALUEL	= %R139
+global NEWVALUEH	= %R140
+global NEWVALUEL	= %R141
+global FILESIZE		= %R142.w
+global NFILEROWS	= %R145.w
+global SAVEDROW		= %R147
+global SAVEDPOS		= %R148
 
 /*
  *  Edit a BIN file
@@ -47,6 +49,8 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 	stz @CURSORX
 	stz @CURSORY
 	stz @EDITING
+	stz @OLDVALUEH
+	stz @OLDVALUEL
 	stz @NEWVALUEH
 	stz @NEWVALUEL
 	stz.w @VIEWYFROM
@@ -161,7 +165,7 @@ lda @LASTKEY
 		IF == $89 {						; 9 = Tab ($80 | $09 in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
+				jsr cancelEditing
 			}
 			jsr CompleteCommand
 			CONTINUE
@@ -169,8 +173,7 @@ lda @LASTKEY
 		IF == $9A {						; 26 = Control-Z ($80 | $1A in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr PrevToCurrentInputBuffer
 			jsr InputBufferToTextScreen
@@ -192,8 +195,7 @@ lda @LASTKEY
 		IF == $88 {						; 8 = Left Arrow ($80 | $08 in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda @CURSORX
@@ -208,8 +210,7 @@ lda @LASTKEY
 		IF == $95 {						; 21 = Right Arrow ($80 | $15 in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda @CURSORX
@@ -224,8 +225,7 @@ lda @LASTKEY
 		IF == $8B {						; 12 = Up Arrow ($80 | $0B in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda @CURSORY
@@ -250,15 +250,19 @@ lda @LASTKEY
 		IF == $8A {						; 11 = Down Arrow ($80 | $0A in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda @CURSORY
 			IF (== 23) {
-				inc.w @VIEWYFROM
-				jsr updateViewableRows
-				jsr drawValues
+				lda.w @VIEWYTO			; IF there are more rows to view
+				inc.w
+				cmp.w @NFILEROWS
+				IF (<) {
+					inc.w @VIEWYFROM
+					jsr updateViewableRows
+					jsr drawValues
+				}
 			}
 			ELSE {
 				cmp.w @VIEWYTO
@@ -273,8 +277,7 @@ lda @LASTKEY
 		IF == $AB {						; 43 = + = PLUS ($80 | $2B in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda.w @VIEWYFROM			; page down 24 rows
@@ -292,8 +295,7 @@ lda @LASTKEY
 		IF == $AD {						; 45 = - = MINUS ($80 | $2D in high ASCII)
 			lda @EDITING
 			IF (!=) {					; if editing, stop editing
-				jsr endEditing
-				CONTINUE
+				jsr cancelEditing
 			}
 			jsr hideCursor
 			lda.w @VIEWYFROM			; page down 24 rows
@@ -384,12 +386,30 @@ sub processKeyWhileEditing() {
 	RETURN
 }
 sub startEditing() {
+	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
+
 	ldx @TXTROW
 	jsr (os4_ClearRow)
 	stz @TXTPOS
 	lda.t #EditingStr
 	sta.t %%7
 	jsr (os4_PrintString)
+
+	ldx @CURSORY				; Save the existng values (from screen memory instead of file memory)
+	xsl							; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	lda.w Text2ScreenBase,X
+	sta.w @ROWPTR
+	clc
+	lda @CURSORX				; Y = 6 + CURSORX * 3, for 0 <= X <= 7
+	adc @CURSORX
+	adc @CURSORX
+	adc #6
+	tay
+	lda (@ROWPTR),y
+	sta @OLDVALUEH
+	iny
+	lda (@ROWPTR),y
+	sta @OLDVALUEL
 
 	stz @NEWVALUEH
 	stz @NEWVALUEL
@@ -399,7 +419,44 @@ sub startEditing() {
 
 	RETURN
 }
+sub cancelEditing() {
+	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
+
+	ldx @TXTROW
+	jsr (os4_ClearRow)
+	stz @TXTPOS
+
+	stz @EDITING
+	jsr hideEditCursor
+
+	ldx @CURSORY				; Restore the old values (saved from screen memory instead of file memory)
+	xsl							; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	lda.w Text2ScreenBase,X
+	sta.w @ROWPTR
+	clc
+	lda @CURSORX				; Y = 6 + CURSORX * 3, for 0 <= X <= 7
+	adc @CURSORX
+	adc @CURSORX
+	adc #6
+	tay
+	lda @OLDVALUEH
+	sta (@ROWPTR),y
+	iny
+	lda @OLDVALUEL
+	sta (@ROWPTR),y
+
+	RETURN	
+}
 sub endEditing() {
+	lda @NEWVALUEH				; If new values were not entered, then cancel the edit
+	IF (==) {
+		jmp cancelEditing
+	}
+	lda @NEWVALUEL
+	IF (==) {
+		jmp cancelEditing
+	}
+
 	ldx @TXTROW
 	jsr (os4_ClearRow)
 	stz @TXTPOS
@@ -528,9 +585,8 @@ sub drawCursor() {
 	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
 	var CURXPOS = %R250
 
-	lda @CURSORY					; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
-	asl
-	tax
+	ldx @CURSORY					; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	xsl
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
@@ -553,9 +609,8 @@ sub hideCursor() {
 	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
 	var CURXPOS = %R250
 
-	lda @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
-	asl
-	tax
+	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	xsl
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
@@ -583,9 +638,8 @@ sub showEditCursor() {
 	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
 	var CURXPOS = %R250
 
-	lda @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
-	asl
-	tax
+	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	xsl
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc
@@ -614,9 +668,8 @@ sub hideEditCursor() {
 	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
 	var CURXPOS = %R250
 
-	lda @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
-	asl
-	tax
+	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
+	xsl
 	lda.w Text2ScreenBase,X
 	sta.w @ROWPTR
 	clc

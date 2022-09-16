@@ -1,8 +1,10 @@
 0000fe-0000ff   ; GLOBAL @TXTPTR
+0000fd          ; GLOBAL @TXTWIDTH
 00ff00          ; GLOBAL @TXTROW
 00ff01          ; GLOBAL @TXTPOS
 00ff02          ; GLOBAL @TXTPGROWS
 00ff03          ; GLOBAL @DISPMODE
+00ff04          ; GLOBAL @PREVDISP
 00ff10-00ff12   ; GLOBAL @RAMTOP
 00ff13-00ff15   ; GLOBAL @HEAPSTART
 00ff16-00ff18   ; GLOBAL @RUNLENGTH
@@ -29,12 +31,14 @@
 000085          ; GLOBAL @EDITING
 000086-000087   ; GLOBAL @VIEWYFROM
 000088-000089   ; GLOBAL @VIEWYTO
-00008a          ; GLOBAL @NEWVALUEH
-00008b          ; GLOBAL @NEWVALUEL
-00008d-00008e   ; GLOBAL @FILESIZE
-00008f-000090   ; GLOBAL @NFILEROWS
-000091          ; GLOBAL @SAVEDROW
-000092          ; GLOBAL @SAVEDPOS
+00008a          ; GLOBAL @OLDVALUEH
+00008b          ; GLOBAL @OLDVALUEL
+00008c          ; GLOBAL @NEWVALUEH
+00008d          ; GLOBAL @NEWVALUEL
+00008e-00008f   ; GLOBAL @FILESIZE
+000091-000092   ; GLOBAL @NFILEROWS
+000093          ; GLOBAL @SAVEDROW
+000094          ; GLOBAL @SAVEDPOS
 
 010000 ; SUB BINedit:
 00d000          ; VAR @NPRM
@@ -49,185 +53,185 @@
 010011 4f 5c 3e 00 ff                      jsr.a24 ($ff003e)     ; os4_ClearScreen
 010016 a9 80                               lda #$80              ; DISP_TEXT_2
 010018 4f 5c 08 00 ff                      jsr.a24 ($ff0008)     ; os4_SetScreenMode
-01001d 4f 20 00 0a 01                      jsr.a24 $010a00       ; clearText2Screen
+01001d 4f 20 3e 0a 01                      jsr.a24 $010a3e       ; clearText2Screen
 010022 64 82                               stz $82               ; CURSORX
 010024 64 83                               stz $83               ; CURSORY
 010026 64 85                               stz $85               ; EDITING
-010028 64 8a                               stz $8a               ; NEWVALUEH
-01002a 64 8b                               stz $8b               ; NEWVALUEL
-01002c 1f 64 86                            stz.w $86             ; VIEWYFROM
-01002f 1f 64 88                            stz.w $88             ; VIEWYTO
-010032                 FOR10032_start:
-010032                                 ;; FOR X = 0 TO 39 {
-010032 a2 00                               ldx #$0
-010034                 FOR10032_loop:
-010034 4f bd c7 0a 01                      lda.a24 $010ac7,X     ; Header
-010039 f0 0a                               beq +10               ; for10032_end [10045]
-01003b 09 80                               ora #$80
-01003d 9d 04 04                            sta $0404,X
-010040 e8                                  inx
-010041 e0 28                               cpx #$28
-010043 d0 ef                               bne -17               ; FOR10032_loop [10034]
-010045                 FOR10032_end:
-010045 ad 00 d0                            lda $d000             ; NPRM
-010048                                 ;; IF == {
-010048 d0 0e                               bne +14               ; IF10048_else [10058]
-01004a 1f a9 00 04                         lda.w #$400
-01004e 1f 85 8d                            sta.w $8d             ; FILESIZE
-010051 4f 20 ba 09 01                      jsr.a24 $0109ba       ; calculateRows
-010056 80 05                               bra +5                ; IF10048_end [1005d]
-010058                 IF10048_else:
-010058                                 ;; ELSE
-010058 4f 20 27 06 01                      jsr.a24 $010627       ; DoLoad
-01005d                 IF10048_end:
-01005d 4f 20 97 03 01                      jsr.a24 $010397       ; drawValues
-010062 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-010067 4f 20 47 09 01                      jsr.a24 $010947       ; ClearInputBuffers
-01006c                 LOOP1006c_start:
-01006c                                 ;; LOOP {
-01006c                 LOOP1006c_loop:
-01006c 4f 5c 0b 00 ff                      jsr.a24 ($ff000b)     ; os4_SetScreenBase
-010071 ad 01 ff                            lda $ff01             ; TXTPOS
-010074                                 ;; IF == {
-010074 d0 13                               bne +19               ; IF10074_end [10089]
-010076 a9 c2                               lda #$c2
-010078 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-01007d a9 ba                               lda #$ba
-01007f 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-010084 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
-010089                 IF10074_end:
-010089                 LOOP10089_start:
-010089                                 ;; LOOP {
-010089                 LOOP10089_loop:
-010089 2c 00 c0                            bit $c000             ; KBD
-01008c                                 ;; IF - {
-01008c 10 04                               bpl +4                ; IF1008c_end [10092]
-01008e                                 ;; BREAK
-01008e 4f 80 02 00                         bra.a24 +2            ; loop10089_end [10094]
-010092                 IF1008c_end:
-010092 80 f5                               bra -11               ; LOOP10089_loop [10089]
-010094                 LOOP10089_end:
-010094 ad 00 c0                            lda $c000             ; KBD
-010097 85 84                               sta $84               ; LASTKEY
-010099 4f 20 1f 0a 01                      jsr.a24 $010a1f       ; debugValueT2
-01009e a5 84                               lda $84               ; LASTKEY
-0100a0 2c 10 c0                            bit $c010             ; KBDSTRB
-0100a3                                 ;; IF == 141 {
-0100a3 c9 8d                               cmp #$8d
-0100a5 d0 55                               bne +85               ; IF100a3_end [100fc]
-0100a7 a5 85                               lda $85               ; EDITING
-0100a9                                 ;; IF != {
-0100a9 f0 13                               beq +19               ; IF100a9_else [100be]
-0100ab 4f 20 20 05 01                      jsr.a24 $010520       ; storeNewValue
-0100b0 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-0100b5 4f 20 fb 04 01                      jsr.a24 $0104fb       ; hideEditCursor
-0100ba                                 ;; CONTINUE
-0100ba 80 b0                               bra -80               ; loop1006c_start [1006c]
-0100bc 80 3a                               bra +58               ; IF100a9_end [100f8]
-0100be                 IF100a9_else:
-0100be                                 ;; ELSE
-0100be ad 01 ff                            lda $ff01             ; TXTPOS
-0100c1 c9 02                               cmp #$2
-0100c3                                 ;; IF == {
-0100c3 d0 09                               bne +9                ; IF100c3_else [100ce]
-0100c5 4f 20 5b 03 01                      jsr.a24 $01035b       ; startEditing
-0100ca                                 ;; CONTINUE
-0100ca 80 a0                               bra -96               ; loop1006c_start [1006c]
-0100cc 80 2a                               bra +42               ; IF100c3_end [100f8]
-0100ce                 IF100c3_else:
-0100ce                                 ;; ELSE
-0100ce 4f 5c 1a 00 ff                      jsr.a24 ($ff001a)     ; os4_ClearCursor
-0100d3 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0100d8 4f 20 78 09 01                      jsr.a24 $010978       ; CurrentToPrevInputBuffer
-0100dd 9c ff d0                            stz $d0ff
-0100e0 4f 20 6f 08 01                      jsr.a24 $01086f       ; CommandLine
-0100e5 8d ff d0                            sta $d0ff
-0100e8 4f 20 55 09 01                      jsr.a24 $010955       ; ClearCurrentInputBuffer
-0100ed ad ff d0                            lda $d0ff
-0100f0                                 ;; IF == 255 {
-0100f0 c9 ff                               cmp #$ff
-0100f2 d0 04                               bne +4                ; IF100f0_end [100f8]
-0100f4 a9 00                               lda #$0
-0100f6 4f 60                               rts.a24
-0100f8                 IF100f0_end:
-0100f8                 IF100c3_end:
-0100f8                 IF100a9_end:
-0100f8                                 ;; CONTINUE
-0100f8 4f 80 70 ff                         bra.a24 -144          ; loop1006c_start [1006c]
-0100fc                 IF100a3_end:
-0100fc                                 ;; IF == 255 {
-0100fc c9 ff                               cmp #$ff
-0100fe d0 45                               bne +69               ; IF100fc_end [10145]
-010100 a5 85                               lda $85               ; EDITING
-010102                                 ;; IF != {
-010102 f0 19                               beq +25               ; IF10102_else [1011d]
-010104 a5 8b                               lda $8b               ; NEWVALUEL
+010028 64 8a                               stz $8a               ; OLDVALUEH
+01002a 64 8b                               stz $8b               ; OLDVALUEL
+01002c 64 8c                               stz $8c               ; NEWVALUEH
+01002e 64 8d                               stz $8d               ; NEWVALUEL
+010030 1f 64 86                            stz.w $86             ; VIEWYFROM
+010033 1f 64 88                            stz.w $88             ; VIEWYTO
+010036                 FOR10036_start:
+010036                                 ;; FOR X = 0 TO 39 {
+010036 a2 00                               ldx #$0
+010038                 FOR10036_loop:
+010038 4f bd 05 0b 01                      lda.a24 $010b05,X     ; Header
+01003d f0 0a                               beq +10               ; for10036_end [10049]
+01003f 09 80                               ora #$80
+010041 9d 04 04                            sta $0404,X
+010044 e8                                  inx
+010045 e0 28                               cpx #$28
+010047 d0 ef                               bne -17               ; FOR10036_loop [10038]
+010049                 FOR10036_end:
+010049 ad 00 d0                            lda $d000             ; NPRM
+01004c                                 ;; IF == {
+01004c d0 0e                               bne +14               ; IF1004c_else [1005c]
+01004e 1f a9 00 04                         lda.w #$400
+010052 1f 85 8e                            sta.w $8e             ; FILESIZE
+010055 4f 20 f8 09 01                      jsr.a24 $0109f8       ; calculateRows
+01005a 80 05                               bra +5                ; IF1004c_end [10061]
+01005c                 IF1004c_else:
+01005c                                 ;; ELSE
+01005c 4f 20 65 06 01                      jsr.a24 $010665       ; DoLoad
+010061                 IF1004c_end:
+010061 4f 20 d9 03 01                      jsr.a24 $0103d9       ; drawValues
+010066 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+01006b 4f 20 85 09 01                      jsr.a24 $010985       ; ClearInputBuffers
+010070                 LOOP10070_start:
+010070                                 ;; LOOP {
+010070                 LOOP10070_loop:
+010070 4f 5c 0b 00 ff                      jsr.a24 ($ff000b)     ; os4_SetScreenBase
+010075 ad 01 ff                            lda $ff01             ; TXTPOS
+010078                                 ;; IF == {
+010078 d0 13                               bne +19               ; IF10078_end [1008d]
+01007a a9 c2                               lda #$c2
+01007c 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+010081 a9 ba                               lda #$ba
+010083 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+010088 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
+01008d                 IF10078_end:
+01008d                 LOOP1008d_start:
+01008d                                 ;; LOOP {
+01008d                 LOOP1008d_loop:
+01008d 2c 00 c0                            bit $c000             ; KBD
+010090                                 ;; IF - {
+010090 10 04                               bpl +4                ; IF10090_end [10096]
+010092                                 ;; BREAK
+010092 4f 80 02 00                         bra.a24 +2            ; loop1008d_end [10098]
+010096                 IF10090_end:
+010096 80 f5                               bra -11               ; LOOP1008d_loop [1008d]
+010098                 LOOP1008d_end:
+010098 ad 00 c0                            lda $c000             ; KBD
+01009b 85 84                               sta $84               ; LASTKEY
+01009d 4f 20 5d 0a 01                      jsr.a24 $010a5d       ; debugValueT2
+0100a2 a5 84                               lda $84               ; LASTKEY
+0100a4 2c 10 c0                            bit $c010             ; KBDSTRB
+0100a7                                 ;; IF == 141 {
+0100a7 c9 8d                               cmp #$8d
+0100a9 d0 55                               bne +85               ; IF100a7_end [10100]
+0100ab a5 85                               lda $85               ; EDITING
+0100ad                                 ;; IF != {
+0100ad f0 13                               beq +19               ; IF100ad_else [100c2]
+0100af 4f 20 5e 05 01                      jsr.a24 $01055e       ; storeNewValue
+0100b4 4f 20 c5 03 01                      jsr.a24 $0103c5       ; endEditing
+0100b9 4f 20 3a 05 01                      jsr.a24 $01053a       ; hideEditCursor
+0100be                                 ;; CONTINUE
+0100be 80 b0                               bra -80               ; loop10070_start [10070]
+0100c0 80 3a                               bra +58               ; IF100ad_end [100fc]
+0100c2                 IF100ad_else:
+0100c2                                 ;; ELSE
+0100c2 ad 01 ff                            lda $ff01             ; TXTPOS
+0100c5 c9 02                               cmp #$2
+0100c7                                 ;; IF == {
+0100c7 d0 09                               bne +9                ; IF100c7_else [100d2]
+0100c9 4f 20 4d 03 01                      jsr.a24 $01034d       ; startEditing
+0100ce                                 ;; CONTINUE
+0100ce 80 a0                               bra -96               ; loop10070_start [10070]
+0100d0 80 2a                               bra +42               ; IF100c7_end [100fc]
+0100d2                 IF100c7_else:
+0100d2                                 ;; ELSE
+0100d2 4f 5c 1a 00 ff                      jsr.a24 ($ff001a)     ; os4_ClearCursor
+0100d7 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+0100dc 4f 20 b6 09 01                      jsr.a24 $0109b6       ; CurrentToPrevInputBuffer
+0100e1 9c ff d0                            stz $d0ff
+0100e4 4f 20 ad 08 01                      jsr.a24 $0108ad       ; CommandLine
+0100e9 8d ff d0                            sta $d0ff
+0100ec 4f 20 93 09 01                      jsr.a24 $010993       ; ClearCurrentInputBuffer
+0100f1 ad ff d0                            lda $d0ff
+0100f4                                 ;; IF == 255 {
+0100f4 c9 ff                               cmp #$ff
+0100f6 d0 04                               bne +4                ; IF100f4_end [100fc]
+0100f8 a9 00                               lda #$0
+0100fa 4f 60                               rts.a24
+0100fc                 IF100f4_end:
+0100fc                 IF100c7_end:
+0100fc                 IF100ad_end:
+0100fc                                 ;; CONTINUE
+0100fc 4f 80 70 ff                         bra.a24 -144          ; loop10070_start [10070]
+010100                 IF100a7_end:
+010100                                 ;; IF == 255 {
+010100 c9 ff                               cmp #$ff
+010102 d0 45                               bne +69               ; IF10100_end [10149]
+010104 a5 85                               lda $85               ; EDITING
 010106                                 ;; IF != {
-010106 f0 04                               beq +4                ; IF10106_else [1010c]
-010108 64 8b                               stz $8b               ; NEWVALUEL
-01010a 80 06                               bra +6                ; IF10106_end [10112]
-01010c                 IF10106_else:
-01010c                                 ;; ELSE
-01010c a5 8a                               lda $8a               ; NEWVALUEH
-01010e                                 ;; IF != {
-01010e f0 02                               beq +2                ; IF1010e_end [10112]
-010110 64 8a                               stz $8a               ; NEWVALUEH
-010112                 IF1010e_end:
-010112                 IF10106_end:
-010112 4f 20 ce 04 01                      jsr.a24 $0104ce       ; showEditCursor
-010117                                 ;; CONTINUE
-010117 4f 80 51 ff                         bra.a24 -175          ; loop1006c_start [1006c]
-01011b 80 28                               bra +40               ; IF10102_end [10145]
-01011d                 IF10102_else:
-01011d                                 ;; ELSE
-01011d ad 01 ff                            lda $ff01             ; TXTPOS
-010120                                 ;; IF > 2 {
-010120 c9 02                               cmp #$2
-010122 f0 1d                               beq +29               ; IF10120_end [10141]
-010124 90 1b                               bcc +27               ; IF10120_end [10141]
-010126 4f 5c 1a 00 ff                      jsr.a24 ($ff001a)     ; os4_ClearCursor
-01012b a9 a0                               lda #$a0
-01012d ac 01 ff                            ldy $ff01             ; TXTPOS
-010130 88                                  dey
-010131 91 fe                               sta ($fe),Y           ; TXTPTR
-010133 88                                  dey
-010134 a9 00                               lda #$0
-010136 99 00 01                            sta $0100,Y           ; INPBUFFER
-010139 ce 01 ff                            dec $ff01             ; TXTPOS
-01013c 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
-010141                 IF10120_end:
-010141                                 ;; CONTINUE
-010141 4f 80 27 ff                         bra.a24 -217          ; loop1006c_start [1006c]
-010145                 IF10102_end:
-010145                 IF100fc_end:
-010145                                 ;; IF == 137 {
-010145 c9 89                               cmp #$89
-010147 d0 12                               bne +18               ; IF10145_end [1015b]
-010149 a5 85                               lda $85               ; EDITING
-01014b                                 ;; IF != {
-01014b f0 05                               beq +5                ; IF1014b_end [10152]
-01014d 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-010152                 IF1014b_end:
-010152 4f 20 de 08 01                      jsr.a24 $0108de       ; CompleteCommand
-010157                                 ;; CONTINUE
-010157 4f 80 11 ff                         bra.a24 -239          ; loop1006c_start [1006c]
-01015b                 IF10145_end:
-01015b                                 ;; IF == 154 {
-01015b c9 9a                               cmp #$9a
-01015d d0 20                               bne +32               ; IF1015b_end [1017f]
-01015f a5 85                               lda $85               ; EDITING
-010161                                 ;; IF != {
-010161 f0 09                               beq +9                ; IF10161_end [1016c]
-010163 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-010168                                 ;; CONTINUE
-010168 4f 80 00 ff                         bra.a24 -256          ; loop1006c_start [1006c]
-01016c                 IF10161_end:
-01016c 4f 20 63 09 01                      jsr.a24 $010963       ; PrevToCurrentInputBuffer
-010171 4f 20 8d 09 01                      jsr.a24 $01098d       ; InputBufferToTextScreen
+010106 f0 19                               beq +25               ; IF10106_else [10121]
+010108 a5 8d                               lda $8d               ; NEWVALUEL
+01010a                                 ;; IF != {
+01010a f0 04                               beq +4                ; IF1010a_else [10110]
+01010c 64 8d                               stz $8d               ; NEWVALUEL
+01010e 80 06                               bra +6                ; IF1010a_end [10116]
+010110                 IF1010a_else:
+010110                                 ;; ELSE
+010110 a5 8c                               lda $8c               ; NEWVALUEH
+010112                                 ;; IF != {
+010112 f0 02                               beq +2                ; IF10112_end [10116]
+010114 64 8c                               stz $8c               ; NEWVALUEH
+010116                 IF10112_end:
+010116                 IF1010a_end:
+010116 4f 20 0e 05 01                      jsr.a24 $01050e       ; showEditCursor
+01011b                                 ;; CONTINUE
+01011b 4f 80 51 ff                         bra.a24 -175          ; loop10070_start [10070]
+01011f 80 28                               bra +40               ; IF10106_end [10149]
+010121                 IF10106_else:
+010121                                 ;; ELSE
+010121 ad 01 ff                            lda $ff01             ; TXTPOS
+010124                                 ;; IF > 2 {
+010124 c9 02                               cmp #$2
+010126 f0 1d                               beq +29               ; IF10124_end [10145]
+010128 90 1b                               bcc +27               ; IF10124_end [10145]
+01012a 4f 5c 1a 00 ff                      jsr.a24 ($ff001a)     ; os4_ClearCursor
+01012f a9 a0                               lda #$a0
+010131 ac 01 ff                            ldy $ff01             ; TXTPOS
+010134 88                                  dey
+010135 91 fe                               sta ($fe),Y           ; TXTPTR
+010137 88                                  dey
+010138 a9 00                               lda #$0
+01013a 99 00 01                            sta $0100,Y           ; INPBUFFER
+01013d ce 01 ff                            dec $ff01             ; TXTPOS
+010140 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
+010145                 IF10124_end:
+010145                                 ;; CONTINUE
+010145 4f 80 27 ff                         bra.a24 -217          ; loop10070_start [10070]
+010149                 IF10106_end:
+010149                 IF10100_end:
+010149                                 ;; IF == 137 {
+010149 c9 89                               cmp #$89
+01014b d0 12                               bne +18               ; IF10149_end [1015f]
+01014d a5 85                               lda $85               ; EDITING
+01014f                                 ;; IF != {
+01014f f0 05                               beq +5                ; IF1014f_end [10156]
+010151 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+010156                 IF1014f_end:
+010156 4f 20 1c 09 01                      jsr.a24 $01091c       ; CompleteCommand
+01015b                                 ;; CONTINUE
+01015b 4f 80 11 ff                         bra.a24 -239          ; loop10070_start [10070]
+01015f                 IF10149_end:
+01015f                                 ;; IF == 154 {
+01015f c9 9a                               cmp #$9a
+010161 d0 1c                               bne +28               ; IF1015f_end [1017f]
+010163 a5 85                               lda $85               ; EDITING
+010165                                 ;; IF != {
+010165 f0 05                               beq +5                ; IF10165_end [1016c]
+010167 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+01016c                 IF10165_end:
+01016c 4f 20 a1 09 01                      jsr.a24 $0109a1       ; PrevToCurrentInputBuffer
+010171 4f 20 cb 09 01                      jsr.a24 $0109cb       ; InputBufferToTextScreen
 010176 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
 01017b                                 ;; CONTINUE
-01017b 4f 80 ed fe                         bra.a24 -275          ; loop1006c_start [1006c]
-01017f                 IF1015b_end:
+01017b 4f 80 f1 fe                         bra.a24 -271          ; loop10070_start [10070]
+01017f                 IF1015f_end:
 01017f                                 ;; IF == 155 {
 01017f c9 9b                               cmp #$9b
 010181 d0 16                               bne +22               ; IF1017f_end [10199]
@@ -243,631 +247,661 @@
 010190                 IF10188_end:
 010190 4f 5c 08 00 ff                      jsr.a24 ($ff0008)     ; os4_SetScreenMode
 010195                                 ;; CONTINUE
-010195 4f 80 d3 fe                         bra.a24 -301          ; loop1006c_start [1006c]
+010195 4f 80 d7 fe                         bra.a24 -297          ; loop10070_start [10070]
 010199                 IF1017f_end:
 010199                                 ;; IF == 136 {
 010199 c9 88                               cmp #$88
-01019b d0 26                               bne +38               ; IF10199_end [101c3]
+01019b d0 22                               bne +34               ; IF10199_end [101bf]
 01019d a5 85                               lda $85               ; EDITING
 01019f                                 ;; IF != {
-01019f f0 09                               beq +9                ; IF1019f_end [101aa]
-0101a1 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-0101a6                                 ;; CONTINUE
-0101a6 4f 80 c2 fe                         bra.a24 -318          ; loop1006c_start [1006c]
-0101aa                 IF1019f_end:
-0101aa 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-0101af a5 82                               lda $82               ; CURSORX
-0101b1 c9 00                               cmp #$0
-0101b3                                 ;; IF > {
-0101b3 f0 05                               beq +5                ; IF101b3_end [101ba]
-0101b5 90 03                               bcc +3                ; IF101b3_end [101ba]
-0101b7 3a                                  dec
-0101b8 85 82                               sta $82               ; CURSORX
-0101ba                 IF101b3_end:
-0101ba 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-0101bf                                 ;; CONTINUE
-0101bf 4f 80 a9 fe                         bra.a24 -343          ; loop1006c_start [1006c]
-0101c3                 IF10199_end:
-0101c3                                 ;; IF == 149 {
-0101c3 c9 95                               cmp #$95
-0101c5 d0 24                               bne +36               ; IF101c3_end [101eb]
-0101c7 a5 85                               lda $85               ; EDITING
-0101c9                                 ;; IF != {
-0101c9 f0 09                               beq +9                ; IF101c9_end [101d4]
-0101cb 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-0101d0                                 ;; CONTINUE
-0101d0 4f 80 98 fe                         bra.a24 -360          ; loop1006c_start [1006c]
-0101d4                 IF101c9_end:
-0101d4 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-0101d9 a5 82                               lda $82               ; CURSORX
-0101db c9 07                               cmp #$7
-0101dd                                 ;; IF < {
-0101dd b0 03                               bcs +3                ; IF101dd_end [101e2]
-0101df 1a                                  inc
-0101e0 85 82                               sta $82               ; CURSORX
-0101e2                 IF101dd_end:
-0101e2 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-0101e7                                 ;; CONTINUE
-0101e7 4f 80 81 fe                         bra.a24 -383          ; loop1006c_start [1006c]
-0101eb                 IF101c3_end:
-0101eb                                 ;; IF == 139 {
-0101eb c9 8b                               cmp #$8b
-0101ed d0 3e                               bne +62               ; IF101eb_end [1022d]
-0101ef a5 85                               lda $85               ; EDITING
-0101f1                                 ;; IF != {
-0101f1 f0 09                               beq +9                ; IF101f1_end [101fc]
-0101f3 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-0101f8                                 ;; CONTINUE
-0101f8 4f 80 70 fe                         bra.a24 -400          ; loop1006c_start [1006c]
-0101fc                 IF101f1_end:
-0101fc 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-010201 a5 83                               lda $83               ; CURSORY
-010203 c9 00                               cmp #$0
-010205                                 ;; IF == {
-010205 d0 16                               bne +22               ; IF10205_else [1021d]
-010207 1f a5 86                            lda.w $86             ; VIEWYFROM
-01020a                                 ;; IF > {
-01020a f0 0f                               beq +15               ; IF1020a_end [1021b]
-01020c 90 0d                               bcc +13               ; IF1020a_end [1021b]
-01020e 1f c6 86                            dec.w $86             ; VIEWYFROM
-010211 4f 20 e4 09 01                      jsr.a24 $0109e4       ; updateViewableRows
-010216 4f 20 97 03 01                      jsr.a24 $010397       ; drawValues
-01021b                 IF1020a_end:
-01021b 80 07                               bra +7                ; IF10205_end [10224]
-01021d                 IF10205_else:
-01021d                                 ;; ELSE
-01021d                                 ;; IF > {
-01021d f0 05                               beq +5                ; IF1021d_end [10224]
-01021f 90 03                               bcc +3                ; IF1021d_end [10224]
-010221 3a                                  dec
-010222 85 83                               sta $83               ; CURSORY
-010224                 IF1021d_end:
-010224                 IF10205_end:
-010224 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-010229                                 ;; CONTINUE
-010229 4f 80 3f fe                         bra.a24 -449          ; loop1006c_start [1006c]
-01022d                 IF101eb_end:
-01022d                                 ;; IF == 138 {
-01022d c9 8a                               cmp #$8a
-01022f d0 38                               bne +56               ; IF1022d_end [10269]
-010231 a5 85                               lda $85               ; EDITING
-010233                                 ;; IF != {
-010233 f0 09                               beq +9                ; IF10233_end [1023e]
-010235 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-01023a                                 ;; CONTINUE
-01023a 4f 80 2e fe                         bra.a24 -466          ; loop1006c_start [1006c]
-01023e                 IF10233_end:
-01023e 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-010243 a5 83                               lda $83               ; CURSORY
-010245                                 ;; IF == 23 {
-010245 c9 17                               cmp #$17
-010247 d0 0f                               bne +15               ; IF10245_else [10258]
-010249 1f e6 86                            inc.w $86             ; VIEWYFROM
-01024c 4f 20 e4 09 01                      jsr.a24 $0109e4       ; updateViewableRows
-010251 4f 20 97 03 01                      jsr.a24 $010397       ; drawValues
-010256 80 08                               bra +8                ; IF10245_end [10260]
-010258                 IF10245_else:
-010258                                 ;; ELSE
-010258 1f c5 88                            cmp.w $88             ; VIEWYTO
-01025b                                 ;; IF < {
-01025b b0 03                               bcs +3                ; IF1025b_end [10260]
-01025d 1a                                  inc
-01025e 85 83                               sta $83               ; CURSORY
-010260                 IF1025b_end:
-010260                 IF10245_end:
-010260 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-010265                                 ;; CONTINUE
-010265 4f 80 03 fe                         bra.a24 -509          ; loop1006c_start [1006c]
-010269                 IF1022d_end:
-010269                                 ;; IF == 171 {
-010269 c9 ab                               cmp #$ab
-01026b d0 35                               bne +53               ; IF10269_end [102a2]
-01026d a5 85                               lda $85               ; EDITING
-01026f                                 ;; IF != {
-01026f f0 09                               beq +9                ; IF1026f_end [1027a]
-010271 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-010276                                 ;; CONTINUE
-010276 4f 80 f2 fd                         bra.a24 -526          ; loop1006c_start [1006c]
-01027a                 IF1026f_end:
-01027a 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-01027f 1f a5 86                            lda.w $86             ; VIEWYFROM
-010282 18                                  clc
-010283 1f 69 18 00                         adc.w #$18
-010287 1f c5 88                            cmp.w $88             ; VIEWYTO
-01028a                                 ;; IF < {
-01028a b0 0d                               bcs +13               ; IF1028a_end [10299]
-01028c 1f 85 86                            sta.w $86             ; VIEWYFROM
-01028f 4f 20 e4 09 01                      jsr.a24 $0109e4       ; updateViewableRows
-010294 4f 20 97 03 01                      jsr.a24 $010397       ; drawValues
-010299                 IF1028a_end:
-010299 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-01029e                                 ;; CONTINUE
-01029e 4f 80 ca fd                         bra.a24 -566          ; loop1006c_start [1006c]
-0102a2                 IF10269_end:
-0102a2                                 ;; IF == 173 {
-0102a2 c9 ad                               cmp #$ad
-0102a4 d0 36                               bne +54               ; IF102a2_end [102dc]
-0102a6 a5 85                               lda $85               ; EDITING
-0102a8                                 ;; IF != {
-0102a8 f0 09                               beq +9                ; IF102a8_end [102b3]
-0102aa 4f 20 83 03 01                      jsr.a24 $010383       ; endEditing
-0102af                                 ;; CONTINUE
-0102af 4f 80 b9 fd                         bra.a24 -583          ; loop1006c_start [1006c]
-0102b3                 IF102a8_end:
-0102b3 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-0102b8 1f a5 86                            lda.w $86             ; VIEWYFROM
-0102bb c9 18                               cmp #$18
-0102bd                                 ;; IF > {
-0102bd f0 14                               beq +20               ; IF102bd_end [102d3]
-0102bf 90 12                               bcc +18               ; IF102bd_end [102d3]
-0102c1 38                                  sec
-0102c2 1f e9 18 00                         sbc.w #$18
-0102c6 1f 85 86                            sta.w $86             ; VIEWYFROM
-0102c9 4f 20 e4 09 01                      jsr.a24 $0109e4       ; updateViewableRows
-0102ce 4f 20 97 03 01                      jsr.a24 $010397       ; drawValues
-0102d3                 IF102bd_end:
-0102d3 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-0102d8                                 ;; CONTINUE
-0102d8 4f 80 90 fd                         bra.a24 -624          ; loop1006c_start [1006c]
-0102dc                 IF102a2_end:
-0102dc                                 ;; IF > 159 {
-0102dc c9 9f                               cmp #$9f
-0102de f0 29                               beq +41               ; IF102dc_end [10309]
-0102e0 90 27                               bcc +39               ; IF102dc_end [10309]
-0102e2 a5 85                               lda $85               ; EDITING
-0102e4                                 ;; IF != {
-0102e4 f0 07                               beq +7                ; IF102e4_else [102ed]
-0102e6 4f 20 0d 03 01                      jsr.a24 $01030d       ; enterKeyWhileEditing
-0102eb 80 1c                               bra +28               ; IF102e4_end [10309]
-0102ed                 IF102e4_else:
-0102ed                                 ;; ELSE
+01019f f0 05                               beq +5                ; IF1019f_end [101a6]
+0101a1 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+0101a6                 IF1019f_end:
+0101a6 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+0101ab a5 82                               lda $82               ; CURSORX
+0101ad c9 00                               cmp #$0
+0101af                                 ;; IF > {
+0101af f0 05                               beq +5                ; IF101af_end [101b6]
+0101b1 90 03                               bcc +3                ; IF101af_end [101b6]
+0101b3 3a                                  dec
+0101b4 85 82                               sta $82               ; CURSORX
+0101b6                 IF101af_end:
+0101b6 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+0101bb                                 ;; CONTINUE
+0101bb 4f 80 b1 fe                         bra.a24 -335          ; loop10070_start [10070]
+0101bf                 IF10199_end:
+0101bf                                 ;; IF == 149 {
+0101bf c9 95                               cmp #$95
+0101c1 d0 20                               bne +32               ; IF101bf_end [101e3]
+0101c3 a5 85                               lda $85               ; EDITING
+0101c5                                 ;; IF != {
+0101c5 f0 05                               beq +5                ; IF101c5_end [101cc]
+0101c7 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+0101cc                 IF101c5_end:
+0101cc 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+0101d1 a5 82                               lda $82               ; CURSORX
+0101d3 c9 07                               cmp #$7
+0101d5                                 ;; IF < {
+0101d5 b0 03                               bcs +3                ; IF101d5_end [101da]
+0101d7 1a                                  inc
+0101d8 85 82                               sta $82               ; CURSORX
+0101da                 IF101d5_end:
+0101da 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+0101df                                 ;; CONTINUE
+0101df 4f 80 8d fe                         bra.a24 -371          ; loop10070_start [10070]
+0101e3                 IF101bf_end:
+0101e3                                 ;; IF == 139 {
+0101e3 c9 8b                               cmp #$8b
+0101e5 d0 3a                               bne +58               ; IF101e3_end [10221]
+0101e7 a5 85                               lda $85               ; EDITING
+0101e9                                 ;; IF != {
+0101e9 f0 05                               beq +5                ; IF101e9_end [101f0]
+0101eb 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+0101f0                 IF101e9_end:
+0101f0 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+0101f5 a5 83                               lda $83               ; CURSORY
+0101f7 c9 00                               cmp #$0
+0101f9                                 ;; IF == {
+0101f9 d0 16                               bne +22               ; IF101f9_else [10211]
+0101fb 1f a5 86                            lda.w $86             ; VIEWYFROM
+0101fe                                 ;; IF > {
+0101fe f0 0f                               beq +15               ; IF101fe_end [1020f]
+010200 90 0d                               bcc +13               ; IF101fe_end [1020f]
+010202 1f c6 86                            dec.w $86             ; VIEWYFROM
+010205 4f 20 22 0a 01                      jsr.a24 $010a22       ; updateViewableRows
+01020a 4f 20 d9 03 01                      jsr.a24 $0103d9       ; drawValues
+01020f                 IF101fe_end:
+01020f 80 07                               bra +7                ; IF101f9_end [10218]
+010211                 IF101f9_else:
+010211                                 ;; ELSE
+010211                                 ;; IF > {
+010211 f0 05                               beq +5                ; IF10211_end [10218]
+010213 90 03                               bcc +3                ; IF10211_end [10218]
+010215 3a                                  dec
+010216 85 83                               sta $83               ; CURSORY
+010218                 IF10211_end:
+010218                 IF101f9_end:
+010218 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+01021d                                 ;; CONTINUE
+01021d 4f 80 4f fe                         bra.a24 -433          ; loop10070_start [10070]
+010221                 IF101e3_end:
+010221                                 ;; IF == 138 {
+010221 c9 8a                               cmp #$8a
+010223 d0 3e                               bne +62               ; IF10221_end [10263]
+010225 a5 85                               lda $85               ; EDITING
+010227                                 ;; IF != {
+010227 f0 05                               beq +5                ; IF10227_end [1022e]
+010229 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+01022e                 IF10227_end:
+01022e 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+010233 a5 83                               lda $83               ; CURSORY
+010235                                 ;; IF == 23 {
+010235 c9 17                               cmp #$17
+010237 d0 19                               bne +25               ; IF10235_else [10252]
+010239 1f a5 88                            lda.w $88             ; VIEWYTO
+01023c 1f 1a                               inc.w
+01023e 1f c5 91                            cmp.w $91             ; NFILEROWS
+010241                                 ;; IF < {
+010241 b0 0d                               bcs +13               ; IF10241_end [10250]
+010243 1f e6 86                            inc.w $86             ; VIEWYFROM
+010246 4f 20 22 0a 01                      jsr.a24 $010a22       ; updateViewableRows
+01024b 4f 20 d9 03 01                      jsr.a24 $0103d9       ; drawValues
+010250                 IF10241_end:
+010250 80 08                               bra +8                ; IF10235_end [1025a]
+010252                 IF10235_else:
+010252                                 ;; ELSE
+010252 1f c5 88                            cmp.w $88             ; VIEWYTO
+010255                                 ;; IF < {
+010255 b0 03                               bcs +3                ; IF10255_end [1025a]
+010257 1a                                  inc
+010258 85 83                               sta $83               ; CURSORY
+01025a                 IF10255_end:
+01025a                 IF10235_end:
+01025a 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+01025f                                 ;; CONTINUE
+01025f 4f 80 0d fe                         bra.a24 -499          ; loop10070_start [10070]
+010263                 IF10221_end:
+010263                                 ;; IF == 171 {
+010263 c9 ab                               cmp #$ab
+010265 d0 31                               bne +49               ; IF10263_end [10298]
+010267 a5 85                               lda $85               ; EDITING
+010269                                 ;; IF != {
+010269 f0 05                               beq +5                ; IF10269_end [10270]
+01026b 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+010270                 IF10269_end:
+010270 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+010275 1f a5 86                            lda.w $86             ; VIEWYFROM
+010278 18                                  clc
+010279 1f 69 18 00                         adc.w #$18
+01027d 1f c5 88                            cmp.w $88             ; VIEWYTO
+010280                                 ;; IF < {
+010280 b0 0d                               bcs +13               ; IF10280_end [1028f]
+010282 1f 85 86                            sta.w $86             ; VIEWYFROM
+010285 4f 20 22 0a 01                      jsr.a24 $010a22       ; updateViewableRows
+01028a 4f 20 d9 03 01                      jsr.a24 $0103d9       ; drawValues
+01028f                 IF10280_end:
+01028f 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+010294                                 ;; CONTINUE
+010294 4f 80 d8 fd                         bra.a24 -552          ; loop10070_start [10070]
+010298                 IF10263_end:
+010298                                 ;; IF == 173 {
+010298 c9 ad                               cmp #$ad
+01029a d0 32                               bne +50               ; IF10298_end [102ce]
+01029c a5 85                               lda $85               ; EDITING
+01029e                                 ;; IF != {
+01029e f0 05                               beq +5                ; IF1029e_end [102a5]
+0102a0 4f 20 93 03 01                      jsr.a24 $010393       ; cancelEditing
+0102a5                 IF1029e_end:
+0102a5 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+0102aa 1f a5 86                            lda.w $86             ; VIEWYFROM
+0102ad c9 18                               cmp #$18
+0102af                                 ;; IF > {
+0102af f0 14                               beq +20               ; IF102af_end [102c5]
+0102b1 90 12                               bcc +18               ; IF102af_end [102c5]
+0102b3 38                                  sec
+0102b4 1f e9 18 00                         sbc.w #$18
+0102b8 1f 85 86                            sta.w $86             ; VIEWYFROM
+0102bb 4f 20 22 0a 01                      jsr.a24 $010a22       ; updateViewableRows
+0102c0 4f 20 d9 03 01                      jsr.a24 $0103d9       ; drawValues
+0102c5                 IF102af_end:
+0102c5 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+0102ca                                 ;; CONTINUE
+0102ca 4f 80 a2 fd                         bra.a24 -606          ; loop10070_start [10070]
+0102ce                 IF10298_end:
+0102ce                                 ;; IF > 159 {
+0102ce c9 9f                               cmp #$9f
+0102d0 f0 29                               beq +41               ; IF102ce_end [102fb]
+0102d2 90 27                               bcc +39               ; IF102ce_end [102fb]
+0102d4 a5 85                               lda $85               ; EDITING
+0102d6                                 ;; IF != {
+0102d6 f0 07                               beq +7                ; IF102d6_else [102df]
+0102d8 4f 20 ff 02 01                      jsr.a24 $0102ff       ; enterKeyWhileEditing
+0102dd 80 1c                               bra +28               ; IF102d6_end [102fb]
+0102df                 IF102d6_else:
+0102df                                 ;; ELSE
+0102df a5 84                               lda $84               ; LASTKEY
+0102e1 ac 01 ff                            ldy $ff01             ; TXTPOS
+0102e4 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+0102e9 c0 28                               cpy #$28
+0102eb                                 ;; IF < {
+0102eb b0 0e                               bcs +14               ; IF102eb_end [102fb]
 0102ed a5 84                               lda $84               ; LASTKEY
-0102ef ac 01 ff                            ldy $ff01             ; TXTPOS
-0102f2 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-0102f7 c0 28                               cpy #$28
-0102f9                                 ;; IF < {
-0102f9 b0 0e                               bcs +14               ; IF102f9_end [10309]
-0102fb a5 84                               lda $84               ; LASTKEY
-0102fd 29 7f                               and #$7f
-0102ff 88                                  dey
-010300 88                                  dey
-010301 99 00 01                            sta $0100,Y           ; INPBUFFER
-010304 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
-010309                 IF102f9_end:
-010309                 IF102e4_end:
-010309                 IF102dc_end:
-010309 4f 80 5f fd                         bra.a24 -673          ; LOOP1006c_loop [1006c]
-01030d                 LOOP1006c_end:
+0102ef 29 7f                               and #$7f
+0102f1 88                                  dey
+0102f2 88                                  dey
+0102f3 99 00 01                            sta $0100,Y           ; INPBUFFER
+0102f6 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
+0102fb                 IF102eb_end:
+0102fb                 IF102d6_end:
+0102fb                 IF102ce_end:
+0102fb 4f 80 71 fd                         bra.a24 -655          ; LOOP10070_loop [10070]
+0102ff                 LOOP10070_end:
 
-01030d ; SUB enterKeyWhileEditing:
-01030d a5 84                               lda $84               ; LASTKEY
-01030f c9 30                               cmp #$30
-010311                                 ;; IF >= {
-010311 90 2d                               bcc +45               ; IF10311_end [10340]
-010313 c9 39                               cmp #$39
-010315                                 ;; IF <= {
-010315 f0 02                               beq +2                ; IF10315_end_eq [10319]
-010317 b0 07                               bcs +7                ; IF10315_else [10320]
-010319                 IF10315_end_eq:
-010319 4f 20 42 03 01                      jsr.a24 $010342       ; processKeyWhileEditing
-01031e 80 20                               bra +32               ; IF10315_end [10340]
-010320                 IF10315_else:
-010320                                 ;; ELSE
-010320 c9 41                               cmp #$41
-010322                                 ;; IF >= {
-010322 90 1c                               bcc +28               ; IF10322_end [10340]
-010324 c9 46                               cmp #$46
-010326                                 ;; IF <= {
-010326 f0 02                               beq +2                ; IF10326_end_eq [1032a]
-010328 b0 07                               bcs +7                ; IF10326_else [10331]
-01032a                 IF10326_end_eq:
-01032a 4f 20 42 03 01                      jsr.a24 $010342       ; processKeyWhileEditing
-01032f 80 0f                               bra +15               ; IF10326_end [10340]
-010331                 IF10326_else:
-010331                                 ;; ELSE
-010331 c9 61                               cmp #$61
-010333                                 ;; IF >= {
-010333 90 0b                               bcc +11               ; IF10333_end [10340]
-010335 c9 66                               cmp #$66
-010337                                 ;; IF <= {
-010337 f0 02                               beq +2                ; IF10337_end_eq [1033b]
-010339 b0 05                               bcs +5                ; IF10337_end [10340]
-01033b                 IF10337_end_eq:
-01033b 4f 20 42 03 01                      jsr.a24 $010342       ; processKeyWhileEditing
-010340                 IF10337_end:
-010340                 IF10333_end:
-010340                 IF10326_end:
-010340                 IF10322_end:
-010340                 IF10315_end:
-010340                 IF10311_end:
-010340 4f 60                               rts.a24
+0102ff ; SUB enterKeyWhileEditing:
+0102ff a5 84                               lda $84               ; LASTKEY
+010301 c9 30                               cmp #$30
+010303                                 ;; IF >= {
+010303 90 2d                               bcc +45               ; IF10303_end [10332]
+010305 c9 39                               cmp #$39
+010307                                 ;; IF <= {
+010307 f0 02                               beq +2                ; IF10307_end_eq [1030b]
+010309 b0 07                               bcs +7                ; IF10307_else [10312]
+01030b                 IF10307_end_eq:
+01030b 4f 20 34 03 01                      jsr.a24 $010334       ; processKeyWhileEditing
+010310 80 20                               bra +32               ; IF10307_end [10332]
+010312                 IF10307_else:
+010312                                 ;; ELSE
+010312 c9 41                               cmp #$41
+010314                                 ;; IF >= {
+010314 90 1c                               bcc +28               ; IF10314_end [10332]
+010316 c9 46                               cmp #$46
+010318                                 ;; IF <= {
+010318 f0 02                               beq +2                ; IF10318_end_eq [1031c]
+01031a b0 07                               bcs +7                ; IF10318_else [10323]
+01031c                 IF10318_end_eq:
+01031c 4f 20 34 03 01                      jsr.a24 $010334       ; processKeyWhileEditing
+010321 80 0f                               bra +15               ; IF10318_end [10332]
+010323                 IF10318_else:
+010323                                 ;; ELSE
+010323 c9 61                               cmp #$61
+010325                                 ;; IF >= {
+010325 90 0b                               bcc +11               ; IF10325_end [10332]
+010327 c9 66                               cmp #$66
+010329                                 ;; IF <= {
+010329 f0 02                               beq +2                ; IF10329_end_eq [1032d]
+01032b b0 05                               bcs +5                ; IF10329_end [10332]
+01032d                 IF10329_end_eq:
+01032d 4f 20 34 03 01                      jsr.a24 $010334       ; processKeyWhileEditing
+010332                 IF10329_end:
+010332                 IF10325_end:
+010332                 IF10318_end:
+010332                 IF10314_end:
+010332                 IF10307_end:
+010332                 IF10303_end:
+010332 4f 60                               rts.a24
 
-010342 ; SUB processKeyWhileEditing:
-010342 a5 8a                               lda $8a               ; NEWVALUEH
-010344                                 ;; IF == {
-010344 d0 06                               bne +6                ; IF10344_else [1034c]
-010346 a5 84                               lda $84               ; LASTKEY
-010348 85 8a                               sta $8a               ; NEWVALUEH
-01034a 80 08                               bra +8                ; IF10344_end [10354]
-01034c                 IF10344_else:
-01034c                                 ;; ELSE
-01034c a5 8b                               lda $8b               ; NEWVALUEL
-01034e                                 ;; IF == {
-01034e d0 04                               bne +4                ; IF1034e_end [10354]
-010350 a5 84                               lda $84               ; LASTKEY
-010352 85 8b                               sta $8b               ; NEWVALUEL
-010354                 IF1034e_end:
-010354                 IF10344_end:
-010354 4f 20 ce 04 01                      jsr.a24 $0104ce       ; showEditCursor
-010359 4f 60                               rts.a24
+010334 ; SUB processKeyWhileEditing:
+010334 a5 8c                               lda $8c               ; NEWVALUEH
+010336                                 ;; IF == {
+010336 d0 06                               bne +6                ; IF10336_else [1033e]
+010338 a5 84                               lda $84               ; LASTKEY
+01033a 85 8c                               sta $8c               ; NEWVALUEH
+01033c 80 08                               bra +8                ; IF10336_end [10346]
+01033e                 IF10336_else:
+01033e                                 ;; ELSE
+01033e a5 8d                               lda $8d               ; NEWVALUEL
+010340                                 ;; IF == {
+010340 d0 04                               bne +4                ; IF10340_end [10346]
+010342 a5 84                               lda $84               ; LASTKEY
+010344 85 8d                               sta $8d               ; NEWVALUEL
+010346                 IF10340_end:
+010346                 IF10336_end:
+010346 4f 20 0e 05 01                      jsr.a24 $01050e       ; showEditCursor
+01034b 4f 60                               rts.a24
 
-01035b ; SUB startEditing:
-01035b ae 00 ff                            ldx $ff00             ; TXTROW
-01035e 4f 5c 3b 00 ff                      jsr.a24 ($ff003b)     ; os4_ClearRow
-010363 9c 01 ff                            stz $ff01             ; TXTPOS
-010366 2f a9 e8 0a 01                      lda.t #$10ae8         ; EditingStr
-01036b 2f 8d 00 d7                         sta.t $00d700
-01036f 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-010374 64 8a                               stz $8a               ; NEWVALUEH
-010376 64 8b                               stz $8b               ; NEWVALUEL
-010378 a9 01                               lda #$1
-01037a 85 85                               sta $85               ; EDITING
-01037c 4f 20 ce 04 01                      jsr.a24 $0104ce       ; showEditCursor
-010381 4f 60                               rts.a24
+01034d ; SUB startEditing:
+0000fb-0000fc   ; VAR @ROWPTR
+01034d ae 00 ff                            ldx $ff00             ; TXTROW
+010350 4f 5c 3b 00 ff                      jsr.a24 ($ff003b)     ; os4_ClearRow
+010355 9c 01 ff                            stz $ff01             ; TXTPOS
+010358 2f a9 26 0b 01                      lda.t #$10b26         ; EditingStr
+01035d 2f 8d 00 d7                         sta.t $00d700
+010361 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010366 a6 83                               ldx $83               ; CURSORY
+010368 2b                                  xsl
+010369 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+01036e 1f 85 fb                            sta.w $fb             ; ROWPTR
+010371 18                                  clc
+010372 a5 82                               lda $82               ; CURSORX
+010374 65 82                               adc $82               ; CURSORX
+010376 65 82                               adc $82               ; CURSORX
+010378 69 06                               adc #$6
+01037a a8                                  tay
+01037b b1 fb                               lda ($fb),Y           ; ROWPTR
+01037d 85 8a                               sta $8a               ; OLDVALUEH
+01037f c8                                  iny
+010380 b1 fb                               lda ($fb),Y           ; ROWPTR
+010382 85 8b                               sta $8b               ; OLDVALUEL
+010384 64 8c                               stz $8c               ; NEWVALUEH
+010386 64 8d                               stz $8d               ; NEWVALUEL
+010388 a9 01                               lda #$1
+01038a 85 85                               sta $85               ; EDITING
+01038c 4f 20 0e 05 01                      jsr.a24 $01050e       ; showEditCursor
+010391 4f 60                               rts.a24
 
-010383 ; SUB endEditing:
-010383 ae 00 ff                            ldx $ff00             ; TXTROW
-010386 4f 5c 3b 00 ff                      jsr.a24 ($ff003b)     ; os4_ClearRow
-01038b 9c 01 ff                            stz $ff01             ; TXTPOS
-01038e 64 85                               stz $85               ; EDITING
-010390 4f 20 fb 04 01                      jsr.a24 $0104fb       ; hideEditCursor
-010395 4f 60                               rts.a24
+010393 ; SUB cancelEditing:
+0000fb-0000fc   ; VAR @ROWPTR
+010393 ae 00 ff                            ldx $ff00             ; TXTROW
+010396 4f 5c 3b 00 ff                      jsr.a24 ($ff003b)     ; os4_ClearRow
+01039b 9c 01 ff                            stz $ff01             ; TXTPOS
+01039e 64 85                               stz $85               ; EDITING
+0103a0 4f 20 3a 05 01                      jsr.a24 $01053a       ; hideEditCursor
+0103a5 a6 83                               ldx $83               ; CURSORY
+0103a7 2b                                  xsl
+0103a8 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+0103ad 1f 85 fb                            sta.w $fb             ; ROWPTR
+0103b0 18                                  clc
+0103b1 a5 82                               lda $82               ; CURSORX
+0103b3 65 82                               adc $82               ; CURSORX
+0103b5 65 82                               adc $82               ; CURSORX
+0103b7 69 06                               adc #$6
+0103b9 a8                                  tay
+0103ba a5 8a                               lda $8a               ; OLDVALUEH
+0103bc 91 fb                               sta ($fb),Y           ; ROWPTR
+0103be c8                                  iny
+0103bf a5 8b                               lda $8b               ; OLDVALUEL
+0103c1 91 fb                               sta ($fb),Y           ; ROWPTR
+0103c3 4f 60                               rts.a24
 
-010397 ; SUB drawValues:
+0103c5 ; SUB endEditing:
+0103c5 ae 00 ff                            ldx $ff00             ; TXTROW
+0103c8 4f 5c 3b 00 ff                      jsr.a24 ($ff003b)     ; os4_ClearRow
+0103cd 9c 01 ff                            stz $ff01             ; TXTPOS
+0103d0 64 85                               stz $85               ; EDITING
+0103d2 4f 20 3a 05 01                      jsr.a24 $01053a       ; hideEditCursor
+0103d7 4f 60                               rts.a24
+
+0103d9 ; SUB drawValues:
 000040          ; VAR @ROWNUM
 000041-000043   ; VAR @FILEPTR
 000044-000045   ; VAR @OFFSET
 000046          ; VAR @IDX
-010397 2f ad 13 ff                         lda.t $00ff13         ; HEAPSTART
-01039b 2f 85 41                            sta.t $41             ; FILEPTR
-01039e 1f a5 86                            lda.w $86             ; VIEWYFROM
-0103a1 1f 0a                               asl.w
-0103a3 1f 0a                               asl.w
-0103a5 1f 0a                               asl.w
-0103a7 1f 85 44                            sta.w $44             ; OFFSET
-0103aa 4f 20 45 04 01                      jsr.a24 $010445       ; overwriteScreenBase
-0103af 64 40                               stz $40               ; ROWNUM
-0103b1                 LOOP103b1_start:
-0103b1                                 ;; LOOP {
-0103b1                 LOOP103b1_loop:
-0103b1 a9 a4                               lda #$a4
-0103b3 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-0103b8 2f a5 44                            lda.t $44             ; OFFSET
-0103bb 4f 5c 29 00 ff                      jsr.a24 ($ff0029)     ; os4_PrintHexWord
-0103c0 a9 ad                               lda #$ad
-0103c2 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-0103c7                 FOR103c7_start:
-0103c7                                 ;; FOR @IDX = 0 TO 7 {
-0103c7 a2 00                               ldx #$0
-0103c9 86 46                               stx $46
-0103cb                 FOR103c7_loop:
-0103cb 18                                  clc
-0103cc 1f a5 44                            lda.w $44             ; OFFSET
-0103cf 1f 65 46                            adc.w $46             ; IDX
-0103d2 1f a8                               tay.w
-0103d4 4f b1 41                            lda.a24 ($41),Y       ; FILEPTR
-0103d7 4f 5c 26 00 ff                      jsr.a24 ($ff0026)     ; os4_PrintHexByte
-0103dc 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
-0103e1 e6 46                               inc $46
-0103e3 a6 46                               ldx $46
-0103e5 e0 08                               cpx #$8
-0103e7 d0 e2                               bne -30               ; FOR103c7_loop [103cb]
-0103e9                 FOR103c7_end:
-0103e9                 FOR103e9_start:
-0103e9                                 ;; FOR @IDX = 0 TO 7 {
-0103e9 a2 00                               ldx #$0
-0103eb 86 46                               stx $46
-0103ed                 FOR103e9_loop:
-0103ed 18                                  clc
-0103ee 1f a5 44                            lda.w $44             ; OFFSET
-0103f1 1f 65 46                            adc.w $46             ; IDX
-0103f4 1f a8                               tay.w
-0103f6 4f b1 41                            lda.a24 ($41),Y       ; FILEPTR
-0103f9                                 ;; IF < 128 {
-0103f9 c9 80                               cmp #$80
-0103fb b0 0b                               bcs +11               ; IF103f9_end [10408]
-0103fd                                 ;; IF == 0 {
-0103fd c9 00                               cmp #$0
-0103ff d0 04                               bne +4                ; IF103fd_else [10405]
-010401 a9 ae                               lda #$ae
-010403 80 03                               bra +3                ; IF103fd_end [10408]
-010405                 IF103fd_else:
-010405                                 ;; ELSE
-010405 18                                  clc
-010406 69 80                               adc #$80
-010408                 IF103fd_end:
-010408                 IF103f9_end:
-010408 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
-01040d e6 46                               inc $46
-01040f a6 46                               ldx $46
-010411 e0 08                               cpx #$8
-010413 d0 d8                               bne -40               ; FOR103e9_loop [103ed]
-010415                 FOR103e9_end:
-010415 18                                  clc
-010416 1f a5 44                            lda.w $44             ; OFFSET
-010419 1f 69 08 00                         adc.w #$8
-01041d 1f 85 44                            sta.w $44             ; OFFSET
-010420 4f 20 5f 04 01                      jsr.a24 $01045f       ; nextLineText2
-010425 e6 40                               inc $40               ; ROWNUM
-010427 a5 40                               lda $40               ; ROWNUM
-010429                                 ;; IF > 11 {
-010429 c9 0b                               cmp #$b
-01042b f0 03                               beq +3                ; IF10429_end [10430]
-01042d 90 01                               bcc +1                ; IF10429_end [10430]
-01042f ea                                  nop
-010430                 IF10429_end:
-010430                                 ;; IF > 23 {
-010430 c9 17                               cmp #$17
-010432 f0 06                               beq +6                ; IF10430_end [1043a]
-010434 90 04                               bcc +4                ; IF10430_end [1043a]
-010436                                 ;; BREAK
-010436 4f 80 04 00                         bra.a24 +4            ; loop103b1_end [1043e]
-01043a                 IF10430_end:
-01043a 4f 80 73 ff                         bra.a24 -141          ; LOOP103b1_loop [103b1]
-01043e                 LOOP103b1_end:
-01043e 4f 20 73 04 01                      jsr.a24 $010473       ; restoreScreenBase
-010443 4f 60                               rts.a24
+0103d9 2f ad 13 ff                         lda.t $00ff13         ; HEAPSTART
+0103dd 2f 85 41                            sta.t $41             ; FILEPTR
+0103e0 1f a5 86                            lda.w $86             ; VIEWYFROM
+0103e3 1f 0a                               asl.w
+0103e5 1f 0a                               asl.w
+0103e7 1f 0a                               asl.w
+0103e9 1f 85 44                            sta.w $44             ; OFFSET
+0103ec 4f 20 87 04 01                      jsr.a24 $010487       ; overwriteScreenBase
+0103f1 64 40                               stz $40               ; ROWNUM
+0103f3                 LOOP103f3_start:
+0103f3                                 ;; LOOP {
+0103f3                 LOOP103f3_loop:
+0103f3 a9 a4                               lda #$a4
+0103f5 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+0103fa 2f a5 44                            lda.t $44             ; OFFSET
+0103fd 4f 5c 29 00 ff                      jsr.a24 ($ff0029)     ; os4_PrintHexWord
+010402 a9 ad                               lda #$ad
+010404 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+010409                 FOR10409_start:
+010409                                 ;; FOR @IDX = 0 TO 7 {
+010409 a2 00                               ldx #$0
+01040b 86 46                               stx $46
+01040d                 FOR10409_loop:
+01040d 18                                  clc
+01040e 1f a5 44                            lda.w $44             ; OFFSET
+010411 1f 65 46                            adc.w $46             ; IDX
+010414 1f a8                               tay.w
+010416 4f b1 41                            lda.a24 ($41),Y       ; FILEPTR
+010419 4f 5c 26 00 ff                      jsr.a24 ($ff0026)     ; os4_PrintHexByte
+01041e 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
+010423 e6 46                               inc $46
+010425 a6 46                               ldx $46
+010427 e0 08                               cpx #$8
+010429 d0 e2                               bne -30               ; FOR10409_loop [1040d]
+01042b                 FOR10409_end:
+01042b                 FOR1042b_start:
+01042b                                 ;; FOR @IDX = 0 TO 7 {
+01042b a2 00                               ldx #$0
+01042d 86 46                               stx $46
+01042f                 FOR1042b_loop:
+01042f 18                                  clc
+010430 1f a5 44                            lda.w $44             ; OFFSET
+010433 1f 65 46                            adc.w $46             ; IDX
+010436 1f a8                               tay.w
+010438 4f b1 41                            lda.a24 ($41),Y       ; FILEPTR
+01043b                                 ;; IF < 128 {
+01043b c9 80                               cmp #$80
+01043d b0 0b                               bcs +11               ; IF1043b_end [1044a]
+01043f                                 ;; IF == 0 {
+01043f c9 00                               cmp #$0
+010441 d0 04                               bne +4                ; IF1043f_else [10447]
+010443 a9 ae                               lda #$ae
+010445 80 03                               bra +3                ; IF1043f_end [1044a]
+010447                 IF1043f_else:
+010447                                 ;; ELSE
+010447 18                                  clc
+010448 69 80                               adc #$80
+01044a                 IF1043f_end:
+01044a                 IF1043b_end:
+01044a 4f 5c 11 00 ff                      jsr.a24 ($ff0011)     ; os4_PrintChar
+01044f e6 46                               inc $46
+010451 a6 46                               ldx $46
+010453 e0 08                               cpx #$8
+010455 d0 d8                               bne -40               ; FOR1042b_loop [1042f]
+010457                 FOR1042b_end:
+010457 18                                  clc
+010458 1f a5 44                            lda.w $44             ; OFFSET
+01045b 1f 69 08 00                         adc.w #$8
+01045f 1f 85 44                            sta.w $44             ; OFFSET
+010462 4f 20 a1 04 01                      jsr.a24 $0104a1       ; nextLineText2
+010467 e6 40                               inc $40               ; ROWNUM
+010469 a5 40                               lda $40               ; ROWNUM
+01046b                                 ;; IF > 11 {
+01046b c9 0b                               cmp #$b
+01046d f0 03                               beq +3                ; IF1046b_end [10472]
+01046f 90 01                               bcc +1                ; IF1046b_end [10472]
+010471 ea                                  nop
+010472                 IF1046b_end:
+010472                                 ;; IF > 23 {
+010472 c9 17                               cmp #$17
+010474 f0 06                               beq +6                ; IF10472_end [1047c]
+010476 90 04                               bcc +4                ; IF10472_end [1047c]
+010478                                 ;; BREAK
+010478 4f 80 04 00                         bra.a24 +4            ; loop103f3_end [10480]
+01047c                 IF10472_end:
+01047c 4f 80 73 ff                         bra.a24 -141          ; LOOP103f3_loop [103f3]
+010480                 LOOP103f3_end:
+010480 4f 20 b5 04 01                      jsr.a24 $0104b5       ; restoreScreenBase
+010485 4f 60                               rts.a24
 
-010445 ; SUB overwriteScreenBase:
-010445 ad 00 ff                            lda $ff00             ; TXTROW
-010448 85 91                               sta $91               ; SAVEDROW
-01044a ad 01 ff                            lda $ff01             ; TXTPOS
-01044d 85 92                               sta $92               ; SAVEDPOS
-01044f 9c 00 ff                            stz $ff00             ; TXTROW
-010452 9c 01 ff                            stz $ff01             ; TXTPOS
-010455 5f ad fa 0b 01                      lda.w.a24 $010bfa     ; Text2ScreenBase
-01045a 1f 85 fe                            sta.w $fe             ; TXTPTR
-01045d 4f 60                               rts.a24
+010487 ; SUB overwriteScreenBase:
+010487 ad 00 ff                            lda $ff00             ; TXTROW
+01048a 85 93                               sta $93               ; SAVEDROW
+01048c ad 01 ff                            lda $ff01             ; TXTPOS
+01048f 85 94                               sta $94               ; SAVEDPOS
+010491 9c 00 ff                            stz $ff00             ; TXTROW
+010494 9c 01 ff                            stz $ff01             ; TXTPOS
+010497 5f ad 38 0c 01                      lda.w.a24 $010c38     ; Text2ScreenBase
+01049c 1f 85 fe                            sta.w $fe             ; TXTPTR
+01049f 4f 60                               rts.a24
 
-01045f ; SUB nextLineText2:
-01045f 9c 01 ff                            stz $ff01             ; TXTPOS
-010462 ee 00 ff                            inc $ff00             ; TXTROW
-010465 ae 00 ff                            ldx $ff00             ; TXTROW
-010468 2b                                  xsl
-010469 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-01046e 1f 85 fe                            sta.w $fe             ; TXTPTR
-010471 4f 60                               rts.a24
+0104a1 ; SUB nextLineText2:
+0104a1 9c 01 ff                            stz $ff01             ; TXTPOS
+0104a4 ee 00 ff                            inc $ff00             ; TXTROW
+0104a7 ae 00 ff                            ldx $ff00             ; TXTROW
+0104aa 2b                                  xsl
+0104ab 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+0104b0 1f 85 fe                            sta.w $fe             ; TXTPTR
+0104b3 4f 60                               rts.a24
 
-010473 ; SUB restoreScreenBase:
-010473 a5 91                               lda $91               ; SAVEDROW
-010475 8d 00 ff                            sta $ff00             ; TXTROW
-010478 a5 92                               lda $92               ; SAVEDPOS
-01047a 8d 01 ff                            sta $ff01             ; TXTPOS
-01047d 4f 5c 0b 00 ff                      jsr.a24 ($ff000b)     ; os4_SetScreenBase
-010482 4f 60                               rts.a24
+0104b5 ; SUB restoreScreenBase:
+0104b5 a5 93                               lda $93               ; SAVEDROW
+0104b7 8d 00 ff                            sta $ff00             ; TXTROW
+0104ba a5 94                               lda $94               ; SAVEDPOS
+0104bc 8d 01 ff                            sta $ff01             ; TXTPOS
+0104bf 4f 5c 0b 00 ff                      jsr.a24 ($ff000b)     ; os4_SetScreenBase
+0104c4 4f 60                               rts.a24
 
-010484 ; SUB drawCursor:
+0104c6 ; SUB drawCursor:
 0000fb-0000fc   ; VAR @ROWPTR
 0000fa          ; VAR @CURXPOS
-010484 a5 83                               lda $83               ; CURSORY
-010486 0a                                  asl
-010487 aa                                  tax
-010488 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-01048d 1f 85 fb                            sta.w $fb             ; ROWPTR
-010490 18                                  clc
-010491 a5 82                               lda $82               ; CURSORX
-010493 65 82                               adc $82               ; CURSORX
-010495 65 82                               adc $82               ; CURSORX
-010497 69 06                               adc #$6
-010499 a8                                  tay
-01049a b1 fb                               lda ($fb),Y           ; ROWPTR
-01049c 29 3f                               and #$3f
-01049e 91 fb                               sta ($fb),Y           ; ROWPTR
-0104a0 c8                                  iny
-0104a1 b1 fb                               lda ($fb),Y           ; ROWPTR
-0104a3 29 3f                               and #$3f
-0104a5 91 fb                               sta ($fb),Y           ; ROWPTR
-0104a7 4f 60                               rts.a24
+0104c6 a6 83                               ldx $83               ; CURSORY
+0104c8 2b                                  xsl
+0104c9 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+0104ce 1f 85 fb                            sta.w $fb             ; ROWPTR
+0104d1 18                                  clc
+0104d2 a5 82                               lda $82               ; CURSORX
+0104d4 65 82                               adc $82               ; CURSORX
+0104d6 65 82                               adc $82               ; CURSORX
+0104d8 69 06                               adc #$6
+0104da a8                                  tay
+0104db b1 fb                               lda ($fb),Y           ; ROWPTR
+0104dd 29 3f                               and #$3f
+0104df 91 fb                               sta ($fb),Y           ; ROWPTR
+0104e1 c8                                  iny
+0104e2 b1 fb                               lda ($fb),Y           ; ROWPTR
+0104e4 29 3f                               and #$3f
+0104e6 91 fb                               sta ($fb),Y           ; ROWPTR
+0104e8 4f 60                               rts.a24
 
-0104a9 ; SUB hideCursor:
+0104ea ; SUB hideCursor:
 0000fb-0000fc   ; VAR @ROWPTR
 0000fa          ; VAR @CURXPOS
-0104a9 a5 83                               lda $83               ; CURSORY
-0104ab 0a                                  asl
-0104ac aa                                  tax
-0104ad 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-0104b2 1f 85 fb                            sta.w $fb             ; ROWPTR
-0104b5 18                                  clc
-0104b6 a5 82                               lda $82               ; CURSORX
-0104b8 65 82                               adc $82               ; CURSORX
-0104ba 65 82                               adc $82               ; CURSORX
-0104bc 69 06                               adc #$6
-0104be a8                                  tay
-0104bf b1 fb                               lda ($fb),Y           ; ROWPTR
-0104c1 09 80                               ora #$80
-0104c3 91 fb                               sta ($fb),Y           ; ROWPTR
-0104c5 c8                                  iny
-0104c6 b1 fb                               lda ($fb),Y           ; ROWPTR
-0104c8 09 80                               ora #$80
-0104ca 91 fb                               sta ($fb),Y           ; ROWPTR
-0104cc 4f 60                               rts.a24
+0104ea a6 83                               ldx $83               ; CURSORY
+0104ec 2b                                  xsl
+0104ed 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+0104f2 1f 85 fb                            sta.w $fb             ; ROWPTR
+0104f5 18                                  clc
+0104f6 a5 82                               lda $82               ; CURSORX
+0104f8 65 82                               adc $82               ; CURSORX
+0104fa 65 82                               adc $82               ; CURSORX
+0104fc 69 06                               adc #$6
+0104fe a8                                  tay
+0104ff b1 fb                               lda ($fb),Y           ; ROWPTR
+010501 09 80                               ora #$80
+010503 91 fb                               sta ($fb),Y           ; ROWPTR
+010505 c8                                  iny
+010506 b1 fb                               lda ($fb),Y           ; ROWPTR
+010508 09 80                               ora #$80
+01050a 91 fb                               sta ($fb),Y           ; ROWPTR
+01050c 4f 60                               rts.a24
 
-0104ce ; SUB showEditCursor:
+01050e ; SUB showEditCursor:
 0000fb-0000fc   ; VAR @ROWPTR
 0000fa          ; VAR @CURXPOS
-0104ce a5 83                               lda $83               ; CURSORY
-0104d0 0a                                  asl
-0104d1 aa                                  tax
-0104d2 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-0104d7 1f 85 fb                            sta.w $fb             ; ROWPTR
-0104da 18                                  clc
-0104db a5 82                               lda $82               ; CURSORX
-0104dd 65 82                               adc $82               ; CURSORX
-0104df 65 82                               adc $82               ; CURSORX
-0104e1 69 06                               adc #$6
-0104e3 a8                                  tay
-0104e4 a5 8a                               lda $8a               ; NEWVALUEH
-0104e6                                 ;; IF == {
-0104e6 d0 04                               bne +4                ; IF104e6_end [104ec]
-0104e8 a9 2a                               lda #$2a
-0104ea 29 3f                               and #$3f
-0104ec                 IF104e6_end:
-0104ec 91 fb                               sta ($fb),Y           ; ROWPTR
-0104ee c8                                  iny
-0104ef a5 8b                               lda $8b               ; NEWVALUEL
-0104f1                                 ;; IF == {
-0104f1 d0 04                               bne +4                ; IF104f1_end [104f7]
-0104f3 a9 2a                               lda #$2a
-0104f5 29 3f                               and #$3f
-0104f7                 IF104f1_end:
-0104f7 91 fb                               sta ($fb),Y           ; ROWPTR
-0104f9 4f 60                               rts.a24
+01050e a6 83                               ldx $83               ; CURSORY
+010510 2b                                  xsl
+010511 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+010516 1f 85 fb                            sta.w $fb             ; ROWPTR
+010519 18                                  clc
+01051a a5 82                               lda $82               ; CURSORX
+01051c 65 82                               adc $82               ; CURSORX
+01051e 65 82                               adc $82               ; CURSORX
+010520 69 06                               adc #$6
+010522 a8                                  tay
+010523 a5 8c                               lda $8c               ; NEWVALUEH
+010525                                 ;; IF == {
+010525 d0 04                               bne +4                ; IF10525_end [1052b]
+010527 a9 2a                               lda #$2a
+010529 29 3f                               and #$3f
+01052b                 IF10525_end:
+01052b 91 fb                               sta ($fb),Y           ; ROWPTR
+01052d c8                                  iny
+01052e a5 8d                               lda $8d               ; NEWVALUEL
+010530                                 ;; IF == {
+010530 d0 04                               bne +4                ; IF10530_end [10536]
+010532 a9 2a                               lda #$2a
+010534 29 3f                               and #$3f
+010536                 IF10530_end:
+010536 91 fb                               sta ($fb),Y           ; ROWPTR
+010538 4f 60                               rts.a24
 
-0104fb ; SUB hideEditCursor:
+01053a ; SUB hideEditCursor:
 0000fb-0000fc   ; VAR @ROWPTR
 0000fa          ; VAR @CURXPOS
-0104fb a5 83                               lda $83               ; CURSORY
-0104fd 0a                                  asl
-0104fe aa                                  tax
-0104ff 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-010504 1f 85 fb                            sta.w $fb             ; ROWPTR
-010507 18                                  clc
-010508 a5 82                               lda $82               ; CURSORX
-01050a 65 82                               adc $82               ; CURSORX
-01050c 65 82                               adc $82               ; CURSORX
-01050e 69 06                               adc #$6
-010510 a8                                  tay
-010511 b1 fb                               lda ($fb),Y           ; ROWPTR
-010513 09 80                               ora #$80
-010515 91 fb                               sta ($fb),Y           ; ROWPTR
-010517 c8                                  iny
-010518 b1 fb                               lda ($fb),Y           ; ROWPTR
-01051a 09 80                               ora #$80
-01051c 91 fb                               sta ($fb),Y           ; ROWPTR
-01051e 4f 60                               rts.a24
+01053a a6 83                               ldx $83               ; CURSORY
+01053c 2b                                  xsl
+01053d 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+010542 1f 85 fb                            sta.w $fb             ; ROWPTR
+010545 18                                  clc
+010546 a5 82                               lda $82               ; CURSORX
+010548 65 82                               adc $82               ; CURSORX
+01054a 65 82                               adc $82               ; CURSORX
+01054c 69 06                               adc #$6
+01054e a8                                  tay
+01054f b1 fb                               lda ($fb),Y           ; ROWPTR
+010551 09 80                               ora #$80
+010553 91 fb                               sta ($fb),Y           ; ROWPTR
+010555 c8                                  iny
+010556 b1 fb                               lda ($fb),Y           ; ROWPTR
+010558 09 80                               ora #$80
+01055a 91 fb                               sta ($fb),Y           ; ROWPTR
+01055c 4f 60                               rts.a24
 
-010520 ; SUB storeNewValue:
-010520 4f 60                               rts.a24
+01055e ; SUB storeNewValue:
+01055e 4f 60                               rts.a24
 
-010522 ; SUB DoHelp:
+010560 ; SUB DoHelp:
 000004          ; VAR @I
 000005          ; VAR @I6
 000006          ; VAR @COL
-010522 4f 5c 2f 00 ff                      jsr.a24 ($ff002f)     ; os4_ResetPaginate
-010527 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-010529 8d 00 d7                            sta $d700
-01052c 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-010531 2f a9 0a 0b 01                      lda.t #$10b0a         ; HelpUDLRStr
-010536 2f 8d 00 d7                         sta.t $00d700
-01053a 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-01053f a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-010541 8d 00 d7                            sta $d700
-010544 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-010549 2f a9 2c 0b 01                      lda.t #$10b2c         ; HelpPMStr
-01054e 2f 8d 00 d7                         sta.t $00d700
-010552 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-010557 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-010559 8d 00 d7                            sta $d700
-01055c 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-010561 2f a9 f6 0a 01                      lda.t #$10af6         ; HelpEditStr
-010566 2f 8d 00 d7                         sta.t $00d700
-01056a 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-01056f a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-010571 8d 00 d7                            sta $d700
-010574 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-010579 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-01057e 2f a9 46 0b 01                      lda.t #$10b46         ; HelpListStr
-010583 2f 8d 00 d7                         sta.t $00d700
-010587 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-01058c a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-01058e 8d 00 d7                            sta $d700
-010591 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-010596 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-01059b                       ;; M@$4 = 1 
-01059b 85 00                               sta $00
-01059d a9 01                               lda #$1
-01059f 85 04                               sta $04
-0105a1 a5 00                               lda $00
-0105a3                       ;; M@$6 = 0 
-0105a3 85 00                               sta $00
-0105a5 a9 00                               lda #$0
-0105a7 85 06                               sta $06
-0105a9 a5 00                               lda $00
-0105ab                 DO105ab_start:
-0105ab                                 ;; DO {
-0105ab                 DO105ab_loop:
-0105ab 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
-0105b0 a5 04                               lda $04               ; I
-0105b2                       ;; A <<= 2 
-0105b2 0a                                  asl
-0105b3 0a                                  asl
-0105b4 85 05                               sta $05               ; I6
-0105b6 a5 04                               lda $04               ; I
-0105b8                       ;; A <<= 1 
-0105b8 0a                                  asl
-0105b9 18                                  clc
-0105ba 65 05                               adc $05               ; I6
-0105bc 85 05                               sta $05               ; I6
-0105be aa                                  tax
-0105bf 6f bd 40 0c 01                      lda.t.a24 $010c40,X   ; CommandList
-0105c4 2f 8d 00 d7                         sta.t $00d700
-0105c8 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-0105cd a5 06                               lda $06               ; COL
-0105cf                                 ;; IF == {
-0105cf d0 13                               bne +19               ; IF105cf_else [105e4]
-0105d1                       ;; M@$6 = 1 
-0105d1 85 00                               sta $00
-0105d3 a9 01                               lda #$1
-0105d5 85 06                               sta $06
-0105d7 a5 00                               lda $00
-0105d9                       ;; M@$ff01 = 12 
+010560 4f 5c 2f 00 ff                      jsr.a24 ($ff002f)     ; os4_ResetPaginate
+010565 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+010567 8d 00 d7                            sta $d700
+01056a 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+01056f 2f a9 48 0b 01                      lda.t #$10b48         ; HelpUDLRStr
+010574 2f 8d 00 d7                         sta.t $00d700
+010578 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+01057d a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+01057f 8d 00 d7                            sta $d700
+010582 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+010587 2f a9 6a 0b 01                      lda.t #$10b6a         ; HelpPMStr
+01058c 2f 8d 00 d7                         sta.t $00d700
+010590 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010595 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+010597 8d 00 d7                            sta $d700
+01059a 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+01059f 2f a9 34 0b 01                      lda.t #$10b34         ; HelpEditStr
+0105a4 2f 8d 00 d7                         sta.t $00d700
+0105a8 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+0105ad a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+0105af 8d 00 d7                            sta $d700
+0105b2 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+0105b7 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+0105bc 2f a9 84 0b 01                      lda.t #$10b84         ; HelpListStr
+0105c1 2f 8d 00 d7                         sta.t $00d700
+0105c5 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+0105ca a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+0105cc 8d 00 d7                            sta $d700
+0105cf 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+0105d4 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+0105d9                       ;; M@$4 = 1 
 0105d9 85 00                               sta $00
-0105db a9 0c                               lda #$c
-0105dd 8d 01 ff                            sta $ff01
-0105e0 a5 00                               lda $00
-0105e2 80 2b                               bra +43               ; IF105cf_end [1060f]
-0105e4                 IF105cf_else:
-0105e4                                 ;; ELSE
-0105e4                                 ;; IF == 1 {
-0105e4 c9 01                               cmp #$1
-0105e6 d0 11                               bne +17               ; IF105e4_end [105f9]
-0105e8                       ;; M@$6 = 2 
-0105e8 85 00                               sta $00
-0105ea a9 02                               lda #$2
-0105ec 85 06                               sta $06
-0105ee a5 00                               lda $00
-0105f0                       ;; M@$ff01 = 24 
-0105f0 85 00                               sta $00
-0105f2 a9 18                               lda #$18
-0105f4 8d 01 ff                            sta $ff01
-0105f7 a5 00                               lda $00
-0105f9                 IF105e4_end:
-0105f9                                 ;; IF == 2 {
-0105f9 c9 02                               cmp #$2
-0105fb d0 12                               bne +18               ; IF105f9_end [1060f]
-0105fd                       ;; M@$6 = 0 
-0105fd 85 00                               sta $00
-0105ff a9 00                               lda #$0
-010601 85 06                               sta $06
-010603 a5 00                               lda $00
-010605 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
-010607 8d 00 d7                            sta $d700
-01060a 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
-01060f                 IF105f9_end:
-01060f                 IF105cf_end:
-01060f e6 04                               inc $04               ; I
-010611 a5 04                               lda $04               ; I
-010613                                 ;; WHILE < 6
-010613 c9 06                               cmp #$6
-010615 b0 02                               bcs +2                ; DO105ab_end [10619]
-010617 80 92                               bra -110              ; DO105ab_loop [105ab]
-010619                 DO105ab_end:
-010619 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-01061e 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-010623 a9 00                               lda #$0
-010625 4f 60                               rts.a24
+0105db a9 01                               lda #$1
+0105dd 85 04                               sta $04
+0105df a5 00                               lda $00
+0105e1                       ;; M@$6 = 0 
+0105e1 85 00                               sta $00
+0105e3 a9 00                               lda #$0
+0105e5 85 06                               sta $06
+0105e7 a5 00                               lda $00
+0105e9                 DO105e9_start:
+0105e9                                 ;; DO {
+0105e9                 DO105e9_loop:
+0105e9 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
+0105ee a5 04                               lda $04               ; I
+0105f0                       ;; A <<= 2 
+0105f0 0a                                  asl
+0105f1 0a                                  asl
+0105f2 85 05                               sta $05               ; I6
+0105f4 a5 04                               lda $04               ; I
+0105f6                       ;; A <<= 1 
+0105f6 0a                                  asl
+0105f7 18                                  clc
+0105f8 65 05                               adc $05               ; I6
+0105fa 85 05                               sta $05               ; I6
+0105fc aa                                  tax
+0105fd 6f bd 7e 0c 01                      lda.t.a24 $010c7e,X   ; CommandList
+010602 2f 8d 00 d7                         sta.t $00d700
+010606 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+01060b a5 06                               lda $06               ; COL
+01060d                                 ;; IF == {
+01060d d0 13                               bne +19               ; IF1060d_else [10622]
+01060f                       ;; M@$6 = 1 
+01060f 85 00                               sta $00
+010611 a9 01                               lda #$1
+010613 85 06                               sta $06
+010615 a5 00                               lda $00
+010617                       ;; M@$ff01 = 12 
+010617 85 00                               sta $00
+010619 a9 0c                               lda #$c
+01061b 8d 01 ff                            sta $ff01
+01061e a5 00                               lda $00
+010620 80 2b                               bra +43               ; IF1060d_end [1064d]
+010622                 IF1060d_else:
+010622                                 ;; ELSE
+010622                                 ;; IF == 1 {
+010622 c9 01                               cmp #$1
+010624 d0 11                               bne +17               ; IF10622_end [10637]
+010626                       ;; M@$6 = 2 
+010626 85 00                               sta $00
+010628 a9 02                               lda #$2
+01062a 85 06                               sta $06
+01062c a5 00                               lda $00
+01062e                       ;; M@$ff01 = 24 
+01062e 85 00                               sta $00
+010630 a9 18                               lda #$18
+010632 8d 01 ff                            sta $ff01
+010635 a5 00                               lda $00
+010637                 IF10622_end:
+010637                                 ;; IF == 2 {
+010637 c9 02                               cmp #$2
+010639 d0 12                               bne +18               ; IF10637_end [1064d]
+01063b                       ;; M@$6 = 0 
+01063b 85 00                               sta $00
+01063d a9 00                               lda #$0
+01063f 85 06                               sta $06
+010641 a5 00                               lda $00
+010643 a9 16                               lda #$16              ; PAGINATE_LINES_PER_PAGE
+010645 8d 00 d7                            sta $d700
+010648 4f 5c 32 00 ff                      jsr.a24 ($ff0032)     ; os4_PaginateLine
+01064d                 IF10637_end:
+01064d                 IF1060d_end:
+01064d e6 04                               inc $04               ; I
+01064f a5 04                               lda $04               ; I
+010651                                 ;; WHILE < 6
+010651 c9 06                               cmp #$6
+010653 b0 02                               bcs +2                ; DO105e9_end [10657]
+010655 80 92                               bra -110              ; DO105e9_loop [105e9]
+010657                 DO105e9_end:
+010657 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01065c 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+010661 a9 00                               lda #$0
+010663 4f 60                               rts.a24
 
-010627 ; SUB DoLoad:
+010665 ; SUB DoLoad:
 00d000          ; VAR @NPRM
 00d001          ; VAR @CMD
 00d004          ; VAR @FILENAME
@@ -875,91 +909,91 @@
 000004-000006   ; VAR @R_IDX
 000007-000008   ; VAR @ACTUAL
 000009-00000a   ; VAR @C_IDX
-010627 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-01062c ad 00 d0                            lda $d000             ; NPRM
-01062f                                 ;; IF < 1 {
-01062f c9 01                               cmp #$1
-010631 b0 10                               bcs +16               ; IF1062f_end [10643]
-010633 2f a9 8a 0b 01                      lda.t #$10b8a         ; NoFilenameErrStr
-010638 2f 8d 00 d7                         sta.t $00d700
-01063c 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-010641 4f 60                               rts.a24
-010643                 IF1062f_end:
-010643 2f ad 04 d0                         lda.t $00d004         ; FILENAME
-010647                                 ;; IF == {
-010647 d0 0d                               bne +13               ; IF10647_end [10656]
-010649 2f a9                               lda.t #$10b8a         ; NoFilenameErrStr
-01064b 2f 8d 00 d7                         sta.t $00d700
-01064f 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-010654 4f 60                               rts.a24
-010656                 IF10647_end:
-010656 2f 8d 00 d6                         sta.t $00d600
-01065a 4f 5c 0c 01 ff                      jsr.a24 ($ff010c)     ; os4_Disk4Open
-01065f                                 ;; IF != {
-01065f f0 07                               beq +7                ; IF1065f_end [10668]
-010661 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
-010666 4f 60                               rts.a24
-010668                 IF1065f_end:
-010668 86 03                               stx $03               ; FN
-01066a 8e f1 c0                            stx $c0f1             ; DISK4_PARAM0
-01066d 2f 64 04                            stz.t $04             ; R_IDX
-010670                 LOOP10670_start:
-010670                                 ;; LOOP {
-010670                 LOOP10670_loop:
-010670 4f 5c 12 01 ff                      jsr.a24 ($ff0112)     ; os4_Disk4Read
-010675                                 ;; IF == 2 {
-010675 c9 02                               cmp #$2
-010677 d0 04                               bne +4                ; IF10675_end [1067d]
-010679                                 ;; BREAK
-010679 4f 80 38 00                         bra.a24 +56           ; loop10670_end [106b5]
-01067d                 IF10675_end:
-01067d 2f ad f7 c0                         lda.t $00c0f7         ; DISK4_RET0
-010681                                 ;; IF == {
-010681 d0 04                               bne +4                ; IF10681_end [10687]
-010683                                 ;; BREAK
-010683 4f 80 2e 00                         bra.a24 +46           ; loop10670_end [106b5]
-010687                 IF10681_end:
-010687 1f 85 07                            sta.w $07             ; ACTUAL
-01068a 1f 64 09                            stz.w $09             ; C_IDX
-01068d                 LOOP1068d_start:
-01068d                                 ;; LOOP {
-01068d                 LOOP1068d_loop:
-01068d 1f a2 00 c8                         ldx.w #$c800          ; DISK4_RAM
-010691 1f a4 09                            ldy.w $09             ; C_IDX
-010694 4f ab                               lda.a24 XY
-010696 2f e6 09                            inc.t $09             ; C_IDX
-010699 2f ae 13 ff                         ldx.t $00ff13         ; HEAPSTART
-01069d 2f a4 04                            ldy.t $04             ; R_IDX
-0106a0 4f bb                               sta.a24 XY
-0106a2 2f e6 04                            inc.t $04             ; R_IDX
-0106a5 1f a4 09                            ldy.w $09             ; C_IDX
-0106a8 1f c4 07                            cpy.w $07             ; ACTUAL
-0106ab                                 ;; IF == {
-0106ab d0 04                               bne +4                ; IF106ab_end [106b1]
-0106ad                                 ;; BREAK
-0106ad 4f 80 02 00                         bra.a24 +2            ; loop1068d_end [106b3]
-0106b1                 IF106ab_end:
-0106b1 80 da                               bra -38               ; LOOP1068d_loop [1068d]
-0106b3                 LOOP1068d_end:
-0106b3 80 bb                               bra -69               ; LOOP10670_loop [10670]
-0106b5                 LOOP10670_end:
-0106b5 1f a5 07                            lda.w $07             ; ACTUAL
-0106b8 1f 85 8d                            sta.w $8d             ; FILESIZE
-0106bb 4f 20 ba 09 01                      jsr.a24 $0109ba       ; calculateRows
-0106c0 a5 03                               lda $03               ; FN
-0106c2 4f 5c 0f 01 ff                      jsr.a24 ($ff010f)     ; os4_Disk4Close
-0106c7 2f a9 5a 0b 01                      lda.t #$10b5a         ; LoadedStr
-0106cc 2f 8d 00 d7                         sta.t $00d700
-0106d0 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-0106d5 2f ad 04 d0                         lda.t $00d004         ; FILENAME
-0106d9 2f 8d 00 d7                         sta.t $00d700
-0106dd 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-0106e2 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
-0106e7 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0106ec 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0106f1 4f 60                               rts.a24
+010665 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01066a ad 00 d0                            lda $d000             ; NPRM
+01066d                                 ;; IF < 1 {
+01066d c9 01                               cmp #$1
+01066f b0 10                               bcs +16               ; IF1066d_end [10681]
+010671 2f a9 c8 0b 01                      lda.t #$10bc8         ; NoFilenameErrStr
+010676 2f 8d 00 d7                         sta.t $00d700
+01067a 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+01067f 4f 60                               rts.a24
+010681                 IF1066d_end:
+010681 2f ad 04 d0                         lda.t $00d004         ; FILENAME
+010685                                 ;; IF == {
+010685 d0 0d                               bne +13               ; IF10685_end [10694]
+010687 2f a9                               lda.t #$10bc8         ; NoFilenameErrStr
+010689 2f 8d 00 d7                         sta.t $00d700
+01068d 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+010692 4f 60                               rts.a24
+010694                 IF10685_end:
+010694 2f 8d 00 d6                         sta.t $00d600
+010698 4f 5c 0c 01 ff                      jsr.a24 ($ff010c)     ; os4_Disk4Open
+01069d                                 ;; IF != {
+01069d f0 07                               beq +7                ; IF1069d_end [106a6]
+01069f 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
+0106a4 4f 60                               rts.a24
+0106a6                 IF1069d_end:
+0106a6 86 03                               stx $03               ; FN
+0106a8 8e f1 c0                            stx $c0f1             ; DISK4_PARAM0
+0106ab 2f 64 04                            stz.t $04             ; R_IDX
+0106ae                 LOOP106ae_start:
+0106ae                                 ;; LOOP {
+0106ae                 LOOP106ae_loop:
+0106ae 4f 5c 12 01 ff                      jsr.a24 ($ff0112)     ; os4_Disk4Read
+0106b3                                 ;; IF == 2 {
+0106b3 c9 02                               cmp #$2
+0106b5 d0 04                               bne +4                ; IF106b3_end [106bb]
+0106b7                                 ;; BREAK
+0106b7 4f 80 38 00                         bra.a24 +56           ; loop106ae_end [106f3]
+0106bb                 IF106b3_end:
+0106bb 2f ad f7 c0                         lda.t $00c0f7         ; DISK4_RET0
+0106bf                                 ;; IF == {
+0106bf d0 04                               bne +4                ; IF106bf_end [106c5]
+0106c1                                 ;; BREAK
+0106c1 4f 80 2e 00                         bra.a24 +46           ; loop106ae_end [106f3]
+0106c5                 IF106bf_end:
+0106c5 1f 85 07                            sta.w $07             ; ACTUAL
+0106c8 1f 64 09                            stz.w $09             ; C_IDX
+0106cb                 LOOP106cb_start:
+0106cb                                 ;; LOOP {
+0106cb                 LOOP106cb_loop:
+0106cb 1f a2 00 c8                         ldx.w #$c800          ; DISK4_RAM
+0106cf 1f a4 09                            ldy.w $09             ; C_IDX
+0106d2 4f ab                               lda.a24 XY
+0106d4 2f e6 09                            inc.t $09             ; C_IDX
+0106d7 2f ae 13 ff                         ldx.t $00ff13         ; HEAPSTART
+0106db 2f a4 04                            ldy.t $04             ; R_IDX
+0106de 4f bb                               sta.a24 XY
+0106e0 2f e6 04                            inc.t $04             ; R_IDX
+0106e3 1f a4 09                            ldy.w $09             ; C_IDX
+0106e6 1f c4 07                            cpy.w $07             ; ACTUAL
+0106e9                                 ;; IF == {
+0106e9 d0 04                               bne +4                ; IF106e9_end [106ef]
+0106eb                                 ;; BREAK
+0106eb 4f 80 02 00                         bra.a24 +2            ; loop106cb_end [106f1]
+0106ef                 IF106e9_end:
+0106ef 80 da                               bra -38               ; LOOP106cb_loop [106cb]
+0106f1                 LOOP106cb_end:
+0106f1 80 bb                               bra -69               ; LOOP106ae_loop [106ae]
+0106f3                 LOOP106ae_end:
+0106f3 1f a5 07                            lda.w $07             ; ACTUAL
+0106f6 1f 85 8e                            sta.w $8e             ; FILESIZE
+0106f9 4f 20 f8 09 01                      jsr.a24 $0109f8       ; calculateRows
+0106fe a5 03                               lda $03               ; FN
+010700 4f 5c 0f 01 ff                      jsr.a24 ($ff010f)     ; os4_Disk4Close
+010705 2f a9 98 0b 01                      lda.t #$10b98         ; LoadedStr
+01070a 2f 8d 00 d7                         sta.t $00d700
+01070e 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010713 2f ad 04 d0                         lda.t $00d004         ; FILENAME
+010717 2f 8d 00 d7                         sta.t $00d700
+01071b 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010720 4f 5c 14 00 ff                      jsr.a24 ($ff0014)     ; os4_PrintSpace
+010725 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01072a 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01072f 4f 60                               rts.a24
 
-0106f3 ; SUB DoStore:
+010731 ; SUB DoStore:
 00d000          ; VAR @NPRM
 00d001          ; VAR @CMD
 00d004          ; VAR @FILENAME
@@ -967,696 +1001,696 @@
 000004-000005   ; VAR @REMAINING
 000007-000009   ; VAR @W_IDX
 00000a-00000c   ; VAR @C_IDX
-0106f3 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-0106f8 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0106fd ad 00 d0                            lda $d000             ; NPRM
-010700                                 ;; IF < 1 {
-010700 c9 01                               cmp #$1
-010702 b0 10                               bcs +16               ; IF10700_end [10714]
-010704 2f a9 8a 0b 01                      lda.t #$10b8a         ; NoFilenameErrStr
-010709 2f 8d 00 d7                         sta.t $00d700
-01070d 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-010712 4f 60                               rts.a24
-010714                 IF10700_end:
-010714 2f ad 04 d0                         lda.t $00d004         ; FILENAME
-010718                                 ;; IF == {
-010718 d0 0d                               bne +13               ; IF10718_end [10727]
-01071a 2f a9                               lda.t #$10b8a         ; NoFilenameErrStr
-01071c 2f 8d 00 d7                         sta.t $00d700
-010720 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-010725 4f 60                               rts.a24
-010727                 IF10718_end:
-010727 2f 8d 00 d6                         sta.t $00d600
-01072b 2f a9 6c 0b 01                      lda.t #$10b6c         ; BINFileType
-010730 2f 8d 03 d6                         sta.t $00d603
-010734 4f 5c 09 01 ff                      jsr.a24 ($ff0109)     ; os4_Disk4Create
-010739                                 ;; IF != {
-010739 f0 07                               beq +7                ; IF10739_end [10742]
-01073b 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
-010740 4f 60                               rts.a24
-010742                 IF10739_end:
-010742 86 03                               stx $03               ; FN
-010744 8e f1 c0                            stx $c0f1             ; DISK4_PARAM0
-010747 1f a5 8d                            lda.w $8d             ; FILESIZE
-01074a 1f 85 04                            sta.w $04             ; REMAINING
-01074d 2f 64 07                            stz.t $07             ; W_IDX
-010750                 LOOP10750_start:
-010750                                 ;; LOOP {
-010750                 LOOP10750_loop:
-010750 4f 5c 18 01 ff                      jsr.a24 ($ff0118)     ; os4_Disk4C800
-010755 2f 64 0a                            stz.t $0a             ; C_IDX
-010758                 LOOP10758_start:
-010758                                 ;; LOOP {
-010758                 LOOP10758_loop:
-010758 2f ae 13 ff                         ldx.t $00ff13         ; HEAPSTART
-01075c 2f a4 07                            ldy.t $07             ; W_IDX
-01075f 4f ab                               lda.a24 XY
-010761 2f e6 07                            inc.t $07             ; W_IDX
-010764 1f a2 00 c8                         ldx.w #$c800          ; DISK4_RAM
-010768 2f a4 0a                            ldy.t $0a             ; C_IDX
-01076b 4f bb                               sta.a24 XY
-01076d 2f e6 0a                            inc.t $0a             ; C_IDX
-010770 2f a5 0a                            lda.t $0a             ; C_IDX
-010773 2f c5 04                            cmp.t $04             ; REMAINING
-010776                                 ;; IF == {
-010776 d0 04                               bne +4                ; IF10776_end [1077c]
-010778                                 ;; BREAK
-010778 4f 80 0d 00                         bra.a24 +13           ; loop10758_end [10789]
-01077c                 IF10776_end:
-01077c 2f c9 00 04 00                      cmp.t #$400
-010781                                 ;; IF == {
-010781 d0 04                               bne +4                ; IF10781_end [10787]
-010783                                 ;; BREAK
-010783 4f 80 02 00                         bra.a24 +2            ; loop10758_end [10789]
-010787                 IF10781_end:
-010787 80 cf                               bra -49               ; LOOP10758_loop [10758]
-010789                 LOOP10758_end:
-010789 2f 8d f4 c0                         sta.t $00c0f4         ; DISK4_PARAM1
-01078d 2f a5 04                            lda.t $04             ; REMAINING
-010790 38                                  sec
-010791 e5 0a                               sbc $0a               ; C_IDX
-010793 1f 85 04                            sta.w $04             ; REMAINING
-010796 4f 5c 15 01 ff                      jsr.a24 ($ff0115)     ; os4_Disk4Write
-01079b                                 ;; IF != {
-01079b f0 09                               beq +9                ; IF1079b_end [107a6]
-01079d 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
-0107a2                                 ;; BREAK
-0107a2 4f 80 0b 00                         bra.a24 +11           ; loop10750_end [107b1]
-0107a6                 IF1079b_end:
-0107a6 2f a5 04                            lda.t $04             ; REMAINING
-0107a9                                 ;; IF == {
-0107a9 d0 04                               bne +4                ; IF107a9_end [107af]
-0107ab                                 ;; BREAK
-0107ab 4f 80 02 00                         bra.a24 +2            ; loop10750_end [107b1]
-0107af                 IF107a9_end:
-0107af 80 9f                               bra -97               ; LOOP10750_loop [10750]
-0107b1                 LOOP10750_end:
-0107b1 a5 03                               lda $03               ; FN
-0107b3 4f 5c 0f 01 ff                      jsr.a24 ($ff010f)     ; os4_Disk4Close
-0107b8 2f a9 63 0b 01                      lda.t #$10b63         ; StoredStr
-0107bd 2f 8d 00 d7                         sta.t $00d700
-0107c1 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-0107c6 2f ad 04 d0                         lda.t $00d004         ; FILENAME
-0107ca 2f 8d 00 d7                         sta.t $00d700
-0107ce 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
-0107d3 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0107d8 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
-0107dd 4f 60                               rts.a24
+010731 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+010736 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01073b ad 00 d0                            lda $d000             ; NPRM
+01073e                                 ;; IF < 1 {
+01073e c9 01                               cmp #$1
+010740 b0 10                               bcs +16               ; IF1073e_end [10752]
+010742 2f a9 c8 0b 01                      lda.t #$10bc8         ; NoFilenameErrStr
+010747 2f 8d 00 d7                         sta.t $00d700
+01074b 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+010750 4f 60                               rts.a24
+010752                 IF1073e_end:
+010752 2f ad 04 d0                         lda.t $00d004         ; FILENAME
+010756                                 ;; IF == {
+010756 d0 0d                               bne +13               ; IF10756_end [10765]
+010758 2f a9                               lda.t #$10bc8         ; NoFilenameErrStr
+01075a 2f 8d 00 d7                         sta.t $00d700
+01075e 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+010763 4f 60                               rts.a24
+010765                 IF10756_end:
+010765 2f 8d 00 d6                         sta.t $00d600
+010769 2f a9 aa 0b 01                      lda.t #$10baa         ; BINFileType
+01076e 2f 8d 03 d6                         sta.t $00d603
+010772 4f 5c 09 01 ff                      jsr.a24 ($ff0109)     ; os4_Disk4Create
+010777                                 ;; IF != {
+010777 f0 07                               beq +7                ; IF10777_end [10780]
+010779 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
+01077e 4f 60                               rts.a24
+010780                 IF10777_end:
+010780 86 03                               stx $03               ; FN
+010782 8e f1 c0                            stx $c0f1             ; DISK4_PARAM0
+010785 1f a5 8e                            lda.w $8e             ; FILESIZE
+010788 1f 85 04                            sta.w $04             ; REMAINING
+01078b 2f 64 07                            stz.t $07             ; W_IDX
+01078e                 LOOP1078e_start:
+01078e                                 ;; LOOP {
+01078e                 LOOP1078e_loop:
+01078e 4f 5c 18 01 ff                      jsr.a24 ($ff0118)     ; os4_Disk4C800
+010793 2f 64 0a                            stz.t $0a             ; C_IDX
+010796                 LOOP10796_start:
+010796                                 ;; LOOP {
+010796                 LOOP10796_loop:
+010796 2f ae 13 ff                         ldx.t $00ff13         ; HEAPSTART
+01079a 2f a4 07                            ldy.t $07             ; W_IDX
+01079d 4f ab                               lda.a24 XY
+01079f 2f e6 07                            inc.t $07             ; W_IDX
+0107a2 1f a2 00 c8                         ldx.w #$c800          ; DISK4_RAM
+0107a6 2f a4 0a                            ldy.t $0a             ; C_IDX
+0107a9 4f bb                               sta.a24 XY
+0107ab 2f e6 0a                            inc.t $0a             ; C_IDX
+0107ae 2f a5 0a                            lda.t $0a             ; C_IDX
+0107b1 2f c5 04                            cmp.t $04             ; REMAINING
+0107b4                                 ;; IF == {
+0107b4 d0 04                               bne +4                ; IF107b4_end [107ba]
+0107b6                                 ;; BREAK
+0107b6 4f 80 0d 00                         bra.a24 +13           ; loop10796_end [107c7]
+0107ba                 IF107b4_end:
+0107ba 2f c9 00 04 00                      cmp.t #$400
+0107bf                                 ;; IF == {
+0107bf d0 04                               bne +4                ; IF107bf_end [107c5]
+0107c1                                 ;; BREAK
+0107c1 4f 80 02 00                         bra.a24 +2            ; loop10796_end [107c7]
+0107c5                 IF107bf_end:
+0107c5 80 cf                               bra -49               ; LOOP10796_loop [10796]
+0107c7                 LOOP10796_end:
+0107c7 2f 8d f4 c0                         sta.t $00c0f4         ; DISK4_PARAM1
+0107cb 2f a5 04                            lda.t $04             ; REMAINING
+0107ce 38                                  sec
+0107cf e5 0a                               sbc $0a               ; C_IDX
+0107d1 1f 85 04                            sta.w $04             ; REMAINING
+0107d4 4f 5c 15 01 ff                      jsr.a24 ($ff0115)     ; os4_Disk4Write
+0107d9                                 ;; IF != {
+0107d9 f0 09                               beq +9                ; IF107d9_end [107e4]
+0107db 4f 5c 1b 01 ff                      jsr.a24 ($ff011b)     ; os4_Disk4PrintError
+0107e0                                 ;; BREAK
+0107e0 4f 80 0b 00                         bra.a24 +11           ; loop1078e_end [107ef]
+0107e4                 IF107d9_end:
+0107e4 2f a5 04                            lda.t $04             ; REMAINING
+0107e7                                 ;; IF == {
+0107e7 d0 04                               bne +4                ; IF107e7_end [107ed]
+0107e9                                 ;; BREAK
+0107e9 4f 80 02 00                         bra.a24 +2            ; loop1078e_end [107ef]
+0107ed                 IF107e7_end:
+0107ed 80 9f                               bra -97               ; LOOP1078e_loop [1078e]
+0107ef                 LOOP1078e_end:
+0107ef a5 03                               lda $03               ; FN
+0107f1 4f 5c 0f 01 ff                      jsr.a24 ($ff010f)     ; os4_Disk4Close
+0107f6 2f a9 a1 0b 01                      lda.t #$10ba1         ; StoredStr
+0107fb 2f 8d 00 d7                         sta.t $00d700
+0107ff 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010804 2f ad 04 d0                         lda.t $00d004         ; FILENAME
+010808 2f 8d 00 d7                         sta.t $00d700
+01080c 4f 5c 1d 00 ff                      jsr.a24 ($ff001d)     ; os4_PrintString
+010811 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+010816 4f 5c 35 00 ff                      jsr.a24 ($ff0035)     ; os4_NextLine
+01081b 4f 60                               rts.a24
 
-0107df ; SUB DoX:
+01081d ; SUB DoX:
 00d000          ; VAR @NPRM
 00d001          ; VAR @CMD
 00d004          ; VAR @XPOS
-0107df ad 00 d0                            lda $d000             ; NPRM
-0107e2                                 ;; IF < 1 {
-0107e2 c9 01                               cmp #$1
-0107e4 b0 10                               bcs +16               ; IF107e2_end [107f6]
-0107e6 2f a9 a8 0b 01                      lda.t #$10ba8         ; MissingValueErr
-0107eb 2f 8d 00 d7                         sta.t $00d700
-0107ef 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-0107f4 4f 60                               rts.a24
-0107f6                 IF107e2_end:
-0107f6 2f ad 04 d0                         lda.t $00d004         ; XPOS
-0107fa 2f 8d 00 d7                         sta.t $00d700
-0107fe 4f 5c 56 00 ff                      jsr.a24 ($ff0056)     ; os4_ParseNumber
-010803 c9 07                               cmp #$7
-010805                                 ;; IF > {
-010805 f0 04                               beq +4                ; IF10805_end [1080b]
-010807 90 02                               bcc +2                ; IF10805_end [1080b]
-010809 a9 07                               lda #$7
-01080b                 IF10805_end:
-01080b 8d 04 d0                            sta $d004             ; XPOS
-01080e 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-010813 ad 04 d0                            lda $d004             ; XPOS
-010816 85 82                               sta $82               ; CURSORX
-010818 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-01081d a9 00                               lda #$0
-01081f 4f 60                               rts.a24
+01081d ad 00 d0                            lda $d000             ; NPRM
+010820                                 ;; IF < 1 {
+010820 c9 01                               cmp #$1
+010822 b0 10                               bcs +16               ; IF10820_end [10834]
+010824 2f a9 e6 0b 01                      lda.t #$10be6         ; MissingValueErr
+010829 2f 8d 00 d7                         sta.t $00d700
+01082d 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+010832 4f 60                               rts.a24
+010834                 IF10820_end:
+010834 2f ad 04 d0                         lda.t $00d004         ; XPOS
+010838 2f 8d 00 d7                         sta.t $00d700
+01083c 4f 5c 56 00 ff                      jsr.a24 ($ff0056)     ; os4_ParseNumber
+010841 c9 07                               cmp #$7
+010843                                 ;; IF > {
+010843 f0 04                               beq +4                ; IF10843_end [10849]
+010845 90 02                               bcc +2                ; IF10843_end [10849]
+010847 a9 07                               lda #$7
+010849                 IF10843_end:
+010849 8d 04 d0                            sta $d004             ; XPOS
+01084c 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+010851 ad 04 d0                            lda $d004             ; XPOS
+010854 85 82                               sta $82               ; CURSORX
+010856 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+01085b a9 00                               lda #$0
+01085d 4f 60                               rts.a24
 
-010821 ; SUB DoY:
+01085f ; SUB DoY:
 00d000          ; VAR @NPRM
 00d001          ; VAR @CMD
 00d004          ; VAR @YPOS
-010821 ad 00 d0                            lda $d000             ; NPRM
-010824                                 ;; IF < 1 {
-010824 c9 01                               cmp #$1
-010826 b0 10                               bcs +16               ; IF10824_end [10838]
-010828 2f a9 a8 0b 01                      lda.t #$10ba8         ; MissingValueErr
-01082d 2f 8d 00 d7                         sta.t $00d700
-010831 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-010836 4f 60                               rts.a24
-010838                 IF10824_end:
-010838 2f ad 04 d0                         lda.t $00d004         ; YPOS
-01083c 2f 8d 00 d7                         sta.t $00d700
-010840 4f 5c 56 00 ff                      jsr.a24 ($ff0056)     ; os4_ParseNumber
-010845 c5 8f                               cmp $8f               ; NFILEROWS
-010847                                 ;; IF >= {
-010847 90 05                               bcc +5                ; IF10847_end [1084e]
-010849 1f a5 8f                            lda.w $8f             ; NFILEROWS
-01084c 1f 3a                               dec.w
-01084e                 IF10847_end:
-01084e 8d 04 d0                            sta $d004             ; YPOS
-010851 4f 20 a9 04 01                      jsr.a24 $0104a9       ; hideCursor
-010856 ad 04 d0                            lda $d004             ; YPOS
-010859 85 83                               sta $83               ; CURSORY
-01085b 4f 20 84 04 01                      jsr.a24 $010484       ; drawCursor
-010860 a9 00                               lda #$0
-010862 4f 60                               rts.a24
-
-010864 ; SUB DoQuit:
-010864 a9 00                               lda #$0               ; DISP_TEXT_1
-010866 4f 5c 08 00 ff                      jsr.a24 ($ff0008)     ; os4_SetScreenMode
-01086b a9 ff                               lda #$ff
-01086d 4f 60                               rts.a24
-
-01086f ; SUB CommandLine:
-000004          ; VAR @I
-000005          ; VAR @I6
-01086f ad 00 01                            lda $0100             ; INPBUFFER
-010872                                 ;; IF == {
-010872 d0 02                               bne +2                ; IF10872_end [10876]
+01085f ad 00 d0                            lda $d000             ; NPRM
+010862                                 ;; IF < 1 {
+010862 c9 01                               cmp #$1
+010864 b0 10                               bcs +16               ; IF10862_end [10876]
+010866 2f a9 e6 0b 01                      lda.t #$10be6         ; MissingValueErr
+01086b 2f 8d 00 d7                         sta.t $00d700
+01086f 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
 010874 4f 60                               rts.a24
-010876                 IF10872_end:
-010876 2f a9 00 01 00                      lda.t #$100           ; INPBUFFER
-01087b 2f 8d 00 d7                         sta.t $00d700
-01087f 4f 5c 53 00 ff                      jsr.a24 ($ff0053)     ; os4_ParseInputParams
-010884 2f ad 01 d0                         lda.t $00d001
-010888 2f 8d 00 d7                         sta.t $00d700
-01088c                 FOR1088c_start:
-01088c                                 ;; FOR @I = 0 TO 5 {
-01088c a2 00                               ldx #$0
-01088e 86 04                               stx $04
-010890                 FOR1088c_loop:
-010890 a5 04                               lda $04               ; I
-010892                       ;; A <<= 2 
-010892 0a                                  asl
-010893 0a                                  asl
-010894 85 05                               sta $05               ; I6
-010896 a5 04                               lda $04               ; I
-010898                       ;; A <<= 1 
-010898 0a                                  asl
-010899 18                                  clc
-01089a 65 05                               adc $05               ; I6
-01089c 85 05                               sta $05               ; I6
-01089e aa                                  tax
-01089f 6f bd 40 0c 01                      lda.t.a24 $010c40,X   ; CommandList
-0108a4 2f 8d 03 d7                         sta.t $00d703
-0108a8 4f 5c 47 00 ff                      jsr.a24 ($ff0047)     ; os4_CompareText
-0108ad                                 ;; IF - {
-0108ad 10 14                               bpl +20               ; IF108ad_end [108c3]
-0108af a6 05                               ldx $05               ; I6
-0108b1 6f bd 43 0c 01                      lda.t.a24 $010c43,X   ; CommandList
-0108b6 2f 85 00                            sta.t $00
-0108b9 4f 5c 00 00 00                      jsr.a24 ($00)
-0108be 8d ff d0                            sta $d0ff
-0108c1 4f 60                               rts.a24
-0108c3                 IF108ad_end:
-0108c3 e6 04                               inc $04
-0108c5 a6 04                               ldx $04
-0108c7 e0 06                               cpx #$6
-0108c9 d0 c5                               bne -59               ; FOR1088c_loop [10890]
-0108cb                 FOR1088c_end:
-0108cb 2f a9 70 0b 01                      lda.t #$10b70         ; UnknownCommandErr
-0108d0 2f 8d 00 d7                         sta.t $00d700
-0108d4 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
-0108d9 9c ff d0                            stz $d0ff
-0108dc 4f 60                               rts.a24
+010876                 IF10862_end:
+010876 2f ad 04 d0                         lda.t $00d004         ; YPOS
+01087a 2f 8d 00 d7                         sta.t $00d700
+01087e 4f 5c 56 00 ff                      jsr.a24 ($ff0056)     ; os4_ParseNumber
+010883 c5 91                               cmp $91               ; NFILEROWS
+010885                                 ;; IF >= {
+010885 90 05                               bcc +5                ; IF10885_end [1088c]
+010887 1f a5 91                            lda.w $91             ; NFILEROWS
+01088a 1f 3a                               dec.w
+01088c                 IF10885_end:
+01088c 8d 04 d0                            sta $d004             ; YPOS
+01088f 4f 20 ea 04 01                      jsr.a24 $0104ea       ; hideCursor
+010894 ad 04 d0                            lda $d004             ; YPOS
+010897 85 83                               sta $83               ; CURSORY
+010899 4f 20 c6 04 01                      jsr.a24 $0104c6       ; drawCursor
+01089e a9 00                               lda #$0
+0108a0 4f 60                               rts.a24
 
-0108de ; SUB CompleteCommand:
+0108a2 ; SUB DoQuit:
+0108a2 a9 00                               lda #$0               ; DISP_TEXT_1
+0108a4 4f 5c 08 00 ff                      jsr.a24 ($ff0008)     ; os4_SetScreenMode
+0108a9 a9 ff                               lda #$ff
+0108ab 4f 60                               rts.a24
+
+0108ad ; SUB CommandLine:
 000004          ; VAR @I
 000005          ; VAR @I6
-0108de 1f a9 00 01                         lda.w #$100           ; INPBUFFER
-0108e2 2f 8d 00 d7                         sta.t $00d700
-0108e6                 FOR108e6_start:
-0108e6                                 ;; FOR @I = 0 TO 5 {
-0108e6 a2 00                               ldx #$0
-0108e8 86 04                               stx $04
-0108ea                 FOR108e6_loop:
-0108ea a5 04                               lda $04               ; I
-0108ec                       ;; A <<= 2 
-0108ec 0a                                  asl
-0108ed 0a                                  asl
-0108ee 85 05                               sta $05               ; I6
-0108f0 a5 04                               lda $04               ; I
-0108f2                       ;; A <<= 1 
-0108f2 0a                                  asl
-0108f3 18                                  clc
-0108f4 65 05                               adc $05               ; I6
-0108f6 85 05                               sta $05               ; I6
-0108f8 aa                                  tax
-0108f9 6f bd 40 0c 01                      lda.t.a24 $010c40,X   ; CommandList
-0108fe 2f 8d 03 d7                         sta.t $00d703
-010902 4f 5c 4a 00 ff                      jsr.a24 ($ff004a)     ; os4_CompareStartOfText
-010907                                 ;; IF - {
-010907 10 34                               bpl +52               ; IF10907_end [1093d]
-010909 a6 05                               ldx $05               ; I6
-01090b 6f bd 40 0c 01                      lda.t.a24 $010c40,X   ; CommandList
-010910 2f 8d 00 d7                         sta.t $00d700
-010914 1f a9 00 01                         lda.w #$100           ; INPBUFFER
-010918 2f 8d 03 d7                         sta.t $00d703
-01091c 4f 5c 4d 00 ff                      jsr.a24 ($ff004d)     ; os4_CopyString
-010921 1f a5 fe                            lda.w $fe             ; TXTPTR
-010924 1f 1a                               inc.w
-010926 1f 1a                               inc.w
-010928 2f 8d 03 d7                         sta.t $00d703
-01092c 4f 5c 50 00 ff                      jsr.a24 ($ff0050)     ; os4_CopyStringHigh
-010931 c8                                  iny
-010932 c8                                  iny
-010933 8c 01 ff                            sty $ff01             ; TXTPOS
-010936 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
-01093b 4f 60                               rts.a24
-01093d                 IF10907_end:
-01093d e6 04                               inc $04
-01093f a6 04                               ldx $04
-010941 e0 06                               cpx #$6
-010943 d0 a5                               bne -91               ; FOR108e6_loop [108ea]
-010945                 FOR108e6_end:
-010945 4f 60                               rts.a24
+0108ad ad 00 01                            lda $0100             ; INPBUFFER
+0108b0                                 ;; IF == {
+0108b0 d0 02                               bne +2                ; IF108b0_end [108b4]
+0108b2 4f 60                               rts.a24
+0108b4                 IF108b0_end:
+0108b4 2f a9 00 01 00                      lda.t #$100           ; INPBUFFER
+0108b9 2f 8d 00 d7                         sta.t $00d700
+0108bd 4f 5c 53 00 ff                      jsr.a24 ($ff0053)     ; os4_ParseInputParams
+0108c2 2f ad 01 d0                         lda.t $00d001
+0108c6 2f 8d 00 d7                         sta.t $00d700
+0108ca                 FOR108ca_start:
+0108ca                                 ;; FOR @I = 0 TO 5 {
+0108ca a2 00                               ldx #$0
+0108cc 86 04                               stx $04
+0108ce                 FOR108ca_loop:
+0108ce a5 04                               lda $04               ; I
+0108d0                       ;; A <<= 2 
+0108d0 0a                                  asl
+0108d1 0a                                  asl
+0108d2 85 05                               sta $05               ; I6
+0108d4 a5 04                               lda $04               ; I
+0108d6                       ;; A <<= 1 
+0108d6 0a                                  asl
+0108d7 18                                  clc
+0108d8 65 05                               adc $05               ; I6
+0108da 85 05                               sta $05               ; I6
+0108dc aa                                  tax
+0108dd 6f bd 7e 0c 01                      lda.t.a24 $010c7e,X   ; CommandList
+0108e2 2f 8d 03 d7                         sta.t $00d703
+0108e6 4f 5c 47 00 ff                      jsr.a24 ($ff0047)     ; os4_CompareText
+0108eb                                 ;; IF - {
+0108eb 10 14                               bpl +20               ; IF108eb_end [10901]
+0108ed a6 05                               ldx $05               ; I6
+0108ef 6f bd 81 0c 01                      lda.t.a24 $010c81,X   ; CommandList
+0108f4 2f 85 00                            sta.t $00
+0108f7 4f 5c 00 00 00                      jsr.a24 ($00)
+0108fc 8d ff d0                            sta $d0ff
+0108ff 4f 60                               rts.a24
+010901                 IF108eb_end:
+010901 e6 04                               inc $04
+010903 a6 04                               ldx $04
+010905 e0 06                               cpx #$6
+010907 d0 c5                               bne -59               ; FOR108ca_loop [108ce]
+010909                 FOR108ca_end:
+010909 2f a9 ae 0b 01                      lda.t #$10bae         ; UnknownCommandErr
+01090e 2f 8d 00 d7                         sta.t $00d700
+010912 4f 5c 20 00 ff                      jsr.a24 ($ff0020)     ; os4_PrintError
+010917 9c ff d0                            stz $d0ff
+01091a 4f 60                               rts.a24
 
-010947 ; SUB ClearInputBuffers:
-010947 a9 00                               lda #$0
-010949                 FOR10949_start:
-010949                                 ;; FOR X = 0 TO 255 {
-010949 a2 00                               ldx #$0
-01094b                 FOR10949_loop:
-01094b 9d 00 01                            sta $0100,X           ; INPBUFFER
-01094e e8                                  inx
-01094f e0 00                               cpx #$100
-010951 d0 f8                               bne -8                ; FOR10949_loop [1094b]
-010953                 FOR10949_end:
-010953 4f 60                               rts.a24
+01091c ; SUB CompleteCommand:
+000004          ; VAR @I
+000005          ; VAR @I6
+01091c 1f a9 00 01                         lda.w #$100           ; INPBUFFER
+010920 2f 8d 00 d7                         sta.t $00d700
+010924                 FOR10924_start:
+010924                                 ;; FOR @I = 0 TO 5 {
+010924 a2 00                               ldx #$0
+010926 86 04                               stx $04
+010928                 FOR10924_loop:
+010928 a5 04                               lda $04               ; I
+01092a                       ;; A <<= 2 
+01092a 0a                                  asl
+01092b 0a                                  asl
+01092c 85 05                               sta $05               ; I6
+01092e a5 04                               lda $04               ; I
+010930                       ;; A <<= 1 
+010930 0a                                  asl
+010931 18                                  clc
+010932 65 05                               adc $05               ; I6
+010934 85 05                               sta $05               ; I6
+010936 aa                                  tax
+010937 6f bd 7e 0c 01                      lda.t.a24 $010c7e,X   ; CommandList
+01093c 2f 8d 03 d7                         sta.t $00d703
+010940 4f 5c 4a 00 ff                      jsr.a24 ($ff004a)     ; os4_CompareStartOfText
+010945                                 ;; IF - {
+010945 10 34                               bpl +52               ; IF10945_end [1097b]
+010947 a6 05                               ldx $05               ; I6
+010949 6f bd 7e 0c 01                      lda.t.a24 $010c7e,X   ; CommandList
+01094e 2f 8d 00 d7                         sta.t $00d700
+010952 1f a9 00 01                         lda.w #$100           ; INPBUFFER
+010956 2f 8d 03 d7                         sta.t $00d703
+01095a 4f 5c 4d 00 ff                      jsr.a24 ($ff004d)     ; os4_CopyString
+01095f 1f a5 fe                            lda.w $fe             ; TXTPTR
+010962 1f 1a                               inc.w
+010964 1f 1a                               inc.w
+010966 2f 8d 03 d7                         sta.t $00d703
+01096a 4f 5c 50 00 ff                      jsr.a24 ($ff0050)     ; os4_CopyStringHigh
+01096f c8                                  iny
+010970 c8                                  iny
+010971 8c 01 ff                            sty $ff01             ; TXTPOS
+010974 4f 5c 17 00 ff                      jsr.a24 ($ff0017)     ; os4_PrintCursor
+010979 4f 60                               rts.a24
+01097b                 IF10945_end:
+01097b e6 04                               inc $04
+01097d a6 04                               ldx $04
+01097f e0 06                               cpx #$6
+010981 d0 a5                               bne -91               ; FOR10924_loop [10928]
+010983                 FOR10924_end:
+010983 4f 60                               rts.a24
 
-010955 ; SUB ClearCurrentInputBuffer:
-010955 a9 00                               lda #$0
-010957                 FOR10957_start:
-010957                                 ;; FOR X = 0 TO 79 {
-010957 a2 00                               ldx #$0
-010959                 FOR10957_loop:
-010959 9d 00 01                            sta $0100,X           ; INPBUFFER
-01095c e8                                  inx
-01095d e0 50                               cpx #$50
-01095f d0 f8                               bne -8                ; FOR10957_loop [10959]
-010961                 FOR10957_end:
-010961 4f 60                               rts.a24
+010985 ; SUB ClearInputBuffers:
+010985 a9 00                               lda #$0
+010987                 FOR10987_start:
+010987                                 ;; FOR X = 0 TO 255 {
+010987 a2 00                               ldx #$0
+010989                 FOR10987_loop:
+010989 9d 00 01                            sta $0100,X           ; INPBUFFER
+01098c e8                                  inx
+01098d e0 00                               cpx #$100
+01098f d0 f8                               bne -8                ; FOR10987_loop [10989]
+010991                 FOR10987_end:
+010991 4f 60                               rts.a24
 
-010963 ; SUB PrevToCurrentInputBuffer:
-010963                 FOR10963_start:
-010963                                 ;; FOR X = 0 TO 79 {
-010963 a2 00                               ldx #$0
-010965                 FOR10963_loop:
-010965 bd 50 01                            lda $0150,X           ; INPBUFFER2
-010968 9d 00 01                            sta $0100,X           ; INPBUFFER
-01096b bd a0 01                            lda $01a0,X           ; INPBUFFER3
-01096e 9d 50 01                            sta $0150,X           ; INPBUFFER2
-010971 e8                                  inx
-010972 e0 50                               cpx #$50
-010974 d0 ef                               bne -17               ; FOR10963_loop [10965]
-010976                 FOR10963_end:
-010976 4f 60                               rts.a24
+010993 ; SUB ClearCurrentInputBuffer:
+010993 a9 00                               lda #$0
+010995                 FOR10995_start:
+010995                                 ;; FOR X = 0 TO 79 {
+010995 a2 00                               ldx #$0
+010997                 FOR10995_loop:
+010997 9d 00 01                            sta $0100,X           ; INPBUFFER
+01099a e8                                  inx
+01099b e0 50                               cpx #$50
+01099d d0 f8                               bne -8                ; FOR10995_loop [10997]
+01099f                 FOR10995_end:
+01099f 4f 60                               rts.a24
 
-010978 ; SUB CurrentToPrevInputBuffer:
-010978                 FOR10978_start:
-010978                                 ;; FOR X = 0 TO 79 {
-010978 a2 00                               ldx #$0
-01097a                 FOR10978_loop:
-01097a bd 50 01                            lda $0150,X           ; INPBUFFER2
-01097d 9d a0 01                            sta $01a0,X           ; INPBUFFER3
-010980 bd 00 01                            lda $0100,X           ; INPBUFFER
-010983 9d 50 01                            sta $0150,X           ; INPBUFFER2
-010986 e8                                  inx
-010987 e0 50                               cpx #$50
-010989 d0 ef                               bne -17               ; FOR10978_loop [1097a]
-01098b                 FOR10978_end:
-01098b 4f 60                               rts.a24
+0109a1 ; SUB PrevToCurrentInputBuffer:
+0109a1                 FOR109a1_start:
+0109a1                                 ;; FOR X = 0 TO 79 {
+0109a1 a2 00                               ldx #$0
+0109a3                 FOR109a1_loop:
+0109a3 bd 50 01                            lda $0150,X           ; INPBUFFER2
+0109a6 9d 00 01                            sta $0100,X           ; INPBUFFER
+0109a9 bd a0 01                            lda $01a0,X           ; INPBUFFER3
+0109ac 9d 50 01                            sta $0150,X           ; INPBUFFER2
+0109af e8                                  inx
+0109b0 e0 50                               cpx #$50
+0109b2 d0 ef                               bne -17               ; FOR109a1_loop [109a3]
+0109b4                 FOR109a1_end:
+0109b4 4f 60                               rts.a24
 
-01098d ; SUB InputBufferToTextScreen:
-01098d a0 03                               ldy #$3
-01098f                 FOR1098f_start:
-01098f                                 ;; FOR X = 0 TO 79 {
-01098f a2 00                               ldx #$0
-010991                 FOR1098f_loop:
-010991 bd 00 01                            lda $0100,X           ; INPBUFFER
-010994                                 ;; IF == 0 {
-010994 c9 00                               cmp #$0
-010996 d0 07                               bne +7                ; IF10994_end [1099f]
-010998 8c 01 ff                            sty $ff01             ; TXTPOS
-01099b                                 ;; BREAK
-01099b 4f 80 0a 00                         bra.a24 +10           ; for1098f_end [109a9]
-01099f                 IF10994_end:
-01099f 09 80                               ora #$80
-0109a1 91 fe                               sta ($fe),Y           ; TXTPTR
-0109a3 c8                                  iny
-0109a4 e8                                  inx
-0109a5 e0 50                               cpx #$50
-0109a7 d0 e8                               bne -24               ; FOR1098f_loop [10991]
-0109a9                 FOR1098f_end:
-0109a9 a9 a0                               lda #$a0
-0109ab                 LOOP109ab_start:
-0109ab                                 ;; LOOP {
-0109ab                 LOOP109ab_loop:
-0109ab c0 28                               cpy #$28
-0109ad                                 ;; IF == {
-0109ad d0 04                               bne +4                ; IF109ad_end [109b3]
-0109af                                 ;; BREAK
-0109af 4f 80 05 00                         bra.a24 +5            ; loop109ab_end [109b8]
-0109b3                 IF109ad_end:
-0109b3 91 fe                               sta ($fe),Y           ; TXTPTR
-0109b5 c8                                  iny
-0109b6 80 f3                               bra -13               ; LOOP109ab_loop [109ab]
-0109b8                 LOOP109ab_end:
-0109b8 4f 60                               rts.a24
+0109b6 ; SUB CurrentToPrevInputBuffer:
+0109b6                 FOR109b6_start:
+0109b6                                 ;; FOR X = 0 TO 79 {
+0109b6 a2 00                               ldx #$0
+0109b8                 FOR109b6_loop:
+0109b8 bd 50 01                            lda $0150,X           ; INPBUFFER2
+0109bb 9d a0 01                            sta $01a0,X           ; INPBUFFER3
+0109be bd 00 01                            lda $0100,X           ; INPBUFFER
+0109c1 9d 50 01                            sta $0150,X           ; INPBUFFER2
+0109c4 e8                                  inx
+0109c5 e0 50                               cpx #$50
+0109c7 d0 ef                               bne -17               ; FOR109b6_loop [109b8]
+0109c9                 FOR109b6_end:
+0109c9 4f 60                               rts.a24
 
-0109ba ; SUB calculateRows:
-0109ba 1f a5 8d                            lda.w $8d             ; FILESIZE
-0109bd 18                                  clc
-0109be 1f 69 07 00                         adc.w #$7
-0109c2 1f 4a                               lsr.w
-0109c4 1f 4a                               lsr.w
-0109c6 1f 4a                               lsr.w
-0109c8 1f 85 8f                            sta.w $8f             ; NFILEROWS
-0109cb 1f 64 86                            stz.w $86             ; VIEWYFROM
-0109ce a9 17                               lda #$17
-0109d0 1f c5 8f                            cmp.w $8f             ; NFILEROWS
-0109d3                                 ;; IF > {
-0109d3 f0 0a                               beq +10               ; IF109d3_else [109df]
-0109d5 90 08                               bcc +8                ; IF109d3_else [109df]
-0109d7 1f a5 8f                            lda.w $8f             ; NFILEROWS
-0109da 1f 85 88                            sta.w $88             ; VIEWYTO
-0109dd 80 03                               bra +3                ; IF109d3_end [109e2]
-0109df                 IF109d3_else:
-0109df                                 ;; ELSE
-0109df 1f 85 88                            sta.w $88             ; VIEWYTO
-0109e2                 IF109d3_end:
-0109e2 4f 60                               rts.a24
+0109cb ; SUB InputBufferToTextScreen:
+0109cb a0 03                               ldy #$3
+0109cd                 FOR109cd_start:
+0109cd                                 ;; FOR X = 0 TO 79 {
+0109cd a2 00                               ldx #$0
+0109cf                 FOR109cd_loop:
+0109cf bd 00 01                            lda $0100,X           ; INPBUFFER
+0109d2                                 ;; IF == 0 {
+0109d2 c9 00                               cmp #$0
+0109d4 d0 07                               bne +7                ; IF109d2_end [109dd]
+0109d6 8c 01 ff                            sty $ff01             ; TXTPOS
+0109d9                                 ;; BREAK
+0109d9 4f 80 0a 00                         bra.a24 +10           ; for109cd_end [109e7]
+0109dd                 IF109d2_end:
+0109dd 09 80                               ora #$80
+0109df 91 fe                               sta ($fe),Y           ; TXTPTR
+0109e1 c8                                  iny
+0109e2 e8                                  inx
+0109e3 e0 50                               cpx #$50
+0109e5 d0 e8                               bne -24               ; FOR109cd_loop [109cf]
+0109e7                 FOR109cd_end:
+0109e7 a9 a0                               lda #$a0
+0109e9                 LOOP109e9_start:
+0109e9                                 ;; LOOP {
+0109e9                 LOOP109e9_loop:
+0109e9 c0 28                               cpy #$28
+0109eb                                 ;; IF == {
+0109eb d0 04                               bne +4                ; IF109eb_end [109f1]
+0109ed                                 ;; BREAK
+0109ed 4f 80 05 00                         bra.a24 +5            ; loop109e9_end [109f6]
+0109f1                 IF109eb_end:
+0109f1 91 fe                               sta ($fe),Y           ; TXTPTR
+0109f3 c8                                  iny
+0109f4 80 f3                               bra -13               ; LOOP109e9_loop [109e9]
+0109f6                 LOOP109e9_end:
+0109f6 4f 60                               rts.a24
 
-0109e4 ; SUB updateViewableRows:
-0109e4 1f a5 86                            lda.w $86             ; VIEWYFROM
-0109e7 18                                  clc
-0109e8 1f 69 17 00                         adc.w #$17
-0109ec 1f c5 8f                            cmp.w $8f             ; NFILEROWS
-0109ef                                 ;; IF > {
-0109ef f0 0a                               beq +10               ; IF109ef_else [109fb]
-0109f1 90 08                               bcc +8                ; IF109ef_else [109fb]
-0109f3 1f a5 8f                            lda.w $8f             ; NFILEROWS
-0109f6 1f 85 88                            sta.w $88             ; VIEWYTO
-0109f9 80 03                               bra +3                ; IF109ef_end [109fe]
-0109fb                 IF109ef_else:
-0109fb                                 ;; ELSE
-0109fb 1f 85 88                            sta.w $88             ; VIEWYTO
-0109fe                 IF109ef_end:
-0109fe 4f 60                               rts.a24
+0109f8 ; SUB calculateRows:
+0109f8 1f a5 8e                            lda.w $8e             ; FILESIZE
+0109fb 18                                  clc
+0109fc 1f 69 07 00                         adc.w #$7
+010a00 1f 4a                               lsr.w
+010a02 1f 4a                               lsr.w
+010a04 1f 4a                               lsr.w
+010a06 1f 85 91                            sta.w $91             ; NFILEROWS
+010a09 1f 64 86                            stz.w $86             ; VIEWYFROM
+010a0c a9 17                               lda #$17
+010a0e 1f c5 91                            cmp.w $91             ; NFILEROWS
+010a11                                 ;; IF > {
+010a11 f0 0a                               beq +10               ; IF10a11_else [10a1d]
+010a13 90 08                               bcc +8                ; IF10a11_else [10a1d]
+010a15 1f a5 91                            lda.w $91             ; NFILEROWS
+010a18 1f 85 88                            sta.w $88             ; VIEWYTO
+010a1b 80 03                               bra +3                ; IF10a11_end [10a20]
+010a1d                 IF10a11_else:
+010a1d                                 ;; ELSE
+010a1d 1f 85 88                            sta.w $88             ; VIEWYTO
+010a20                 IF10a11_end:
+010a20 4f 60                               rts.a24
 
-010a00 ; SUB clearText2Screen:
+010a22 ; SUB updateViewableRows:
+010a22 1f a5 86                            lda.w $86             ; VIEWYFROM
+010a25 18                                  clc
+010a26 1f 69 17 00                         adc.w #$17
+010a2a 1f c5 91                            cmp.w $91             ; NFILEROWS
+010a2d                                 ;; IF > {
+010a2d f0 0a                               beq +10               ; IF10a2d_else [10a39]
+010a2f 90 08                               bcc +8                ; IF10a2d_else [10a39]
+010a31 1f a5 91                            lda.w $91             ; NFILEROWS
+010a34 1f 85 88                            sta.w $88             ; VIEWYTO
+010a37 80 03                               bra +3                ; IF10a2d_end [10a3c]
+010a39                 IF10a2d_else:
+010a39                                 ;; ELSE
+010a39 1f 85 88                            sta.w $88             ; VIEWYTO
+010a3c                 IF10a2d_end:
+010a3c 4f 60                               rts.a24
+
+010a3e ; SUB clearText2Screen:
 0000fb-0000fc   ; VAR @ROWPTR
-010a00 a2 00                               ldx #$0
-010a02                 DO10a02_start:
-010a02                                 ;; DO {
-010a02                 DO10a02_loop:
-010a02 5f bd fa 0b 01                      lda.w.a24 $010bfa,X   ; Text2ScreenBase
-010a07 1f 85 fb                            sta.w $fb             ; ROWPTR
-010a0a a9 a0                               lda #$a0
-010a0c                 FOR10a0c_start:
-010a0c                                 ;; FOR Y = 0 TO 39 {
-010a0c a0 00                               ldy #$0
-010a0e                 FOR10a0c_loop:
-010a0e 91 fb                               sta ($fb),Y           ; ROWPTR
-010a10 c8                                  iny
-010a11 c0 28                               cpy #$28
-010a13 d0 f9                               bne -7                ; FOR10a0c_loop [10a0e]
-010a15                 FOR10a0c_end:
-010a15 e8                                  inx
-010a16 e8                                  inx
-010a17 e0 30                               cpx #$30
-010a19                                 ;; WHILE !=
-010a19 f0 02                               beq +2                ; DO10a02_end [10a1d]
-010a1b 80 e5                               bra -27               ; DO10a02_loop [10a02]
-010a1d                 DO10a02_end:
-010a1d 4f 60                               rts.a24
+010a3e a2 00                               ldx #$0
+010a40                 DO10a40_start:
+010a40                                 ;; DO {
+010a40                 DO10a40_loop:
+010a40 5f bd 38 0c 01                      lda.w.a24 $010c38,X   ; Text2ScreenBase
+010a45 1f 85 fb                            sta.w $fb             ; ROWPTR
+010a48 a9 a0                               lda #$a0
+010a4a                 FOR10a4a_start:
+010a4a                                 ;; FOR Y = 0 TO 39 {
+010a4a a0 00                               ldy #$0
+010a4c                 FOR10a4a_loop:
+010a4c 91 fb                               sta ($fb),Y           ; ROWPTR
+010a4e c8                                  iny
+010a4f c0 28                               cpy #$28
+010a51 d0 f9                               bne -7                ; FOR10a4a_loop [10a4c]
+010a53                 FOR10a4a_end:
+010a53 e8                                  inx
+010a54 e8                                  inx
+010a55 e0 30                               cpx #$30
+010a57                                 ;; WHILE !=
+010a57 f0 02                               beq +2                ; DO10a40_end [10a5b]
+010a59 80 e5                               bra -27               ; DO10a40_loop [10a40]
+010a5b                 DO10a40_end:
+010a5b 4f 60                               rts.a24
 
-010a1f ; SUB debugValueT2:
-010a1f 48                                  pha
-010a20 48                                  pha
-010a21                       ;; A >>= 4 
-010a21 4a                                  lsr
-010a22 4a                                  lsr
-010a23 4a                                  lsr
-010a24 4a                                  lsr
-010a25                                 ;; IF >= 10 {
-010a25 c9 0a                               cmp #$a
-010a27 90 05                               bcc +5                ; IF10a25_else [10a2e]
-010a29                       ;; A += 183 
-010a29 18                                  clc
-010a2a 69 b7                               adc #$b7
-010a2c 80 03                               bra +3                ; IF10a25_end [10a31]
-010a2e                 IF10a25_else:
-010a2e                                 ;; ELSE
-010a2e                       ;; A += 176 
-010a2e 18                                  clc
-010a2f 69 b0                               adc #$b0
-010a31                 IF10a25_end:
-010a31 8d 26 08                            sta $0826
-010a34 68                                  pla
-010a35                       ;; A &= 15 
-010a35 29 0f                               and #$f
-010a37                                 ;; IF >= 10 {
-010a37 c9 0a                               cmp #$a
-010a39 90 05                               bcc +5                ; IF10a37_else [10a40]
-010a3b                       ;; A += 183 
-010a3b 18                                  clc
-010a3c 69 b7                               adc #$b7
-010a3e 80 03                               bra +3                ; IF10a37_end [10a43]
-010a40                 IF10a37_else:
-010a40                                 ;; ELSE
-010a40                       ;; A += 176 
-010a40 18                                  clc
-010a41 69 b0                               adc #$b0
-010a43                 IF10a37_end:
-010a43 8d 27 08                            sta $0827
-010a46 68                                  pla
-010a47 4f 60                               rts.a24
+010a5d ; SUB debugValueT2:
+010a5d 48                                  pha
+010a5e 48                                  pha
+010a5f                       ;; A >>= 4 
+010a5f 4a                                  lsr
+010a60 4a                                  lsr
+010a61 4a                                  lsr
+010a62 4a                                  lsr
+010a63                                 ;; IF >= 10 {
+010a63 c9 0a                               cmp #$a
+010a65 90 05                               bcc +5                ; IF10a63_else [10a6c]
+010a67                       ;; A += 183 
+010a67 18                                  clc
+010a68 69 b7                               adc #$b7
+010a6a 80 03                               bra +3                ; IF10a63_end [10a6f]
+010a6c                 IF10a63_else:
+010a6c                                 ;; ELSE
+010a6c                       ;; A += 176 
+010a6c 18                                  clc
+010a6d 69 b0                               adc #$b0
+010a6f                 IF10a63_end:
+010a6f 8d 26 08                            sta $0826
+010a72 68                                  pla
+010a73                       ;; A &= 15 
+010a73 29 0f                               and #$f
+010a75                                 ;; IF >= 10 {
+010a75 c9 0a                               cmp #$a
+010a77 90 05                               bcc +5                ; IF10a75_else [10a7e]
+010a79                       ;; A += 183 
+010a79 18                                  clc
+010a7a 69 b7                               adc #$b7
+010a7c 80 03                               bra +3                ; IF10a75_end [10a81]
+010a7e                 IF10a75_else:
+010a7e                                 ;; ELSE
+010a7e                       ;; A += 176 
+010a7e 18                                  clc
+010a7f 69 b0                               adc #$b0
+010a81                 IF10a75_end:
+010a81 8d 27 08                            sta $0827
+010a84 68                                  pla
+010a85 4f 60                               rts.a24
 
-010a49 ; SUB debugValueA:
-010a49 48                                  pha
-010a4a 48                                  pha
-010a4b                       ;; A >>= 4 
-010a4b 4a                                  lsr
-010a4c 4a                                  lsr
-010a4d 4a                                  lsr
-010a4e 4a                                  lsr
-010a4f                                 ;; IF >= 10 {
-010a4f c9 0a                               cmp #$a
-010a51 90 05                               bcc +5                ; IF10a4f_else [10a58]
-010a53                       ;; A += 183 
-010a53 18                                  clc
-010a54 69 b7                               adc #$b7
-010a56 80 03                               bra +3                ; IF10a4f_end [10a5b]
-010a58                 IF10a4f_else:
-010a58                                 ;; ELSE
-010a58                       ;; A += 176 
-010a58 18                                  clc
-010a59 69 b0                               adc #$b0
-010a5b                 IF10a4f_end:
-010a5b 8d 26 04                            sta $0426
-010a5e 68                                  pla
-010a5f                       ;; A &= 15 
-010a5f 29 0f                               and #$f
-010a61                                 ;; IF >= 10 {
-010a61 c9 0a                               cmp #$a
-010a63 90 05                               bcc +5                ; IF10a61_else [10a6a]
-010a65                       ;; A += 183 
-010a65 18                                  clc
-010a66 69 b7                               adc #$b7
-010a68 80 03                               bra +3                ; IF10a61_end [10a6d]
-010a6a                 IF10a61_else:
-010a6a                                 ;; ELSE
-010a6a                       ;; A += 176 
-010a6a 18                                  clc
-010a6b 69 b0                               adc #$b0
-010a6d                 IF10a61_end:
-010a6d 8d 27 04                            sta $0427
-010a70 68                                  pla
-010a71 4f 60                               rts.a24
+010a87 ; SUB debugValueA:
+010a87 48                                  pha
+010a88 48                                  pha
+010a89                       ;; A >>= 4 
+010a89 4a                                  lsr
+010a8a 4a                                  lsr
+010a8b 4a                                  lsr
+010a8c 4a                                  lsr
+010a8d                                 ;; IF >= 10 {
+010a8d c9 0a                               cmp #$a
+010a8f 90 05                               bcc +5                ; IF10a8d_else [10a96]
+010a91                       ;; A += 183 
+010a91 18                                  clc
+010a92 69 b7                               adc #$b7
+010a94 80 03                               bra +3                ; IF10a8d_end [10a99]
+010a96                 IF10a8d_else:
+010a96                                 ;; ELSE
+010a96                       ;; A += 176 
+010a96 18                                  clc
+010a97 69 b0                               adc #$b0
+010a99                 IF10a8d_end:
+010a99 8d 26 04                            sta $0426
+010a9c 68                                  pla
+010a9d                       ;; A &= 15 
+010a9d 29 0f                               and #$f
+010a9f                                 ;; IF >= 10 {
+010a9f c9 0a                               cmp #$a
+010aa1 90 05                               bcc +5                ; IF10a9f_else [10aa8]
+010aa3                       ;; A += 183 
+010aa3 18                                  clc
+010aa4 69 b7                               adc #$b7
+010aa6 80 03                               bra +3                ; IF10a9f_end [10aab]
+010aa8                 IF10a9f_else:
+010aa8                                 ;; ELSE
+010aa8                       ;; A += 176 
+010aa8 18                                  clc
+010aa9 69 b0                               adc #$b0
+010aab                 IF10a9f_end:
+010aab 8d 27 04                            sta $0427
+010aae 68                                  pla
+010aaf 4f 60                               rts.a24
 
-010a73 ; SUB debugValueB:
-010a73 48                                  pha
-010a74 48                                  pha
-010a75                       ;; A >>= 4 
-010a75 4a                                  lsr
-010a76 4a                                  lsr
-010a77 4a                                  lsr
-010a78 4a                                  lsr
-010a79                                 ;; IF >= 10 {
-010a79 c9 0a                               cmp #$a
-010a7b 90 05                               bcc +5                ; IF10a79_else [10a82]
-010a7d                       ;; A += 183 
-010a7d 18                                  clc
-010a7e 69 b7                               adc #$b7
-010a80 80 03                               bra +3                ; IF10a79_end [10a85]
-010a82                 IF10a79_else:
-010a82                                 ;; ELSE
-010a82                       ;; A += 176 
-010a82 18                                  clc
-010a83 69 b0                               adc #$b0
-010a85                 IF10a79_end:
-010a85 8d 23 04                            sta $0423
-010a88 68                                  pla
-010a89                       ;; A &= 15 
-010a89 29 0f                               and #$f
-010a8b                                 ;; IF >= 10 {
-010a8b c9 0a                               cmp #$a
-010a8d 90 05                               bcc +5                ; IF10a8b_else [10a94]
-010a8f                       ;; A += 183 
-010a8f 18                                  clc
-010a90 69 b7                               adc #$b7
-010a92 80 03                               bra +3                ; IF10a8b_end [10a97]
-010a94                 IF10a8b_else:
-010a94                                 ;; ELSE
-010a94                       ;; A += 176 
-010a94 18                                  clc
-010a95 69 b0                               adc #$b0
-010a97                 IF10a8b_end:
-010a97 8d 24 04                            sta $0424
-010a9a 68                                  pla
-010a9b 4f 60                               rts.a24
+010ab1 ; SUB debugValueB:
+010ab1 48                                  pha
+010ab2 48                                  pha
+010ab3                       ;; A >>= 4 
+010ab3 4a                                  lsr
+010ab4 4a                                  lsr
+010ab5 4a                                  lsr
+010ab6 4a                                  lsr
+010ab7                                 ;; IF >= 10 {
+010ab7 c9 0a                               cmp #$a
+010ab9 90 05                               bcc +5                ; IF10ab7_else [10ac0]
+010abb                       ;; A += 183 
+010abb 18                                  clc
+010abc 69 b7                               adc #$b7
+010abe 80 03                               bra +3                ; IF10ab7_end [10ac3]
+010ac0                 IF10ab7_else:
+010ac0                                 ;; ELSE
+010ac0                       ;; A += 176 
+010ac0 18                                  clc
+010ac1 69 b0                               adc #$b0
+010ac3                 IF10ab7_end:
+010ac3 8d 23 04                            sta $0423
+010ac6 68                                  pla
+010ac7                       ;; A &= 15 
+010ac7 29 0f                               and #$f
+010ac9                                 ;; IF >= 10 {
+010ac9 c9 0a                               cmp #$a
+010acb 90 05                               bcc +5                ; IF10ac9_else [10ad2]
+010acd                       ;; A += 183 
+010acd 18                                  clc
+010ace 69 b7                               adc #$b7
+010ad0 80 03                               bra +3                ; IF10ac9_end [10ad5]
+010ad2                 IF10ac9_else:
+010ad2                                 ;; ELSE
+010ad2                       ;; A += 176 
+010ad2 18                                  clc
+010ad3 69 b0                               adc #$b0
+010ad5                 IF10ac9_end:
+010ad5 8d 24 04                            sta $0424
+010ad8 68                                  pla
+010ad9 4f 60                               rts.a24
 
-010a9d ; SUB debugValueC:
-010a9d 48                                  pha
-010a9e 48                                  pha
-010a9f                       ;; A >>= 4 
-010a9f 4a                                  lsr
-010aa0 4a                                  lsr
-010aa1 4a                                  lsr
-010aa2 4a                                  lsr
-010aa3                                 ;; IF >= 10 {
-010aa3 c9 0a                               cmp #$a
-010aa5 90 05                               bcc +5                ; IF10aa3_else [10aac]
-010aa7                       ;; A += 183 
-010aa7 18                                  clc
-010aa8 69 b7                               adc #$b7
-010aaa 80 03                               bra +3                ; IF10aa3_end [10aaf]
-010aac                 IF10aa3_else:
-010aac                                 ;; ELSE
-010aac                       ;; A += 176 
-010aac 18                                  clc
-010aad 69 b0                               adc #$b0
-010aaf                 IF10aa3_end:
-010aaf 8d 20 04                            sta $0420
-010ab2 68                                  pla
-010ab3                       ;; A &= 15 
-010ab3 29 0f                               and #$f
-010ab5                                 ;; IF >= 10 {
-010ab5 c9 0a                               cmp #$a
-010ab7 90 05                               bcc +5                ; IF10ab5_else [10abe]
-010ab9                       ;; A += 183 
-010ab9 18                                  clc
-010aba 69 b7                               adc #$b7
-010abc 80 03                               bra +3                ; IF10ab5_end [10ac1]
-010abe                 IF10ab5_else:
-010abe                                 ;; ELSE
-010abe                       ;; A += 176 
-010abe 18                                  clc
-010abf 69 b0                               adc #$b0
-010ac1                 IF10ab5_end:
-010ac1 8d 21 04                            sta $0421
-010ac4 68                                  pla
-010ac5 4f 60                               rts.a24
+010adb ; SUB debugValueC:
+010adb 48                                  pha
+010adc 48                                  pha
+010add                       ;; A >>= 4 
+010add 4a                                  lsr
+010ade 4a                                  lsr
+010adf 4a                                  lsr
+010ae0 4a                                  lsr
+010ae1                                 ;; IF >= 10 {
+010ae1 c9 0a                               cmp #$a
+010ae3 90 05                               bcc +5                ; IF10ae1_else [10aea]
+010ae5                       ;; A += 183 
+010ae5 18                                  clc
+010ae6 69 b7                               adc #$b7
+010ae8 80 03                               bra +3                ; IF10ae1_end [10aed]
+010aea                 IF10ae1_else:
+010aea                                 ;; ELSE
+010aea                       ;; A += 176 
+010aea 18                                  clc
+010aeb 69 b0                               adc #$b0
+010aed                 IF10ae1_end:
+010aed 8d 20 04                            sta $0420
+010af0 68                                  pla
+010af1                       ;; A &= 15 
+010af1 29 0f                               and #$f
+010af3                                 ;; IF >= 10 {
+010af3 c9 0a                               cmp #$a
+010af5 90 05                               bcc +5                ; IF10af3_else [10afc]
+010af7                       ;; A += 183 
+010af7 18                                  clc
+010af8 69 b7                               adc #$b7
+010afa 80 03                               bra +3                ; IF10af3_end [10aff]
+010afc                 IF10af3_else:
+010afc                                 ;; ELSE
+010afc                       ;; A += 176 
+010afc 18                                  clc
+010afd 69 b0                               adc #$b0
+010aff                 IF10af3_end:
+010aff 8d 21 04                            sta $0421
+010b02 68                                  pla
+010b03 4f 60                               rts.a24
 
-010ac7 ; DATA Header:
-010ac7 42 49 4e 2d 45 64 69 74 20 5d 5b 34 20 2d 20 61 20 42 49 4e 20 66 69 6c 65 20 65 64 69 74 6f 72 00
+010b05 ; DATA Header:
+010b05 42 49 4e 2d 45 64 69 74 20 5d 5b 34 20 2d 20 61 20 42 49 4e 20 66 69 6c 65 20 65 64 69 74 6f 72 00
 
-010ae8 ; DATA EditingStr:
-010ae8 2d 2d 20 45 44 49 54 49 4e 47 20 2d 2d 00
+010b26 ; DATA EditingStr:
+010b26 2d 2d 20 45 44 49 54 49 4e 47 20 2d 2d 00
 
-010af6 ; DATA HelpEditStr:
-010af6 20 45 4e 54 45 52 20 2d 20 45 64 69 74 20 76 61 6c 75 65 00
+010b34 ; DATA HelpEditStr:
+010b34 20 45 4e 54 45 52 20 2d 20 45 64 69 74 20 76 61 6c 75 65 00
 
-010b0a ; DATA HelpUDLRStr:
-010b0a 20 75 70 2f 64 6f 77 6e 2f 6c 65 66 74 2f 72 69 67 68 74 20 2d 20 4d 6f 76 65 20 43 75 72 73 6f 72 00
+010b48 ; DATA HelpUDLRStr:
+010b48 20 75 70 2f 64 6f 77 6e 2f 6c 65 66 74 2f 72 69 67 68 74 20 2d 20 4d 6f 76 65 20 43 75 72 73 6f 72 00
 
-010b2c ; DATA HelpPMStr:
-010b2c 20 2b 2f 2d 20 2d 20 4e 65 78 74 2f 50 72 65 76 69 6f 75 73 20 50 61 67 65 00
+010b6a ; DATA HelpPMStr:
+010b6a 20 2b 2f 2d 20 2d 20 4e 65 78 74 2f 50 72 65 76 69 6f 75 73 20 50 61 67 65 00
 
-010b46 ; DATA HelpListStr:
-010b46 20 42 49 4e 2d 45 64 69 74 20 43 4f 4d 4d 41 4e 44 53 3a 00
+010b84 ; DATA HelpListStr:
+010b84 20 42 49 4e 2d 45 64 69 74 20 43 4f 4d 4d 41 4e 44 53 3a 00
 
-010b5a ; DATA LoadedStr:
-010b5a 4c 4f 41 44 45 44 3a 20 00
+010b98 ; DATA LoadedStr:
+010b98 4c 4f 41 44 45 44 3a 20 00
 
-010b63 ; DATA StoredStr:
-010b63 53 54 4f 52 45 44 3a 20 00
+010ba1 ; DATA StoredStr:
+010ba1 53 54 4f 52 45 44 3a 20 00
 
-010b6c ; DATA BINFileType:
-010b6c 42 49 4e 00
+010baa ; DATA BINFileType:
+010baa 42 49 4e 00
 
-010b70 ; DATA UnknownCommandErr:
-010b70 2a 2a 20 45 52 52 4f 52 3a 20 55 6e 6b 6e 6f 77 6e 20 63 6f 6d 6d 61 6e 64 00
+010bae ; DATA UnknownCommandErr:
+010bae 2a 2a 20 45 52 52 4f 52 3a 20 55 6e 6b 6e 6f 77 6e 20 63 6f 6d 6d 61 6e 64 00
 
-010b8a ; DATA NoFilenameErrStr:
-010b8a 2a 2a 20 46 49 4c 45 4e 41 4d 45 20 6d 75 73 74 20 62 65 20 73 70 65 63 69 66 69 65 64 00
+010bc8 ; DATA NoFilenameErrStr:
+010bc8 2a 2a 20 46 49 4c 45 4e 41 4d 45 20 6d 75 73 74 20 62 65 20 73 70 65 63 69 66 69 65 64 00
 
-010ba8 ; DATA MissingValueErr:
-010ba8 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 56 41 4c 55 45 00
+010be6 ; DATA MissingValueErr:
+010be6 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 56 41 4c 55 45 00
 
-010bc0 ; DATA MissingStartErr:
-010bc0 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 53 54 41 52 54 20 76 61 6c 75 65 00
+010bfe ; DATA MissingStartErr:
+010bfe 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 53 54 41 52 54 20 76 61 6c 75 65 00
 
-010bde ; DATA MissingEndErr:
-010bde 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 45 4e 44 20 76 61 6c 75 65 00
+010c1c ; DATA MissingEndErr:
+010c1c 2a 2a 20 45 52 52 4f 52 3a 20 4d 69 73 73 69 6e 67 20 45 4e 44 20 76 61 6c 75 65 00
 
-010bfa ; DATA Text2ScreenBase:
-010bfa 00 08
-010bfc 80 08
-010bfe 00 09
-010c00 80 09
-010c02 00 0a
-010c04 80 0a
-010c06 00 0b
-010c08 80 0b
-010c0a 28 08
-010c0c a8 08
-010c0e 28 09
-010c10 a8 09
-010c12 28 0a
-010c14 a8 0a
-010c16 28 0b
-010c18 a8 0b
-010c1a 50 08
-010c1c d0 08
-010c1e 50 09
-010c20 d0 09
-010c22 50 0a
-010c24 d0 0a
-010c26 50 0b
-010c28 d0 0b
+010c38 ; DATA Text2ScreenBase:
+010c38 00 08
+010c3a 80 08
+010c3c 00 09
+010c3e 80 09
+010c40 00 0a
+010c42 80 0a
+010c44 00 0b
+010c46 80 0b
+010c48 28 08
+010c4a a8 08
+010c4c 28 09
+010c4e a8 09
+010c50 28 0a
+010c52 a8 0a
+010c54 28 0b
+010c56 a8 0b
+010c58 50 08
+010c5a d0 08
+010c5c 50 09
+010c5e d0 09
+010c60 50 0a
+010c62 d0 0a
+010c64 50 0b
+010c66 d0 0b
 
-010c2a ; DATA CMD_Help:
-010c2a 3f 00
+010c68 ; DATA CMD_Help:
+010c68 3f 00
 
-010c2c ; DATA CMD_Load:
-010c2c 6c 6f 61 64 00
+010c6a ; DATA CMD_Load:
+010c6a 6c 6f 61 64 00
 
-010c31 ; DATA CMD_Store:
-010c31 73 74 6f 72 65 00
+010c6f ; DATA CMD_Store:
+010c6f 73 74 6f 72 65 00
 
-010c37 ; DATA CMD_X:
-010c37 78 00
+010c75 ; DATA CMD_X:
+010c75 78 00
 
-010c39 ; DATA CMD_Y:
-010c39 79 00
+010c77 ; DATA CMD_Y:
+010c77 79 00
 
-010c3b ; DATA CMD_Quit:
-010c3b 71 75 69 74 00
+010c79 ; DATA CMD_Quit:
+010c79 71 75 69 74 00
 
-010c40 ; DATA CommandList:
-010c40 2a 0c 01
-010c43 22 05 01
-010c46 2c 0c 01
-010c49 27 06 01
-010c4c 31 0c 01
-010c4f f3 06 01
-010c52 37 0c 01
-010c55 df 07 01
-010c58 39 0c 01
-010c5b 21 08 01
-010c5e 3b 0c 01
-010c61 64 08 01
+010c7e ; DATA CommandList:
+010c7e 68 0c 01
+010c81 60 05 01
+010c84 6a 0c 01
+010c87 65 06 01
+010c8a 6f 0c 01
+010c8d 31 07 01
+010c90 75 0c 01
+010c93 1d 08 01
+010c96 77 0c 01
+010c99 5f 08 01
+010c9c 79 0c 01
+010c9f a2 08 01

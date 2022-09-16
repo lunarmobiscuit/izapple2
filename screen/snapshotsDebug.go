@@ -9,7 +9,7 @@ import (
 func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
 	snapScreen := snapshotByMode(vs, VideoText40, screenMode)
 	snapPage1 := snapshotByMode(vs, VideoGR|VideoSecondPage, screenMode)
-	snapPage2 := snapshotByMode(vs, VideoHGR, screenMode)
+	snapPage2 := snapshotByMode(vs, VideoHGR|VideoSecondPage, screenMode)
 	var snapAux *image.RGBA
 	snapAux = snapshotByMode(vs, VideoText40|VideoSecondPage, screenMode)
 

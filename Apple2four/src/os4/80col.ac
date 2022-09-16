@@ -1,0 +1,33 @@
+/*
+ *  The new Apple ][4 80-column text mode
+ *
+ *  Residing in main RAM
+ *  $2000-$2780, overlapping HIRES page 1, just as LORES page 1 overlaps 40-column TEXT page 1
+ *  Analogous 8-row interlaced addressing as 40-column TEXT
+ *
+ *  00: $2000-$204f
+ *  01: $2100-$214f
+ *  02: $2200-$224f
+ *  03: $2300-$234f
+ *  04: $2400-$244f
+ *  05: $2500-$254f
+ *  06: $2600-$264f
+ *  07: $2700-$274f
+ *  08: $2050-$209f
+ *  09: $2150-$219f
+ *  10: $2250-$229f
+ *  11: $2350-$239f
+ *  12: $2450-$249f
+ *  13: $2550-$259f
+ *  14: $2650-$269f
+ *  15: $2750-$279f
+ *  16: $20a0-$20ef
+ *  17: $21a0-$21ef
+ *  18: $22a0-$22ef
+ *  19: $23a0-$23ef
+ *  20: $24a0-$24ef
+ *  21: $25a0-$25ef
+ *  22: $26a0-$26ef
+ *  23: $27a0-$27ef
+ *
+ */

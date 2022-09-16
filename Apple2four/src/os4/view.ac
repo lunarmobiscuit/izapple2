@@ -53,7 +53,7 @@ sub View_TXT(FILENAME %%5, SIZE %%5.3) {
 			}
 			IF (>= 32) {				; Only visible characters
 				ldy @TXTPOS
-				cpy #40					; The next pos is off the screen, so newline
+				cpy @TXTWIDTH			; The next pos is off the screen, so newline
 				IF (>=) {
 					lda #PAGINATE_LINES_PER_PAGE
 					sta %%7
@@ -107,6 +107,17 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 	var R_IDX 		= %R4.t				; index into the read buffer
 	var ACTUAL 		= %R7.t				; actual bytes read per Disk4Read
 	var B			= %R10				; loop index across the bytes
+	var NB			= %R11				; number of bytes to display
+
+	lda @DISPMODE
+	and #DISP_80COL
+	IF (!=) {							; 80-column TEXT can show 16 values per line
+		lda #16
+	}
+	ELSE {								; 40-column TEXT can only fit 8 values per line
+		lda #8
+	}
+	sta @NB
 
 	jsr ResetPaginate
 	LOOP {
@@ -129,7 +140,8 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 			lda #'-'H
 			jsr PrintChar
 
-			FOR @B = 0 to 7 {
+			stz @B							; FOR @B = 0 to @NB-1
+			LOOP {
 				ldx.w #@DISK4_RAM			; Load from $C800,Y
 				clc
 				lda.w @R_IDX
@@ -138,8 +150,16 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 				lda.a24 XY
 				jsr PrintHexByte
 				jsr PrintSpace
+
+				inc @B
+				lda @B
+				cmp @NB
+				if (==) {
+					BREAK
+				}
 			}
-			FOR @B = 0 to 7 {
+			stz @B							; FOR @B = 0 to @NB-1
+			LOOP {
 				ldx.w #@DISK4_RAM			; Load from $C800,Y
 				clc
 				lda.w @R_IDX
@@ -156,6 +176,13 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 					}
 				}
 				jsr PrintChar
+
+				inc @B
+				lda @B
+				cmp @NB
+				if (==) {
+					BREAK
+				}
 			}
 
 			lda #PAGINATE_LINES_PER_PAGE
@@ -167,7 +194,7 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 
 			clc
 			lda.t @R_IDX
-			adc.t #8
+			adc.t @NB
 			sta.t @R_IDX
 			cmp.t @ACTUAL
 			IF (>=) {
@@ -207,11 +234,11 @@ sub View_LORES(FILENAME %%5, SIZE %%5.3) {
  *  'view' a HIRES file
  */
 sub View_HIRES(FILENAME %%5, SIZE %%5.3) {
-	lda.t #$2000					; address $2000 is HIRES page 1
+	lda.t #$4000					; address $4000 is HIRES page 2
 	sta.t %%0.7
 	jsr Load_File
 
-	lda #DISP_HIRES_1
+	lda #DISP_HIRES_2
 	jsr SetScreenMode
 
 	RETURN
