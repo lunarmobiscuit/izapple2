@@ -35,3 +35,10 @@ Apple2four/root/TEST.abc
 Apple2four/root/b.bin
 Apple2four/root/AZ09.bin
 Apple2four/src/run/BIN-EDIT.lst
+frontend/gr_convert/out.png
+frontend/gr_convert/out/color/Atkinson.png
+frontend/gr_convert/queen.png
+frontend/gr_convert/out/treshold.png
+frontend/gr_convert/queen_dithered.png
+frontend/gr_convert/steves.png
+frontend/gr_convert/steves_dithered.png
