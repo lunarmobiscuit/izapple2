@@ -120,6 +120,11 @@ func (ts *TestScenario) GetII4TextMemory(secondPage bool) []uint8 {
 	return ts.TextPages[optionsToIndex(secondPage, false)]
 }
 
+// GetII4TextMemory returns a slice to the video memory pages
+func (ts *TestScenario) GetII4VideoMemory() []uint8 {
+	return ts.TextPages[optionsToIndex(false, false)]
+}
+
 // GetCharacterPixel returns the pixel as output by the character generator
 func (ts *TestScenario) GetCharacterPixel(char uint8, rowInChar int, colInChar int, isAltText bool, isFlashedFrame bool) bool {
 	// We don't have a character generator. We will return a square or blank for spaces

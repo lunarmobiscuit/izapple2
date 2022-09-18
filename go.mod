@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	fyne.io/fyne/v2 v2.1.4
+	github.com/esimov/dithergo v0.0.0-20210215145655-7f9ddf55e848
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20220320163800-277f93cfa958
 	github.com/lunarmobiscuit/iz6502 v1.2.1
 	github.com/pkg/profile v1.6.0

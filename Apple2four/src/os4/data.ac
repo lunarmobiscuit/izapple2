@@ -32,6 +32,7 @@ data ROMVectors @$FF0005 u24 {
 	ClearScreen
 	ClearLores
 	ClearHires
+	ClearGraphics
 	CompareText
 	CompareStartOfText
 	CopyString
@@ -178,6 +179,7 @@ data CMD_Beep string { "beep" }
 data CMD_Catalog string { "catalog" }
 data CMD_Clear string { "clear" }
 data CMD_Edit string { "edit" }
+data CMD_Graphics string { "graphics" }
 data CMD_Hires string { "hires" }
 data CMD_Load string { "load" }
 data CMD_Lores string { "lores" }
@@ -197,6 +199,7 @@ data CommandList u24 {
 	CMD_Beep, PlayBeep
 	CMD_Clear, DoClear
 	CMD_Edit, DoEdit
+	CMD_Graphics, DoGraphics
 	CMD_Hires, DoHires
 	CMD_Load, DoLoad
 	CMD_Lores, DoLores

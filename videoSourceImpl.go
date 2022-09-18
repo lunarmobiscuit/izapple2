@@ -27,6 +27,7 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 	isDoubleResMode := !a.isApple24 && !isTextMode && is80Columns && !a.io.isSoftSwitchActive(ioFlagAnnunciator3)
 	isSuperHighResMode := a.io.isSoftSwitchActive(ioDataNewVideo)
 	isVidex := a.softVideoSwitch.isActive()
+	isII4GRMode := a.io.isSoftSwitchActive(ioFlag80Col) && !a.io.isSoftSwitchActive(ioFlagText)
 
 	isRGBCard := a.io.isSoftSwitchActive(ioFlagRGBCardActive)
 	rgbFlag1 := a.io.isSoftSwitchActive(ioFlag1RGBCard)
@@ -59,6 +60,8 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 			mode = screen.VideoText40
 		}
 		isMixMode = false
+	} else if isII4GRMode {
+		mode = screen.VideoII4GR
 	} else if isHiResMode {
 		if !isDoubleResMode {
 			mode = screen.VideoHGR
@@ -117,10 +120,16 @@ func (a *Apple2) GetVideoMemory(secondPage bool, ext bool) []uint8 {
 	return mem.subRange(addressStart, addressStart+hiResPageSize)
 }
 
-// GetII4VideoMemory returns a slice to the II4 video memory
+// GetII4TextMemory returns a slice to the II4 text memory
 func (a *Apple2) GetII4TextMemory(secondPage bool) []uint8 {
 	mem := a.mmu.getVideoRAM(false)
 	return mem.subRange(0x2000, 0x2000+2048)
+}
+
+// GetII4VideoMemory returns a slice to the II4 video memory
+func (a *Apple2) GetII4VideoMemory() []uint8 {
+	mem := a.mmu.getVideoRAM(false)
+	return mem.subRange(0x4000, 0x4000+screen.SizeOfII4GR())
 }
 
 // GetSuperVideoMemory returns a slice to the SHR video memory

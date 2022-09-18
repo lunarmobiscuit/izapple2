@@ -94,6 +94,9 @@ func snapshotByMode(vs VideoSource, videoMode uint16, screenMode int) *image.RGB
 	case VideoText80II4:
 		snap = snapshotText80II4(vs, isSecondPage, isAltText, lightColor)
 		applyNTSCFilter = false
+	case VideoII4GR:
+		snap = snapshotII4GR(vs, lightColor)
+		applyNTSCFilter = false
 	}
 
 	if applyNTSCFilter {

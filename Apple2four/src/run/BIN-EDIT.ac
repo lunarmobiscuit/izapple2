@@ -82,7 +82,7 @@ sub BINedit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 		IF == {
 			lda #'B'H					; Draw the 'B:' prompt
 			jsr (os4_PrintChar)
-			lda #':'H
+			lda @PMPTCHR
 			jsr (os4_PrintChar)
 			jsr (os4_PrintCursor)		; Draw the cursor
 		}
@@ -386,7 +386,7 @@ sub processKeyWhileEditing() {
 	RETURN
 }
 sub startEditing() {
-	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
+	var ROWPTR = %R180.w			; Pointer to the row of characters on TEXT 2
 
 	ldx @TXTROW
 	jsr (os4_ClearRow)
@@ -420,7 +420,7 @@ sub startEditing() {
 	RETURN
 }
 sub cancelEditing() {
-	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
+	var ROWPTR = %R180.w			; Pointer to the row of characters on TEXT 2
 
 	ldx @TXTROW
 	jsr (os4_ClearRow)
@@ -582,8 +582,8 @@ sub restoreScreenBase() {
  *  Draw and undraw the cursor
  */
 sub drawCursor() {
-	var ROWPTR = %R251.w			; Pointer to the row of characters on TEXT 2
-	var CURXPOS = %R250
+	var ROWPTR = %R180.w			; Pointer to the row of characters on TEXT 2
+	var CURXPOS = %R179
 
 	ldx @CURSORY					; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
 	xsl
@@ -606,8 +606,8 @@ sub drawCursor() {
 	RETURN
 }
 sub hideCursor() {
-	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
-	var CURXPOS = %R250
+	var ROWPTR = %R180.w		; Pointer to the row of characters on TEXT 2
+	var CURXPOS = %R179
 
 	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
 	xsl
@@ -635,8 +635,8 @@ sub hideCursor() {
  *  Draw and undraw the cursor in edit mode
  */
 sub showEditCursor() {
-	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
-	var CURXPOS = %R250
+	var ROWPTR = %R180.w		; Pointer to the row of characters on TEXT 2
+	var CURXPOS = %R179
 
 	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
 	xsl
@@ -665,8 +665,8 @@ sub showEditCursor() {
 	RETURN
 }
 sub hideEditCursor() {
-	var ROWPTR = %R251.w		; Pointer to the row of characters on TEXT 2
-	var CURXPOS = %R250
+	var ROWPTR = %R180.w		; Pointer to the row of characters on TEXT 2
+	var CURXPOS = %R179
 
 	ldx @CURSORY				; X = CURSORY * 2 (as the table of row pointers is 2 bytes per entry)
 	xsl
@@ -1265,7 +1265,7 @@ sub updateViewableRows() {
  *  Fill TEXT page 2 with spaces from row 0 to row 23
  */
 sub clearText2Screen(FIRST_ROW X) {
-	var ROWPTR = %R251.w
+	var ROWPTR = %R180.w
 
 	ldx #0
 	DO {

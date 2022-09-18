@@ -40,6 +40,8 @@ global TXTPOS 		= @$ff01	// The current position (column) in the text screen
 global TXTPGROWS 	= @$ff02	// The number of rows output to the screen (used for pagination)
 global DISPMODE 	= @$ff03	// The current display mode (see DISP_xxxx constants)
 global PREVDISP 	= @$ff04	// The previous display mode (see DISP_xxxx constants)
+global CURCHR       = @$ff05    // The character to draw for the cursor
+global PMPTCHR      = @$ff06    // The character to draw for the prompt
 
 const _64K          = $010000
 global RAMTOP       = @$ff10.t  // The highest RAM memory address
@@ -68,5 +70,9 @@ const DISP_LORES_1	= $20		// PAGE 1 | LORES
 const DISP_LORES_2	= $A0		// PAGE 2 | LORES 
 const DISP_HIRES_1	= $10		// PAGE 1 | HIRES 
 const DISP_HIRES_2	= $90		// PAGE 2 | HIRES 
+
+const LORES_START   = $800
+const HIRES_START   = $2000
+const II4GR_START   = $4000
 
 const PAGINATE_LINES_PER_PAGE = 22

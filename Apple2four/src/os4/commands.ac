@@ -347,6 +347,11 @@ sub DoClear(NPRM %%0) {
 		jsr ClearHires
 		RETURN
 	}
+	cmp #DISP_II4
+	IF (==) {
+		jsr ClearGraphics
+		RETURN
+	}
 	RETURN
 }
 
@@ -456,6 +461,10 @@ sub DoView(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	cmp.t #$dfc9c8						; "_IH" = "HI_" = HIRES image
 	IF (==) {
 		jmp View_HIRES
+	}
+	cmp.t #$dfd2c7						; "_RG" = "GR_" = II4 GRAPHICS image
+	IF (==) {
+		jmp View_GR
 	}
 
 	lda.t #$34534f						; "4SO"
@@ -1025,12 +1034,22 @@ sub DoLores(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 
 
 /*
+ *  'graphics' - Switch to the new 640x384 graphics screen
+ */
+sub DoGraphics(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
+	lda #DISP_II4
+	jsr SetScreenMode
+	RETURN
+}
+
+
+/*
  *  'hires' - Switch to the HIRES screen (screen 1 or screen 2)
  */
 sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 	lda @NPRM
 	IF (< 1) {
-		lda #DISP_HIRES_2
+		lda #DISP_HIRES_1
 		jsr SetScreenMode
 		RETURN
 	}
@@ -1056,6 +1075,26 @@ sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 			jsr SetScreenMode
 			RETURN
 		}
+	}
+	cmp #'6'
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'4'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			cmp #'0'
+			IF (==) {
+				ldy #3
+				lda.a24 XY
+				IF (==) {
+					lda #DISP_II4
+					jsr SetScreenMode
+				}
+			}
+		}
+		RETURN
 	}
 
 	lda.t #InvalidValue

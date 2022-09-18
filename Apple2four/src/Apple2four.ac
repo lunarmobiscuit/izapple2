@@ -8,7 +8,7 @@
 
 #include "os4/globals.ac"
 
-const N_COMMANDS	= 17		// The number of commands in CommandList
+const N_COMMANDS	= 18		// The number of commands in CommandList
 
 
 /*
@@ -56,7 +56,14 @@ sub Reset() @$FF0200 {
 	ldx #0
 	jsr ClearScreen				; Clear TEXT page 1
 	jsr ClearLoRes				; Clear LORES page 2
-	jsr ClearHiRes				; Clear HIRES page 2
+	jsr ClearGraphics			; Clear GRAPHICS (which overlaps with HIRES page 2)
+
+	lda #'_'					; Initialize the cursor
+	ora #$40
+	sta @CURCHR
+
+	lda #':'H					; Initialize the prompt
+	sta @PMPTCHR
 
 	lda.t #_64K					; Reset the memory heap to start at $10000 (64K)
 	sta.t @HEAPSTART
@@ -78,7 +85,7 @@ sub CommandLoop() {
 		jsr SetScreenBase				; Set the @TXTPTR based on @TXTROW
 		lda @TXTPOS
 		IF == {
-			lda #':'H					; Draw the prompt
+			lda @PMPTCHR				; Draw the prompt
 			jsr PrintChar
 			jsr PrintCursor				; Draw the cursor
 		}

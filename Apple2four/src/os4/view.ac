@@ -219,7 +219,7 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
  *  'view' a LORES file
  */
 sub View_LORES(FILENAME %%5, SIZE %%5.3) {
-	lda.t #$800							; address $800 is LORES page 2
+	lda.t #LORES_START					; address $800 is LORES page 2
 	sta.t %%0.7
 	jsr Load_File
 
@@ -234,11 +234,25 @@ sub View_LORES(FILENAME %%5, SIZE %%5.3) {
  *  'view' a HIRES file
  */
 sub View_HIRES(FILENAME %%5, SIZE %%5.3) {
-	lda.t #$4000					; address $4000 is HIRES page 2
+	lda.t #HIRES_START					; address $2000 is HIRES page 1
 	sta.t %%0.7
 	jsr Load_File
 
-	lda #DISP_HIRES_2
+	lda #DISP_HIRES_1
+	jsr SetScreenMode
+
+	RETURN
+}
+
+/*
+ *  'view' a II4 GRAPHICS file
+ */
+sub View_GR(FILENAME %%5, SIZE %%5.3) {
+	lda.t #II4GR_START					; address $4000 is GRAPHICS screen
+	sta.t %%0.7
+	jsr Load_File
+
+	lda #DISP_II4
 	jsr SetScreenMode
 
 	RETURN

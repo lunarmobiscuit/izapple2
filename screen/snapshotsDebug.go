@@ -8,12 +8,15 @@ import (
 // SnapshotParts the currently visible screen
 func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
 	snapScreen := snapshotByMode(vs, VideoText40, screenMode)
-	snapPage1 := snapshotByMode(vs, VideoGR|VideoSecondPage, screenMode)
-	snapPage2 := snapshotByMode(vs, VideoHGR|VideoSecondPage, screenMode)
-	var snapAux *image.RGBA
-	snapAux = snapshotByMode(vs, VideoText40|VideoSecondPage, screenMode)
+	snapPage2 := snapshotByMode(vs, VideoText40|VideoSecondPage, screenMode)
+	snapPage3 := snapshotByMode(vs, VideoText80II4, screenMode)
+	snapPage4 := snapshotByMode(vs, VideoII4GR, screenMode)
+	snapPage5 := snapshotByMode(vs, VideoGR|VideoSecondPage, screenMode)
+	snapPage6 := snapshotByMode(vs, VideoHGR, screenMode)
+	return mixSixSnapshots([]*image.RGBA{snapScreen, snapPage2, snapPage3, snapPage4, snapPage5, snapPage6})
 
 	/*
+	var snapAux *image.RGBA
 	videoMode := vs.GetCurrentVideoMode()
 	isSecondPage := (videoMode & VideoSecondPage) != 0
 	videoBase := videoMode & VideoBaseMask
@@ -37,9 +40,10 @@ func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
 			snapAux = snapshotByMode(vs, VideoText40|modifiers, screenMode)
 		}
 	}
-	*/
 
 	return mixFourSnapshots([]*image.RGBA{snapScreen, snapAux, snapPage1, snapPage2})
+	*/
+
 }
 
 // VideoModeName returns the name of the current video mode
@@ -77,6 +81,8 @@ func VideoModeName(vs VideoSource) string {
 		name = "VIDEX"
 	case VideoText80II4:
 		name = "TEXT80COL(II4)"
+	case VideoII4GR:
+		name = "II4GR"
 	default:
 		name = "Unknown video mode"
 	}
@@ -119,6 +125,32 @@ func mixFourSnapshots(snaps []*image.RGBA) *image.RGBA {
 			out.Set(x+width, y, snaps[1].At(x, y))
 			out.Set(x, y+height, snaps[2].At(x, y))
 			out.Set(x+width, y+height, snaps[3].At(x, y))
+		}
+	}
+
+	return out
+}
+
+func mixSixSnapshots(snaps []*image.RGBA) *image.RGBA {
+	width := snaps[0].Rect.Dx()
+	height := snaps[0].Rect.Dy()
+	size := image.Rect(0, 0, width*3, height*2)
+	out := image.NewRGBA(size)
+
+	for i := 1; i < 4; i++ {
+		if snaps[i].Bounds().Dx() < width {
+			snaps[i] = doubleWidthFilter(snaps[i])
+		}
+	}
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			out.Set(x, y, snaps[0].At(x, y))
+			out.Set(x+width, y, snaps[1].At(x, y))
+			out.Set(x+width*2, y, snaps[2].At(x, y))
+			out.Set(x, y+height, snaps[3].At(x, y))
+			out.Set(x+width, y+height, snaps[4].At(x, y))
+			out.Set(x+width*2, y+height, snaps[5].At(x, y))
 		}
 	}
 

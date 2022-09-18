@@ -1,72 +1,53 @@
 /*
- *  LO_EDIT - Editor for LORES graphics files
+ *  GR_EDIT - Editor for 640x386 graphics files
  *
- *  aCCemble -l run/LO_-EDIT.lst -o ../root/OS4/LO_-EDIT.run run/LO_-EDIT.ac
+ *  aCCemble -l run/GR_-EDIT.lst -o ../root/OS4/GR_-EDIT.run run/GR_-EDIT.ac
  *
  */
 
 #include "os4/globals.ac"
 #include "os4/os4.ac"
 
-const N_COMMANDS	= 11		// The number of commands in CommandList
+const N_COMMANDS	= 10		// The number of commands in CommandList
 
-global LORES2BASE	= @$800
-const LORESSIZE		= 1024
+const GRBASE		= II4GR_START
+const GRSIZE		= 30720
 
 global INPBUFFER 	= @$100		// $100-$14F holds the line of text being typed
 global INPBUFFER2 	= @$150		// $150-$1BF holds the previous line of text typed
 global INPBUFFER3 	= @$1A0		// $1A0-$1EF holds the previous previous line of text typed
 
-global COLOR		= %R128
-global CURSORX		= %R129
-global CURSORY		= %R130
-global HIDECUR		= %R131
-global CURSAVE		= %R132
-global PENDOWN		= %R133
-
-const CLR_BLACK		= $0
-const CLR_RED		= $1
-const CLR_PURPLE	= $2
-const CLR_MAGENTA	= $3
-const CLR_DKGREEN	= $4
-const CLR_GREY		= $5
-const CLR_BLUE		= $6
-const CLR_VIOLET	= $7
-const CLR_VDKGREEN	= $8
-const CLR_ORANGE	= $9
-const CLR_GREY2		= $A
-const CLR_PINK		= $B
-const CLR_GREEN		= $C
-const CLR_LTGREEN	= $D
-const CLR_AQUA		= $E
-const CLR_WHITE		= $F
+global CURSORX		= %R129.w
+global CURSORY		= %R131.w
+global HIDECUR		= %R133
+global PENDOWN		= %R134
+global CURSAVE		= %R135.t	// Actually, save six bytes for an 8x6 cursor
 
 /*
- *  Edit a LORES image
+ *  Edit a 64x0386 GRAPHICS image
  */
-sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
-	lda #DISP_LORES_2
+sub GR_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
+	lda #DISP_II4
 	jsr (os4_SetScreenMode)
-	jsr (os4_ClearLores)
+	jsr (os4_ClearGraphics)
 	lda #2
 	sta @TXTROW
 	stz @TXTPOS
 	ldx #0
 	jsr (os4_ClearScreen)
 
-	lda #CLR_RED
-	sta @COLOR
-	stz @CURSORX
-	stz @CURSORY
+	stz.w @CURSORX
+	stz.w @CURSORY
 	stz @HIDECUR
-	stz @CURSAVE
+	stz.t @CURSAVE
 	stz @PENDOWN
+	stz.t @CURSAVE+3
 
 	FOR X = 0 TO 39 {
 		lda Header,x
 		beq +BREAK
 		ora #$80
-		sta $406,x
+		sta $40e,x
 	}
 
 	lda @NPRM
@@ -82,9 +63,9 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 		jsr (os4_SetScreenBase)			; Set the @TXTPTR based on @TXTROW
 		lda @TXTPOS
 		IF == {
-			lda #'L'H					; Draw the 'lo:' prompt
+			lda #'G'H					; Draw the 'GR:' prompt
 			jsr (os4_PrintChar)
-			lda #'O'H
+			lda #'R'H
 			jsr (os4_PrintChar)
 			lda @PMPTCHR
 			jsr (os4_PrintChar)
@@ -97,6 +78,12 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			}
 		}
 		lda KBD 						; get the key code from the keyboard and ack the read
+jsr debugValueA
+lda @CURSORX
+jsr debugValueC
+lda @CURSORY
+jsr debugValueB
+lda KBD
 		bit KBDSTRB
 		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
 			jsr (os4_ClearCursor)
@@ -141,9 +128,9 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 		}
 		IF == $9B {						; 27 = ESC ($80 | $1B in high ASCII)
 			lda @DISPMODE
-			and #DISP_LORES
+			and #DISP_II4
 			IF (==) {
-				lda #DISP_LORES_2		; Toggle to LORES 2
+				lda #DISP_II4			; Toggle to II4 GRAPHICS
 			}
 			ELSE {
 				lda #DISP_TEXT_1		; Toggle to TEXT page 1
@@ -157,11 +144,11 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			IF (!=) {
 				jsr drawPixel
 			}
-			lda @CURSORX
-			cmp #0
+			lda.w @CURSORX
+			cmp.w #0
 			IF (>) {
-				dec
-				sta @CURSORX
+				dec.w
+				sta.w @CURSORX
 			}
 			jsr saveBehindCursor
 			jsr drawCursor
@@ -173,11 +160,52 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			IF (!=) {
 				jsr drawPixel
 			}
-			lda @CURSORX
-			cmp #39
+			lda.w @CURSORX
+			cmp.w #639
 			IF (<) {
-				inc
-				sta @CURSORX
+				inc.w
+				sta.w @CURSORX
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $DB {						; [ = Left Bracket ($80 | $5B in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda.w @CURSORX
+			cmp.w #8
+			IF (>) {
+				sec
+				sbc.w #8
+				sta.w @CURSORX
+			}
+			ELSE {
+				stz.w @CURSORX			
+			}
+			jsr saveBehindCursor
+			jsr drawCursor
+			CONTINUE
+		}
+		IF == $DD {						; ] = Right Bracket ($80 | $5D in high ASCII)
+			jsr restoreBehindCursor
+			lda @PENDOWN
+			IF (!=) {
+				jsr drawPixel
+			}
+			lda.w @CURSORX
+			cmp.w #639
+			IF (<) {
+				clc
+				adc.w #8
+				sta.w @CURSORX
+			}
+			ELSE {
+				lda.w #639
+				sta.w @CURSORX			
 			}
 			jsr saveBehindCursor
 			jsr drawCursor
@@ -189,11 +217,11 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			IF (!=) {
 				jsr drawPixel
 			}
-			lda @CURSORY
-			cmp #0
+			lda.w @CURSORY
+			cmp.w #0
 			IF (>) {
-				dec
-				sta @CURSORY
+				dec.w
+				sta.w @CURSORY
 			}
 			jsr saveBehindCursor
 			jsr drawCursor
@@ -205,11 +233,11 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 			IF (!=) {
 				jsr drawPixel
 			}
-			lda @CURSORY
-			cmp #47
+			lda.w @CURSORY
+			cmp.w #383
 			IF (<) {
-				inc
-				sta @CURSORY
+				inc.w
+				sta.w @CURSORY
 			}
 			jsr saveBehindCursor
 			jsr drawCursor
@@ -255,17 +283,56 @@ sub LO_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 
 
 /*
+ *  Compute the address of the graphic memory at 0,CURSORY
+ */
+sub setRowPtr(ROW A.w) {
+	var ROWPTR = %R180.w				; ROWPTR = II4GR_START
+										;            + ((CURSORY/8)-1 * 640) [80 bytes * 8 rows]
+										;            + GraphicsOffsets/(CURSORY%8)*2
+
+
+	pha.w								; Y = CURSORY/8 (one byte, as 384/8 = 48)
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
+	pla.w								; X = (CURSORY%8) (one byte)
+	and #$07
+	tax
+	xsl									; X *= 2, as the offsets table is two bytes per entry
+
+	lda.w #II4GR_START					; $2000 +
+  add_loop:
+	cpy #0
+	bne +add_8_rows
+	clc
+	adc.w GraphicsOffsets,X				; + offset for the remaining < 8 rows
+	sta.w @ROWPTR
+	rts.a24
+  add_8_rows:
+  	clc
+	adc.w #640							; + 640 bytes (80 bytes per row * 8 rows)
+	dey
+	bra -add_loop
+}
+
+
+/*
  *  Save and restore the value behind the cursor
  */
 sub saveBehindCursor() {
-	var ROWPTR = %R180.w		; Save the value hiding behind the cursor
+	var ROWPTR = %R180.w		; The address of the current graphics row
+	
+	lda.w @CURSORY				; Set ROWPTR to the address of row CURSORY
+	jsr setRowPtr
 
-	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
-	and #$FE
-	tax
-	lda.w LoresScreenBase,X
-	ldy @CURSORX
-	sta.w @ROWPTR
+	lda.w @CURSORX				; The pixel of CURSORX is in byte CURSORX/8
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
 	lda (@ROWPTR),y
 	sta @CURSAVE
 
@@ -273,13 +340,16 @@ sub saveBehindCursor() {
 }
 sub restoreBehindCursor() {
 	var ROWPTR = %R180.w		; Pointer to the row of pixels on LORES 2
+	
+	lda.w @CURSORY
+	jsr setRowPtr
 
-	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
-	and #$FE
-	tax
-	lda.w LoresScreenBase,X
-	ldy @CURSORX
-	sta.w @ROWPTR
+	lda.w @CURSORX				; The pixel of CURSORX is in byte CURSORX/8
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
 	lda @CURSAVE
 	sta (@ROWPTR),y
 
@@ -289,24 +359,30 @@ sub drawCursor() {
 	var ROWPTR = %R180.w		; Pointer to the row of pixels on LORES 2
 	var CURPXL = %R179
 
-	lda @CURSORY				; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
-	and #$01
-	IF (==) {
-		lda #$0F
-	}
-	ELSE {
-		lda #$F0
-	}
-	sta @CURPXL
-
-	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
-	and #$FE
+	lda.w @CURSORX				; The one pixel is b00000001 << CURSORX%8
+	and #$7
 	tax
-	lda.w LoresScreenBase,X
-	ldy @CURSORX
-	sta.w @ROWPTR
+	lda #$01
+  loop_x:
+  	cpx #0
+  	beq +loop_end
+  	asl
+  	dex
+  	bra -loop_x
+  loop_end:
+	sta @CURPXL
+	
+	lda.w @CURSORY
+	jsr setRowPtr
+
+	lda.w @CURSORX				; The pixel of CURSORX is in byte CURSORX/8
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
 	lda (@ROWPTR),y
-	ora @CURPXL
+	eor @CURPXL
 	sta (@ROWPTR),y
 
 	RETURN
@@ -316,31 +392,31 @@ sub drawPixel() {
 	var CURMSK = %R179
 	var CURPXL = %R178
 
-	lda @CURSORY				; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
-	and #$01
-	IF (==) {
-		lda #$F0
-		sta @CURMSK
-		lda @COLOR
-		sta @CURPXL
-	}
-	ELSE {
-		lda #$0F
-		sta @CURMSK
-		lda @COLOR
-		asl
-		asl
-		asl
-		asl
-		sta @CURPXL
-	}
-
-	lda @CURSORY				; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
-	and #$FE
+	lda.w @CURSORX				; The one pixel is b00000001 >> CURSORX%8
+	and #$7
 	tax
-	lda.w LoresScreenBase,X
-	ldy @CURSORX
-	sta.w @ROWPTR
+	lda #$01
+  loop_x:
+  	cpx #0
+  	beq +loop_end
+  	asl
+  	dex
+  	bra -loop_x
+  loop_end:
+	sta @CURPXL
+
+	eor #$ff					; CURMSK = ~CURPXL
+	sta @CURMSK
+	
+	lda.w @CURSORY
+	jsr setRowPtr
+
+	lda.w @CURSORX				; The pixel of CURSORX is in byte CURSORX/8
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
 	lda (@ROWPTR),y
 	and @CURMSK
 	ora @CURPXL
@@ -384,14 +460,6 @@ sub DoHelp() {
 	jsr (os4_PaginateLine)
 
 	lda.t #HelpShowCursorStr
-	sta.t %%7
-	jsr (os4_PrintString)
-	lda #PAGINATE_LINES_PER_PAGE
-	sta %%7
-	jsr (os4_PaginateLine)
-	jsr (os4_PaginateLine)
-
-	lda.t #HelpSetColorStr
 	sta.t %%7
 	jsr (os4_PrintString)
 	lda #PAGINATE_LINES_PER_PAGE
@@ -455,51 +523,56 @@ sub DoHelp() {
 }
 
 /*
- *  Set the color for drawing
- */
-sub DoColor(NPRM %%0, CMD %%0.1, SETCOLOR %%0.4) {
-	lda @NPRM						; no color specified
-	if (< 1) {
-		lda.t #MissingColorErr
-		sta.t %%7
-		jsr (os4_PrintError)
-		RETURN
-	}
-
-	lda.t @SETCOLOR					; parse the color
-	sta.t %%7
-	jsr (os4_ParseNumber)
-	and #$F
-	sta @COLOR
-
-	RETURN 0
-}
-
-/*
  *  Clear the screen
  */
 sub DoClear() {
-	jsr (os4_ClearLores)
+	jsr (os4_ClearGraphics)
 	RETURN 0
 }
 
 /*
- *  Fill the screen with one color
+ *  Fill the screen with white
  */
-sub DoFill(NPRM %%0, CMD %%0.1, FILLCOLOR %%0.4) {
-	lda @NPRM						; no color specified
+sub DoFill(NPRM %%0, CMD %%0.1, NROWS %%0.4) {
+	var ROWPTR = %R180.w
+	var I = %R178.w
+
+	lda @NPRM
 	if (< 1) {
-		lda.t #MissingValueErr
+		lda.t #MissingRowsErr
 		sta.t %%7
 		jsr (os4_PrintError)
 		RETURN
 	}
-	ELSE {
-		lda.t @FILLCOLOR			; parse the color
-		sta.t %%7
-		jsr (os4_ParseNumber)
+	lda.t @NROWS					; parse the starting positon
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	cmp #384
+	IF (>) {
+		lda #384
 	}
-	jsr FillScreen
+	sta.w @NROWS
+
+	jsr restoreBehindCursor
+
+	stz.w @I
+	LOOP {
+		lda.w @I
+		cmp.w @NROWS
+		IF (==) {
+			BREAK
+		}
+		jsr setRowPtr				; set based on @I
+
+		lda #$ff					; fill the whole row with pixels
+		FOR Y = 0 TO 79 {
+			sta (@ROWPTR),y
+		}
+
+		inc.w @I
+	}
+
+	jsr saveBehindCursor
 
 	RETURN 0
 }
@@ -529,46 +602,27 @@ sub DoHLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	lda.t @STARTPOS					; parse the starting positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #39
+	cmp #639
 	IF (>) {
-		lda #39
+		lda #639
 	}
 	sta @STARTPOS
 
 	lda.t @ENDPOS					; parse the ending positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #39
+	cmp #639
 	IF (>) {
-		lda #39
+		lda #639
 	}
 	sta @ENDPOS
 
-	lda @CURSORY					; CURPXL is $0F or $F0 depending on if CURSORY is odd or even
-	and #$01
-	IF (==) {
-		lda #$F0
-		sta @CURMSK
-		lda @COLOR
-		sta @CURPXL
-	}
-	ELSE {
-		lda #$0F
-		sta @CURMSK
-		lda @COLOR
-		asl
-		asl
-		asl
-		asl
-		sta @CURPXL
-	}
+	lda.w @CURSORY					; CURPXL has one bit set, CURSORY%8 @@@ TBD
+	lda #$FF
+	sta @CURMSK
+	sta @CURPXL
 
-	jsr restoreBehindCursor
-	lda @CURSORY					; X = Y * 2 (but in LORES, row = Y/2 so we're just need to round down)
-	and #$FE
-	tax
-	lda.w LoresScreenBase,X
-	sta.w @ROWPTR
+	jsr restoreBehindCursor			; and note ROWPTR gets set too
 
 	ldy @STARTPOS
 	LOOP {
@@ -595,7 +649,7 @@ sub DoVLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	var ROWPTR = %R180.w
 	var CURMSK = %R179
 	var CURPXL = %R178
-	var I = %R177
+	var I = %R248.w
 
 	lda @NPRM
 	if (< 1) {
@@ -614,59 +668,48 @@ sub DoVLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	lda.t @STARTPOS					; parse the starting positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #47
+	cmp #383
 	IF (>) {
-		lda #47
+		lda #383
 	}
-	sta @STARTPOS
+	sta.w @STARTPOS
 
 	lda.t @ENDPOS					; parse the ending positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #47
+	cmp #383
 	IF (>) {
-		lda #47
+		lda #383
 	}
-	sta @ENDPOS
+	sta.w @ENDPOS
 
 	jsr restoreBehindCursor
-	lda @STARTPOS
-	sta @I
-	ldy @CURSORX
-	LOOP {
-		lda @I							; CURPXL is $0F or $F0 depending on if @I is odd or even
-		and #$01
-		IF (==) {
-			lda #$F0
-			sta @CURMSK
-			lda @COLOR
-			sta @CURPXL
-		}
-		ELSE {
-			lda #$0F
-			sta @CURMSK
-			lda @COLOR
-			asl
-			asl
-			asl
-			asl
-			sta @CURPXL
-		}
 
-		lda @I							; draw in row @I
-		and #$FE						; lookup should be Y*2 but LOWRES is already Y*2, so floor(Y)
-		tax
-		lda.w LoresScreenBase,x
-		sta.w @ROWPTR
+	lda.w @CURSORX				; The pixel of CURSORX is in byte CURSORX/8
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
+	lda.w @STARTPOS
+	sta.w @I
+	LOOP {
+		lda @I						; CURPXL has one bit set, CURSORY%8 @@@ TBD
+		lda #$FF
+		sta @CURMSK
+		sta @CURPXL
+
+		lda.w @I					; Set the row pointer based on @I instead of @CURSORY
+		jsr setRowPtr
 
 		lda (@ROWPTR),y
 		and @CURMSK
 		ora @CURPXL
 		sta (@ROWPTR),y
 
-		inc @I
-		ldx @I
-		cpx @ENDPOS
+		inc.w @I
+		ldx.w @I
+		cpx.w @ENDPOS
 		if (>) {
 			BREAK
 		}
@@ -730,9 +773,9 @@ sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 			ldx.w #@DISK4_RAM			; Load from $C800,Y
 			ldy.w @C_IDX
 			lda.a24 XY
-			inc.t @C_IDX
+			inc.w @C_IDX
 
-			ldx.t #@LORES2BASE			; Store in @LORES2BASE,Y (LORES page 2)
+			ldx.w #GRBASE				; Store in GRBASE,Y (II4 graphics screen)
 			ldy.t @R_IDX
 			sta.a24 XY
 			inc.t @R_IDX
@@ -742,7 +785,7 @@ sub DoLoad(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 			IF (==) {
 				BREAK
 			}
-			cpy.w #LORESSIZE			; or Until @C_IDX == 1024 (one LORES screen)
+			cpy.w #GRSIZE				; or Until @C_IDX == GRSIZE (one graphics screen)
 			IF (==) {
 				BREAK
 			}
@@ -788,7 +831,7 @@ sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 	sta.t %%6
 
-	lda.t #LoresFileType
+	lda.t #GraphicsFileType
 	sta.t %%6.3
 
 	var FN = %R160.b
@@ -801,42 +844,42 @@ sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	stx @DISK4_PARAM0
 
 	var REMAINING = %R158.w				; bytes remaining to be written
-	var W_IDX = %R155.t					; index of total bytes read across all loops
-	var C_IDX = %R152.t					; bytes copied to the write buffer
+	var W_IDX = %R156.w					; index of total bytes read across all loops
+	var C_IDX = %R154.w					; bytes copied to the write buffer
 
-	lda.w #LORESSIZE					; the LORES page is 1024 bytes
+	lda.w #GRSIZE						; the graphics page is GRSIZE bytes long
 	sta.w @REMAINING
 
-	stz.t @W_IDX
+	stz.w @W_IDX
 	LOOP {
 		jsr (os4_Disk4C800)				; Enable writing to $C800
-		stz.t @C_IDX
+		stz.w @C_IDX
 		LOOP {
-			ldx.t #@LORES2BASE			; Load from @LORES2BASE,Y
-			ldy.t @W_IDX
+			ldx.w #GRBASE				; Load from @GRBASE,Y
+			ldy.w @W_IDX
 			lda.a24 XY
-			inc.t @W_IDX
+			inc.w @W_IDX
 
 			ldx.w #@DISK4_RAM			; Store in $C800,Y
-			ldy.t @C_IDX
+			ldy.w @C_IDX
 			sta.a24 XY
-			inc.t @C_IDX
+			inc.w @C_IDX
 
-			lda.t @C_IDX				; Until @C_IDX == @ACTUAL
-			cmp.t @REMAINING
+			lda.w @C_IDX				; Until @C_IDX == @ACTUAL
+			cmp.w @REMAINING
 			IF (==) {
 				BREAK
 			}
-			cmp.t #1024					; Or up to 1024 bytes
+			cmp.w #1024					; Or up to 1024 bytes per chunk
 			IF (==) {
 				BREAK
 			}
 		}
-		sta.t @DISK4_PARAM1				; Number of bytes
+		sta.w @DISK4_PARAM1				; Number of bytes
 
-		lda.t @REMAINING				; @REMAINING -= @C_IDX
+		lda.w @REMAINING				; @REMAINING -= @C_IDX
 		sec
-		sbc @C_IDX
+		sbc.w @C_IDX
 		sta.w @REMAINING
 
 		jsr (os4_Disk4Write)
@@ -845,7 +888,7 @@ sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 			BREAK
 		}
 
-		lda.t @REMAINING				; Stop when all the bytes are written
+		lda.w @REMAINING				; Stop when all the bytes are written
 		if (==) {
 			BREAK
 		}
@@ -882,15 +925,15 @@ sub DoX(NPRM %%0, CMD %%0.1, XPOS %%0.4) {
 	lda.t @XPOS						; parse the position
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #39
+	cmp #639
 	IF (>) {
-		lda #39
+		lda #639
 	}
 	sta @XPOS
 
 	jsr restoreBehindCursor
 	lda @XPOS
-	sta @CURSORX
+	sta.w @CURSORX
 	jsr saveBehindCursor
 	jsr drawCursor
 
@@ -908,15 +951,15 @@ sub DoY(NPRM %%0, CMD %%0.1, YPOS %%0.4) {
 	lda.t @YPOS						; parse the position
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #47
+	cmp.w #383
 	IF (>) {
-		lda #47
+		lda.w #383
 	}
-	sta @YPOS
+	sta.w @YPOS
 
 	jsr restoreBehindCursor
-	lda @YPOS
-	sta @CURSORY
+	lda.w @YPOS
+	sta.w @CURSORY
 	jsr saveBehindCursor
 	jsr drawCursor
 
@@ -935,42 +978,6 @@ sub DoQuit() {
 
 
 /*
- *  Fill the LORES screen
- */
-sub FillScreen(BGCOLOR A) {
-	var ROWPTR = %R180.w
-	var FILLCOLOR = %R179
-
-	and #$0F							; FILLCOLOR = BGCOLOR << 4 | BGCOLOR
-	sta @FILLCOLOR
-	asl
-	asl
-	asl
-	asl
-	ora @FILLCOLOR
-	sta @FILLCOLOR
-
-	ldx #0
-	DO {
-		lda.w LoresScreenBase,X			; Pre-calculated row values
-		sta.w @ROWPTR
-
-		lda @FILLCOLOR
-		FOR Y = 0 TO 39 {				; 40 columns
-			sta (@ROWPTR),y
-		}
-		inx
-		inx
-		cpx #48							; 24 rows (x2 bytes pre row pointer)
-	}
-	WHILE (!=)
-
-	jsr saveBehindCursor
-	RETURN
-}
-
-
-/*
  *  Lookup and execute the typed command
  */
 sub CommandLine() {
@@ -985,20 +992,6 @@ sub CommandLine() {
 	lda.t #@INPBUFFER
 	sta.t %%7
 	jsr (os4_ParseInputParams)
-
-	ldx.t %%0.1							; 0, 1, 2, ... 15 sets the color
-	lda.a24 X
-	cmp #'0'
-	if (>=) {
-		cmp #'9'
-		if (<=) {
-			stx.t %%7
-			jsr (os4_ParseNumber)
-			and #$F
-			sta @COLOR
-			RETURN
-		}
-	} 
 
 	lda.t %%0.1							; strA for CompareText
 	sta.t %%7
@@ -1160,7 +1153,7 @@ sub InputBufferToTextScreen() {
 }
 
 /*
- *  Print a hex byte in the top right corner of the screen
+ *  Print a hex byte in the top right corner of the text screen
  */
 sub debugValueA(VALUE A) {
 	pha						; Save A
@@ -1234,7 +1227,7 @@ sub debugValueC(VALUE A) {
 
 /*  The title of the screen */
 data Header string {
-	"LO-Edit ][4 - a LORES editor"
+	"GR-Edit ][4"
 }
 
 /*  Help information */
@@ -1250,9 +1243,6 @@ data HelpHideCursorStr string {
 data HelpShowCursorStr string {
 	" + - SHOW Cursor"
 }
-data HelpSetColorStr string {
-	" 0-15 - Set the color"
-}
 data HelpListStr string {
 	" LO-Edit COMMANDS:"
 }
@@ -1263,8 +1253,8 @@ data StoredStr string {
 	"STORED: "
 }
 
-data LoresFileType string {
-	"LO_"
+data GraphicsFileType string {
+	"GR_"
 }
 
 /*  The command was unknown */
@@ -1276,9 +1266,6 @@ data NoFilenameErrStr string {
 }
 
 /*  Error strings */
-data MissingColorErr string {
-	"** ERROR: Missing COLOR value"
-}
 data MissingValueErr string {
 	"** ERROR: Missing VALUE"
 }
@@ -1288,24 +1275,29 @@ data MissingStartErr string {
 data MissingEndErr string {
 	"** ERROR: Missing END value"
 }
+data MissingRowsErr string {
+	"** ERROR: Missing ROWS value"
+}
 
 
 
 
 /*
- *  The addresses of the 24 LORES rows
+ *  The offsets for the first 48 of 384 rows in the GRAPHICS screen
  */
-data LoresScreenBase word {
-	$0800, $0880, $0900, $0980, $0A00, $0A80, $0B00, $0B80
-	$0828, $08A8, $0928, $09A8, $0A28, $0AA8, $0B28, $0BA8
-	$0850, $08D0, $0950, $09D0, $0A50, $0AD0, $0B50, $0BD0
+data GraphicsOffsets word {
+	$0000, $0050, $00A0, $00F0, $0140, $0190, $01E0, $0230
+	$0280, $02D0, $0320, $0370, $03C0, $0410, $0460, $04B0
+	$0500, $0550, $05A0, $05F0, $0640, $0690, $06E0, $0730
+	$0780, $07D0, $0820, $0870, $08C0, $0910, $0960, $09B0
+	$0A00, $0A50, $0AA0, $0AF0, $0B40, $0B90, $0BE0, $0C30,
+	$0C80, $0CD0, $0D20, $0D70, $0DC0, $0E10, $0E60, $0EB0
 }
 
 /*
  *  The list of commands
  */
 data CMD_Help string { "?" }
-data CMD_Color string { "color" }
 data CMD_Clear string { "clear" }
 data CMD_Fill string { "fill" }
 data CMD_HLine string { "hline" }
@@ -1318,7 +1310,6 @@ data CMD_Quit string { "quit" }
 
 data CommandList u24 {
 	CMD_Help, DoHelp
-	CMD_Color, DoColor
 	CMD_Clear, DoClear
 	CMD_Fill, DoFill
 	CMD_HLine, DoHLine

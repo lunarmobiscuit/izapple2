@@ -21,6 +21,7 @@ const (
 	VideoSHR        uint16 = 0x14
 	VideoVidex     	uint16 = 0x15
 	VideoText80II4  uint16 = 0x16
+	VideoII4GR  	uint16 = 0x17
 )
 
 // Mix text video mdes modifiers
@@ -48,8 +49,10 @@ type VideoSource interface {
 	GetVideoMemory(secondPage bool, ext bool) []uint8
 	// GetCharactePixel returns the pixel as output by the character generator
 	GetCharacterPixel(char uint8, rowInChar int, colInChar int, isAltText bool, isFlashedFrame bool) bool
-	// GetII4VideoMemory returns a slice to the II4 video memory
+	// GetII4TextMemory returns a slice to the II4 text memory
 	GetII4TextMemory(secondPage bool) []uint8
+	// GetII4VideoMemory returns a slice to the II4 video memory
+	GetII4VideoMemory() []uint8
 	// GetSuperVideoMemory returns a slice to the SHR video memory
 	GetSuperVideoMemory() []uint8
 	// GetCardImage returns an image provided by a card, like the videx card

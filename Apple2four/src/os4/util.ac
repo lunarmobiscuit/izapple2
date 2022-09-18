@@ -97,6 +97,13 @@ sub SetScreenMode(MODE A) {
 		lda HIRES
 		RETURN
 	}
+	cmp #DISP_II4
+	IF (==) {
+		lda TXTCLR
+		lda TXT80SET
+		lda TXTPAGE1
+		RETURN
+	}
 
 	lda TXT80CLR
 	lda TXTSET				; Default is TEXT1
@@ -483,7 +490,7 @@ sub PrintCursor(ASCII A) {
 	ldy @TXTPOS
 	cpy @TXTWIDTH 				; ignore if >= column 40/80
 	IF < {
-		lda #'_'H
+		lda @CURCHR
 		sta.a24 XY
 	}
 	RETURN
@@ -714,7 +721,28 @@ sub ClearLores() {
  */
 sub ClearHires() {
 	FOR X = 0 TO 8192 {
-		stz $4000,x
+		stz $2000,x
+	}
+	RETURN
+}
+
+
+/*
+ *  Clears GRAPHICS screen
+ */
+sub ClearGraphics() {
+	lda #0
+	ldx.w #$04000
+	ldy.w #0
+	LOOP {							; Clear three bytes per loop
+		sta.t.a24 XY
+		iny.w
+		iny.w
+		iny.w
+		cpy.w #30720
+		IF (==) {
+			RETURN
+		}
 	}
 	RETURN
 }
