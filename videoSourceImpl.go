@@ -22,12 +22,13 @@ const (
 func (a *Apple2) GetCurrentVideoMode() uint16 {
 	isTextMode := a.io.isSoftSwitchActive(ioFlagText)
 	isHiResMode := a.io.isSoftSwitchActive(ioFlagHiRes)
+	is64Columns := a.io.isSoftSwitchActive(ioFlag64Col)
 	is80Columns := a.io.isSoftSwitchActive(ioFlag80Col)
 	isStore80Active := a.mmu.store80Active
 	isDoubleResMode := !a.isApple24 && !isTextMode && is80Columns && !a.io.isSoftSwitchActive(ioFlagAnnunciator3)
 	isSuperHighResMode := a.io.isSoftSwitchActive(ioDataNewVideo)
 	isVidex := a.softVideoSwitch.isActive()
-	isII4GRMode := a.io.isSoftSwitchActive(ioFlag80Col) && !a.io.isSoftSwitchActive(ioFlagText)
+	isII4GRMode := a.io.isSoftSwitchActive(ioFlag64Col) && !a.io.isSoftSwitchActive(ioFlagText)
 
 	isRGBCard := a.io.isSoftSwitchActive(ioFlagRGBCardActive)
 	rgbFlag1 := a.io.isSoftSwitchActive(ioFlag1RGBCard)
@@ -48,7 +49,9 @@ func (a *Apple2) GetCurrentVideoMode() uint16 {
 		mode = screen.VideoVidex
 		isMixMode = false
 	} else if isTextMode {
-		if is80Columns {
+		if is64Columns {
+			mode = screen.VideoText64II4
+		} else if is80Columns {
 			if a.isApple24 {
 				mode = screen.VideoText80II4
 			} else {

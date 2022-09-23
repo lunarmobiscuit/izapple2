@@ -69,13 +69,37 @@ data TextScreenBase @$FF8000 word {
 }
 
 /*
- *  The addresses of the 24 88-column TEXT rows
+ *  The addresses of the 24 64-column TEXT rows
+ */
+data Text64ScreenBase word {
+	$2000, $20c0, $2180, $2240, $2300, $23c0, $2480, $2540,
+	$2040, $2100, $21c0, $2280, $2340, $2400, $24c0, $2580,
+	$2080, $2140, $2200, $22c0, $2380, $2440, $2500, $25c0
+}
+
+/*
+ *  The addresses of the 24 80-column TEXT rows
  */
 data Text80ScreenBase word {
 	$2000, $2100, $2200, $2300, $2400, $2500, $2600, $2700,
 	$2050, $2150, $2250, $2350, $2450, $2550, $2650, $2750,
 	$20a0, $21a0, $22a0, $23a0, $24a0, $25a0, $26a0, $27a0
 }
+
+/*
+ *  The offsets for the first 64 of 384 rows in the GRAPHICS screen
+ */
+data GraphicsOffsets word {
+	$0000, $0040, $0080, $00C0, $0100, $0140, $0180, $01C0
+	$0200, $0240, $0280, $02C0, $0300, $0340, $0380, $03C0
+	$0400, $0440, $0480, $04C0, $0500, $0540, $0580, $05C0
+	$0600, $0640, $0680, $06C0, $0700, $0740, $0780, $07C0
+	$0800, $0840, $0880, $08C0, $0900, $0940, $0980, $09C0
+	$0A00, $0A40, $0A80, $0AC0, $0B00, $0B40, $0B80, $0BC0
+	$0C00, $0C40, $0C80, $0CC0, $0D00, $0D40, $0D80, $0DC0
+	$0E00, $0E40, $0E80, $0EC0, $0F00, $0F40, $0F80, $0FC0
+}
+
 
 /*  The title of the reset screen */
 data Hello string {
@@ -112,6 +136,9 @@ data UnknownCommandErr string {
 data NoFilenameErrStr string {
 	"*** FILENAME must be specified"
 }
+data NoFontNameErrStr string {
+	"*** FONT NAME must be specified"
+}
 data NoFileTypeErrStr string {
 	"*** FILE TYPE must be specified"
 }
@@ -132,6 +159,15 @@ data NoEditorForDirectoriesErr string {
 }
 data NoEditorFoundErr string {
 	"*** No EDIT program was found"
+}
+data NoFontFoundErr string {
+	"*** The FONT was NOT found"
+}
+data NotFontFileErr string {
+	"*** The file is not of type FNT"
+}
+data FontLoadFailedErr string {
+	"*** FONT load FAILED"
 }
 data LoadedStr string {
 	"LOADED "
@@ -171,14 +207,26 @@ data BeepTimes byte {
 
 
 /*
+ *  Built in fonts
+ */
+data ROM_Fonts @$FFE000 u24 {
+	$FFE020,
+	$FFE600
+}
+data FONT_Apple7x8 @$FFE020 file { "fonts/charset7x8.fnt" }
+data FONT_Apple14x16 @$FFE600 file { "fonts/charset14x16.fnt" }
+
+
+/*
  *  The list of commands
  */
-data CMD_Help string { "?" }
+data CMD_Help @$FFF800 string { "?" }
 data CMD_Ascii string { "ascii" }
 data CMD_Beep string { "beep" }
 data CMD_Catalog string { "catalog" }
 data CMD_Clear string { "clear" }
 data CMD_Edit string { "edit" }
+data CMD_Font string { "font" }
 data CMD_Graphics string { "graphics" }
 data CMD_Hires string { "hires" }
 data CMD_Load string { "load" }
@@ -188,9 +236,11 @@ data CMD_Poke string { "poke" }
 data CMD_Run string { "run" }
 data CMD_Store string { "store" }
 data CMD_Text string { "text" }
+data CMD_Typeset string { "typeset" }
 data CMD_Wait string { "wait" }
 data CMD_View string { "view" }
 data CMD_2Plus string { "2+" }
+data CMD_T string { "t" }
 
 data CommandList u24 {
 	CMD_Help, DoHelp
@@ -199,6 +249,7 @@ data CommandList u24 {
 	CMD_Beep, PlayBeep
 	CMD_Clear, DoClear
 	CMD_Edit, DoEdit
+	CMD_Font, DoFont
 	CMD_Graphics, DoGraphics
 	CMD_Hires, DoHires
 	CMD_Load, DoLoad
@@ -208,16 +259,9 @@ data CommandList u24 {
 	CMD_Run, DoRun
 	CMD_Store, DoStore
 	CMD_Text, DoText
+	CMD_Typeset, DoTypeset
 	CMD_View, DoView
 	CMD_Wait, Wait
 	CMD_2Plus, Do2Plus
+	CMD_T, DoT
 }
-
-
-data VIEWDIR string { "View subdirectory" }
-data VIEWTXT string { "View TXT" }
-data VIEWLO string { "View LO_" }
-data VIEWHI string { "View HI_" }
-data VIEWBIN string { "View BIN" }
-data VIEWOS4 string { "View OS4:viewer" }
-

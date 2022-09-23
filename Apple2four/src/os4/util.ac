@@ -14,16 +14,24 @@ sub SetScreenBase() {
 	xsl									; X = X * 2
 
 	lda @DISPMODE
-	and #DISP_80COL
-	IF (!=) {
-		lda #80
+	cmp #DISP_64COL
+	IF (==) {
+		lda #64
 		sta @TXTWIDTH
-		lda.w Text80ScreenBase,x		; Lookup the address and copy to @TXTPTR
+		lda.w Text64ScreenBase,x		; Lookup the address and copy to @TXTPTR
 	}
 	ELSE {
-		lda #40
-		sta @TXTWIDTH
-		lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR
+		cmp #DISP_80COL
+		IF (==) {
+			lda #80
+			sta @TXTWIDTH
+			lda.w Text80ScreenBase,x	; Lookup the address and copy to @TXTPTR
+		}
+		ELSE {
+			lda #40
+			sta @TXTWIDTH
+			lda.w TextScreenBase,x		; Lookup the address and copy to @TXTPTR
+		}
 	}
 	sta.w @TXTPTR
 	rts.a24
@@ -40,6 +48,7 @@ sub SetScreenMode(MODE A) {
 	sta @DISPMODE						; Store the new display mode
 	cmp #DISP_TEXT_1
 	IF (==) {
+		lda TXT64CLR
 		lda TXT80CLR
 		lda TXTSET
 		lda TXTPAGE1
@@ -47,30 +56,26 @@ sub SetScreenMode(MODE A) {
 	}
 	cmp #DISP_TEXT_2
 	IF (==) {
+		lda TXT64CLR
 		lda TXT80CLR
 		lda TXTSET
 		lda TXTPAGE2
 		RETURN
 	}
-	cmp #DISP_TEXT_1
+	cmp #DISP_64COL
 	IF (==) {
+		lda TXTSET
 		lda TXT80CLR
-		lda TXTSET
+		lda TXT64SET
 		lda TXTPAGE1
 		RETURN
 	}
-	cmp #DISP_80COL_1
+	cmp #DISP_80COL
 	IF (==) {
 		lda TXTSET
+		lda TXT64CLR
 		lda TXT80SET
 		lda TXTPAGE1
-		RETURN
-	}
-	cmp #DISP_80COL_2
-	IF (==) {
-		lda TXTSET
-		lda TXT80SET
-		lda TXTPAGE1				; NOTE: Emulator doesn't have an 80-col page 2
 		RETURN
 	}
 	cmp #DISP_LORES_2
@@ -83,6 +88,7 @@ sub SetScreenMode(MODE A) {
 	}
 	cmp #DISP_HIRES_1
 	IF (==) {
+		lda TXT64CLR
 		lda TXT80CLR
 		lda TXTCLR
 		lda TXTPAGE1
@@ -91,6 +97,7 @@ sub SetScreenMode(MODE A) {
 	}
 	cmp #DISP_HIRES_2
 	IF (==) {
+		lda TXT64CLR
 		lda TXT80CLR
 		lda TXTCLR
 		lda TXTPAGE2
@@ -100,11 +107,13 @@ sub SetScreenMode(MODE A) {
 	cmp #DISP_II4
 	IF (==) {
 		lda TXTCLR
-		lda TXT80SET
+		lda TXT80CLR
+		lda TXT64SET
 		lda TXTPAGE1
 		RETURN
 	}
 
+	lda TXT64CLR
 	lda TXT80CLR
 	lda TXTSET				; Default is TEXT1
 	lda TXTPAGE1
@@ -419,7 +428,6 @@ sub Modulo(VALUE A, MOD X) {
 
 /*
  *  Print a string
- *  @ARGT0.a24 points to the string
  */
 sub PrintString(STR %%7.t) {
 	var IDX = %R247
@@ -596,12 +604,18 @@ sub PrintDebug2Chars(TWO_CHARS A.w) {
  */
 sub ClearRow(ROW X) {
 	xsl									; X = X * 2
-	and #DISP_80COL
-	IF (!=) {
-		lda.w Text80ScreenBase,x		; Lookup the address and copy to @TXTPTR
+	cmp #DISP_64COL
+	IF (==) {
+		lda.w Text64ScreenBase,x		; Lookup the address and copy to @TXTPTR
 	}
 	ELSE {
-		lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR	
+		cmp #DISP_80COL
+		IF (==) {
+			lda.w Text80ScreenBase,x	; Lookup the address and copy to @TXTPTR
+		}
+		ELSE {
+			lda.w TextScreenBase,x		; Lookup the address and copy to @TXTPTR	
+		}
 	}
 	sta.w @TXTPTR
 	tax.w								; Copy of @TXTPTR in X
@@ -623,53 +637,72 @@ sub ClearRow(ROW X) {
 sub ClearScreen(FIRST_ROW X) {
 	var ROWPTR = %R251.w
 
-	xsl									; X = X * 2
+	xsl										; X = X * 2
 
 	lda @DISPMODE
-	and #DISP_80COL
-	IF (!=) {							; 80-column TEXT
+	cmp #DISP_64COL
+	IF (==) {								; 64-column TEXT
 		DO {
-			lda.w Text80ScreenBase,X	; Pre-calculated row values
+			lda.w Text64ScreenBase,X		; Pre-calculated row values
 			sta.w @ROWPTR
 
-			lda #$A0 					; $20 (space) | $80 (high ASCII)
-			FOR Y = 0 TO 79 {			; 80 columns
+			lda #$A0 						; $20 (space) | $80 (high ASCII)
+			FOR Y = 0 TO 63 {				; 80 columns
 				sta (@ROWPTR),y
 			}
 			inx
 			inx
-			cpx #48						; 24 rows (x2 bytes pre row pointer)
+			cpx #48							; 24 rows (x2 bytes pre row pointer)
 		}
 		WHILE (!=)
 		RETURN
 	}
 	ELSE {
-		DO {
-			lda.w TextScreenBase,X		; Pre-calculated row values
-			sta.w @ROWPTR
+		cmp #DISP_80COL
+		IF (==) {							; 80-column TEXT
+			DO {
+				lda.w Text80ScreenBase,X	; Pre-calculated row values
+				sta.w @ROWPTR
 
-			lda @DISPMODE
-			and #DISP_TEXT_MASK
-			IF (==) {					; only check the page if DISP_TEXT
-				bit @DISPMODE
-				IF (-) {				; MSB is page 1 or page 2
-					lda.w @ROWPTR
-					clc
-					adc.t #$400
-					sta.w @ROWPTR
+				lda #$A0 					; $20 (space) | $80 (high ASCII)
+				FOR Y = 0 TO 79 {			; 80 columns
+					sta (@ROWPTR),y
 				}
+				inx
+				inx
+				cpx #48						; 24 rows (x2 bytes pre row pointer)
 			}
-
-			lda #$A0 					; $20 (space) | $80 (high ASCII)
-			FOR Y = 0 TO 39 {			; 40 columns
-				sta (@ROWPTR),y
-			}
-			inx
-			inx
-			cpx #48						; 24 rows (x2 bytes pre row pointer)
+			WHILE (!=)
+			RETURN
 		}
-		WHILE (!=)
-		RETURN
+		ELSE {
+			DO {
+				lda.w TextScreenBase,X		; Pre-calculated row values
+				sta.w @ROWPTR
+
+				lda @DISPMODE
+				and #DISP_TEXT_MASK
+				IF (==) {					; only check the page if DISP_TEXT
+					bit @DISPMODE
+					IF (-) {				; MSB is page 1 or page 2
+						lda.w @ROWPTR
+						clc
+						adc.t #$400
+						sta.w @ROWPTR
+					}
+				}
+
+				lda #$A0 					; $20 (space) | $80 (high ASCII)
+				FOR Y = 0 TO 39 {			; 40 columns
+					sta (@ROWPTR),y
+				}
+				inx
+				inx
+				cpx #48						; 24 rows (x2 bytes pre row pointer)
+			}
+			WHILE (!=)
+			RETURN
+		}
 	}
 }
 
@@ -810,8 +843,41 @@ sub ScrollScreen(FIRST_ROW X) {
 	xsl									; X = X * 2
 
 	lda @DISPMODE
-	and #DISP_80COL
-	IF (!=) {							; 80-column TEXT
+	cmp #DISP_64COL						; 64-column TEXT
+	IF (==) {
+	 loop64_scroll_line:
+		lda.w Text64ScreenBase,x		; Lookup the address and copy to @TXTPTR
+		sta.w @TXTPTR
+		lda.w Text64ScreenBase+2,x
+		sta.w @NEXTPTR					; address of the next line on the TEXT screen
+		ldy #0
+	 loop64_scroll_char:
+		lda (@NEXTPTR),y
+		sta (@TXTPTR),y
+		iny
+		cpy #64							; 64 columns
+		bne -loop64_scroll_char
+		inx
+		inx
+		cpx #46							; Only 23 rows (46 = 23 x 2), as the the last line gets cleared
+		bne -loop64_scroll_line
+	 scroll64_clear_last_line:
+		lda.w Text64ScreenBase,x		; Lookup the address and copy to @TXTPTR
+		sta.w @TXTPTR
+		lda.w #$A0A0					; Two high ASCII ' 's
+		ldy #0
+	 loop64_scroll_clear_line:
+		sta.w (@TXTPTR),y
+		iny
+		iny
+		cpy #64							; 64 columns
+		bne -loop64_scroll_clear_line
+	 done64_with_scroll:
+	 	rts.a24
+	}
+
+	cmp #DISP_80COL
+	IF (==) {
 	 loop80_scroll_line:
 		lda.w Text80ScreenBase,x		; Lookup the address and copy to @TXTPTR
 		sta.w @TXTPTR
@@ -842,37 +908,36 @@ sub ScrollScreen(FIRST_ROW X) {
 	 done80_with_scroll:
 	 	rts.a24
 	}
-	ELSE {
-	 loop_scroll_line:
-		lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR
-		sta.w @TXTPTR
-		lda.w TextScreenBase+2,x
-		sta.w @NEXTPTR					; address of the next line on the TEXT screen
-		ldy #0
-	 loop_scroll_char:
-		lda (@NEXTPTR),y
-		sta (@TXTPTR),y
-		iny
-		cpy #40							; 40 columns
-		bne -loop_scroll_char
-		inx
-		inx
-		cpx #46							; Only 23 rows (46 = 23 x 2), as the the last line gets cleared
-		bne -loop_scroll_line
-	 scroll_clear_last_line:
-		lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR
-		sta.w @TXTPTR
-		lda.w #$A0A0					; Two high ASCII ' 's
-		ldy #0
-	 loop_scroll_clear_line:
-		sta.w (@TXTPTR),y
-		iny
-		iny
-		cpy #40							; 40 columns
-		bne -loop_scroll_clear_line
-	 done_with_scroll:
-	 	rts.a24
-	 }
+
+ loop_scroll_line:
+	lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda.w TextScreenBase+2,x
+	sta.w @NEXTPTR					; address of the next line on the TEXT screen
+	ldy #0
+ loop_scroll_char:
+	lda (@NEXTPTR),y
+	sta (@TXTPTR),y
+	iny
+	cpy #40							; 40 columns
+	bne -loop_scroll_char
+	inx
+	inx
+	cpx #46							; Only 23 rows (46 = 23 x 2), as the the last line gets cleared
+	bne -loop_scroll_line
+ scroll_clear_last_line:
+	lda.w TextScreenBase,x			; Lookup the address and copy to @TXTPTR
+	sta.w @TXTPTR
+	lda.w #$A0A0					; Two high ASCII ' 's
+	ldy #0
+ loop_scroll_clear_line:
+	sta.w (@TXTPTR),y
+	iny
+	iny
+	cpy #40							; 40 columns
+	bne -loop_scroll_clear_line
+ done_with_scroll:
+ 	rts.a24
 }
 
 
@@ -1115,22 +1180,33 @@ sub FindTopOfRAM() {
  */
 sub AppleII4() {
 	lda @DISPMODE
-	and #DISP_80COL
-	IF (!=) {
+	cmp #DISP_64COL
+	IF (==) {
+		FOR X = 0 TO 63 {
+			lda Hello,x
+			beq +BREAK
+			ora #$80
+			sta $201C,x
+		}
+		RETURN
+	}
+
+	cmp #DISP_80COL
+	IF (==) {
 		FOR X = 0 TO 79 {
 			lda Hello,x
 			beq +BREAK
 			ora #$80
 			sta $2024,x
 		}
+		RETURN
 	}
-	ELSE {
-		FOR X = 0 TO 39 {
-			lda Hello,x
-			beq +BREAK
-			ora #$80
-			sta $410,x
-		}
+
+	FOR X = 0 TO 39 {
+		lda Hello,x
+		beq +BREAK
+		ora #$80
+		sta $410,x
 	}
 	RETURN
 }

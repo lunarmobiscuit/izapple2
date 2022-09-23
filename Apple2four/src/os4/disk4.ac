@@ -15,7 +15,6 @@ global DISK4_GO			= @$c0ff	// Disk][4 execute-error (1 byte) READ/WRITE
 global DISK4_RAM		= @$c800	// Disk][4 RAM for passing large values in/out
 
 global SLOT_7_ROM		= @$c700	// Start of slot 7 ROM, to enable $C800 RAM
-global PR_RAM			= @$c800	// Disk][4 stores long return values in $C800 RAM
 
 const DISK4_VOLUME_NAME		= 0
 const DISK4_CATALOG			= 1
@@ -49,7 +48,7 @@ sub Disk4Name() {
 	sta %R0
 
 	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
-	ldx.w #@PR_RAM
+	ldx.w #@DISK4_RAM
 	RETURN
 }
 
@@ -57,7 +56,7 @@ sub Disk4Name() {
  *  Start a disk catalog
  */
 sub Disk4CatalogStart(DIRNAME %%6) {
-	jsr filenameToC800
+	jsr disk4FilenameToC800
 
 	lda #DISK4_CATALOG
 	sta @DISK4_CMD
@@ -74,14 +73,14 @@ sub Disk4CatalogStart(DIRNAME %%6) {
  *    Name address returned in X (pointing to 0xC806)
  */
 sub Disk4CatalogNext() {
-	stz @PR_RAM
+	stz @DISK4_RAM
 	lda #DISK4_CATALOG_NEXT
 	sta @DISK4_CMD
 	lda @DISK4_GO
 	sta %R0
 
 	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
-	ldx.w #@PR_RAM+6			; Return the address of the 
+	ldx.w #@DISK4_RAM+6			; Return the address of the 
 
 	lda %R0
 	RETURN
@@ -95,7 +94,7 @@ sub Disk4CatalogNext() {
  *    Success/Error returned in A
  */
 sub Disk4Exists(FILENAME %%6) {
-	jsr filenameToC800
+	jsr disk4FilenameToC800
 
 	lda #DISK4_EXISTS
 	sta @DISK4_CMD
@@ -109,7 +108,7 @@ sub Disk4Exists(FILENAME %%6) {
  *    Returns X = file number
  */
 sub Disk4Create(FILENAME %%6, TYPE %%6.3.t) {
-	jsr filenameToC800
+	jsr disk4FilenameToC800
 	ldx.t @TYPE
 	lda.a24.t X
 	sta.t @DISK4_PARAM0
@@ -130,7 +129,7 @@ sub Disk4Create(FILENAME %%6, TYPE %%6.3.t) {
  *    Returns X = file number
  */
 sub Disk4Open(FILENAME %%6) {
-	jsr filenameToC800
+	jsr disk4FilenameToC800
 
 	lda #DISK4_OPEN
 	sta @DISK4_CMD
@@ -222,13 +221,13 @@ sub Disk4C800() {
 /*
  *  Copies the filename to $C800
  */
-sub filenameToC800(FILENAME %%6) {
+sub disk4FilenameToC800(FILENAME %%6) {
 	lda @SLOT_7_ROM				; Activate the Disk4 $C800 RAM
 
 	ldx.t @FILENAME
 	FOR Y = 0 TO 32 {			; Copy the filename into $C800
 		lda.a24 XY
-		sta @PR_RAM,Y
+		sta @DISK4_RAM,Y
 		if (==) {
 			BREAK
 		}

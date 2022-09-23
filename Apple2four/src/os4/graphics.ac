@@ -1,0 +1,336 @@
+/*
+ *  ROM for the mythical Apple ][4
+ *
+ *  Graphics and font subroutines
+ *  including calls to the mythical BitBlt card in slot 3
+ *
+ */
+
+global BITBLT_CMD		= @$c0b0	// BitBlt command (1 byte) WRITE
+global BITBLT_PARAM0	= @$c0b1	// BitBlt parameter 0 (1 byte) WRITE
+global BITBLT_PARAM1	= @$c0b2	// BitBlt parameter 1 (1 byte) WRITE
+global BITBLT_PARAM2	= @$c0b3	// BitBlt parameter 2 (3 bytes) WRITE
+global BITBLT_PARAM3	= @$c0b6	// BitBlt parameter 3 (3 bytes) WRITE
+global BITBLT_PARAM4	= @$c0b9	// BitBlt parameter 4 (3 bytes) WRITE
+global BITBLT_PARAM5	= @$c0bc	// BitBlt parameter 5 (3 bytes) WRITE
+global BITBLT_RUNNING	= @$c0bf	// BitBlt return value 2 (2 bytes) READ
+global BITBLT_RAM		= @$c800	// BitBlt RAM for passing large values in/out
+
+global SLOT_3_ROM		= @$c300	// Start of slot 3 ROM, to enable $C800 RAM
+
+const BITBLT_DMA		= 0
+const BITBLT_COPY		= 1
+const BITBLT_TILE 		= 2
+const BITBLT_FILL		= 3
+const BITBLT_CHAR		= 4
+const BITBLT_STRING		= 5
+	
+
+/*
+ *  Compute the GRAPHICS screen pointer
+ */
+sub GrSetBase() {
+	; GRPTR = II4GR_START
+	;			+ ((GRY/8)-1 * 512) [80 bytes * 8 rows]
+	;			+ GraphicsOffsets/(GRY%8)*2
+
+
+	lda.w @GRY							; Y = GRY/8 (one byte, as 384/8 = 48)
+	lsr.w
+	lsr.w
+	lsr
+	tay
+
+	lda.w @GRY							; X = (CURSORY%8) (one byte)
+	and #$07
+	tax
+	xsl									; X *= 2, as the offsets table is two bytes per entry
+
+	lda.w #II4GR_START					; $4000 +
+  add_loop:
+	cpy #0
+	bne +add_8_rows
+	clc
+	adc.w GraphicsOffsets,X				; + offset for the remaining < 8 rows
+	sta.w @GRPTR
+	rts.a24
+  add_8_rows:
+  	clc
+	adc.w #512							; + 512 bytes (80 bytes per row * 8 rows)
+	dey
+	bra -add_loop
+
+	RETURN
+}
+
+
+/*
+ *  Set the X coordinate
+ */
+sub GrSetX(YPOS A) {
+	cmp.w @GRX
+	if (!=) {
+		cmp.w #GRWIDTH
+		if (>=) {
+			lda.w #GRWIDTH-1
+		}
+		sta.w @GRX
+		RETURN
+	}
+	RETURN
+}
+
+
+/*
+ *  Set the Y coordinate, and recompute the GRAPHICS row pointer
+ */
+sub GrSetY(YPOS A) {
+	cmp.w @GRY
+	if (!=) {
+		cmp.w #GRHEIGHT
+		if (>=) {
+			lda.w #GRHEIGHT-1
+		}
+		sta.w @GRY
+		jmp GrSetBase
+	}
+	RETURN
+}
+
+
+/*
+ *  Print a character
+ */
+sub GrTypesetChar(ASCII A) {
+	sta @BITBLT_PARAM0			; Character
+
+	lda @GRFONT					; Current font
+	sta @BITBLT_PARAM1
+
+	lda.w @GRX					; Curent x,y coordinate
+	sta.w @BITBLT_PARAM2
+	lda.w @GRY
+	sta.w @BITBLT_PARAM3
+
+	lda #BITBLT_CHAR			; BitBlt the character
+	sta @BITBLT_CMD
+
+	lda @SLOT_3_ROM				; Enable slot 3's $C800 RAM
+	lda.w @BITBLT_RAM			; Update the x coordinate
+	sta.w @GRX
+
+	RETURN
+}
+
+
+/*
+ *  Print a string using a font on the II4 GRAPHICS screen
+ */
+sub GrTypesetString(STR %%7.t) {
+	jsr grStringToC800
+
+	lda @GRFONT					; Current font
+	sta @BITBLT_PARAM1
+
+	lda.w @GRX					; Curent x,y coordinate
+	sta.w @BITBLT_PARAM2
+	lda.w @GRY
+	sta.w @BITBLT_PARAM3
+
+	lda #BITBLT_STRING			; BitBlt the string
+	sta @BITBLT_CMD
+
+	lda @SLOT_3_ROM				; Enable slot 3's $C800 RAM
+	lda.w @BITBLT_RAM			; Update the x coordinate
+	sta.w @GRX
+
+	lda.w @BITBLT_RAM+2			; Return the total width
+	RETURN
+}
+
+
+/*
+ *  Print a string using a font on the II4 GRAPHICS screen
+ *  @@@ Using the assembly language bitblt that isn't yet working
+ */
+sub GrTypesetStringBitBlt(STR %%7.t) {
+	var IDX = %R247
+	FOR @IDX = 0 TO 255 {
+		ldx.t @STR
+		ldy @IDX
+		lda.a24 XY
+		IF (==) {
+			RETURN
+		}
+		jsr GrTypesetCharBitBlt
+	}
+	RETURN
+}
+
+
+/*
+ *  Print a character
+ *  @@@ This is 80% complete
+ */
+sub GrTypesetCharBitBlt(ASCII A) {
+	var CH = %R0.w
+	var HEIGHT = %R2
+	var WIDTH = %R3.w
+	var NBYTES = %R5
+	var OFFSET = %R6.t
+	var PPTR = %R9.w
+	var PX = %R11.w
+	var ROW = %R13
+	var B = %R14
+
+	and #$7F					; Force LOW ASCII (fonts only have 127 glyphs)
+	sta.w @CH
+
+	;@@@ldx.w #RAMFONTS		; 1st byte is height of the font
+ldx.t #ROMFONTS 
+	lda.a24 X
+	sta @HEIGHT
+
+	clc							; ENTRY = Font[CH*3+1] = {width, offset}
+	lda @CH
+	adc.w @CH
+	adc.w @CH
+	inc.w
+	;@@@adc.w #RAMFONTS
+adc.t #ROMFONTS 
+	tax.t
+
+	lda.a24 X
+	sta.w @WIDTH				; 1st byte in entry is the WIDTH of the glyph
+	lsr
+	lsr
+	lsr
+	sta @NBYTES					; Number of bytes is WIDTH/8
+
+	clc							; 2nd/3rd byte is the OFFSET to the glyph pixels
+	ldy #1
+	lda.a24.w XY
+	;@@@adc.w #RAMFONTS
+adc.t #ROMFONTS 
+	sta.t @OFFSET
+
+	ldx.w @GRPTR				; Copy of the GRPTR to draw in previous rows
+	stx.w @PPTR
+	ldx.w @GRX					; Copy of the GRX to draw in subsequent columns
+	stx.w @PX
+
+	stz @ROW					; FOR @ROW = 0 TO @HEIGHT
+	LOOP {
+		stz @B					; FOR @B = 0 TO @WIDTH/8
+		LOOP {
+			ldx.t @OFFSET		; Read font pixels
+			lda.a24 XY
+
+			ldx.w @PPTR			; Copy to screen
+			ldy.w @PX
+			sta.a24 XY
+
+			clc
+			txa.w				; @PPTR -= GRWBYTES
+			adc.w #GRWBYTES
+			sta.w @PPTR
+			cmp #II4GR_END
+			if (>=) {
+				BREAK
+			}
+
+			lda @B
+			inc
+			sta @B
+			cmp @NBYTES
+			IF (==) {
+				BREAK
+			}
+		}
+
+		clc						; @PX += @WIDTH
+		lda.w @PX
+		adc.w @WIDTH
+
+		lda @ROW
+		inc
+		sta @ROW
+		cmp @HEIGHT
+		IF (==) {
+			BREAK
+		}
+	}
+
+	RETURN
+}
+
+
+/*
+ *  Print a blank space
+ */
+sub GrTypesetSpace() {
+	clc
+	lda.w @GRX
+	;@@@adc.w RAMFONTS			; add the width of the first character
+adc.w ROMFONTS
+
+	lda.w @GRX 					; max at GRWIDTH
+	cmp.w #GRWIDTH
+	IF >= {
+		lda.w #GRWIDTH
+		sta.w @GRX
+	}
+	RETURN
+}
+
+
+/*
+ *  Print the cursor
+ *    TXTPOS is NOT updated
+ */
+sub GrPrintCursor(ASCII A) {
+	RETURN
+}
+
+
+/*
+ *  Unprint the cursor
+ *    TXTPOS is NOT updated
+ */
+sub GrClearCursor() {
+	RETURN
+}
+
+
+/*
+ *  Go to the next line on the GRAPHICS screen, scrolling if needed
+ */
+sub GrNextLine() {
+	RETURN
+}
+
+
+/*
+ *  Scroll the GRAPHICS screen
+ */
+sub GrScrollScreen(FIRST_ROW X) {
+}
+
+
+/*
+ *  Copies the string to $C800
+ */
+sub grStringToC800(STR %%7.t) {
+	lda @SLOT_3_ROM				; Activate the BITBLT $C800 RAM
+
+	ldx.t @STR
+	FOR Y = 0 TO 1024 {			; Copy the string into $C800
+		lda.a24 XY
+		sta @BITBLT_RAM,Y
+		if (==) {
+			BREAK
+		}
+	}
+
+	RETURN
+}

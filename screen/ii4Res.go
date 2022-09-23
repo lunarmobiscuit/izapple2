@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ii4ResWidth       = 640
+	ii4ResWidth       = 512
 	ii4ResLineBytes   = ii4ResWidth / 8
 	ii4ResHeight      = 384
 )

@@ -110,8 +110,8 @@ sub View_BIN(FILENAME %%5, SIZE %%5.3) {
 	var NB			= %R11				; number of bytes to display
 
 	lda @DISPMODE
-	and #DISP_80COL
-	IF (!=) {							; 80-column TEXT can show 16 values per line
+	cmp #DISP_80COL
+	IF (==) {							; 80-column TEXT can show 16 values per line
 		lda #16
 	}
 	ELSE {								; 40-column TEXT can only fit 8 values per line
@@ -260,7 +260,7 @@ sub View_GR(FILENAME %%5, SIZE %%5.3) {
 
 /*
  *  Load a file into the (already parsed) address
- *	  Returns # of bytes read
+ *	  Returns total # of bytes read
  */
 sub Load_File(NPRM %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	var FN = %R3.b
@@ -313,7 +313,8 @@ sub Load_File(NPRM %%0, CMD %%0.1, FILENAME %%0.4, ADDRESS %%0.7) {
 	lda @FN
 	jsr Disk4Close
 
-	RETURN @ACTUAL
+	lda @R_IDX
+	RETURN
 }
 
 

@@ -8,7 +8,7 @@
 
 #include "os4/globals.ac"
 
-const N_COMMANDS	= 18		// The number of commands in CommandList
+const N_COMMANDS	= 21		// The number of commands in CommandList
 
 
 /*
@@ -44,19 +44,25 @@ sub Reset() @$FF0200 {
 	sta @TXTROW					; Start at TEXT row 2
 	stz @TXTPOS					; Start at TEXT position 0
 
-	lda #DISP_80COL_1			; Setup and clear 80-col TEXT screen
+	jsr ClearLoRes				; Clear LORES page 2
+	jsr ClearGraphics			; Clear GRAPHICS (which overlaps with HIRES page 2)
+
+	lda #DISP_80COL				; Setup and clear 80-col TEXT screen
 	jsr SetScreenMode
 	ldx #0
 	jsr ClearScreen				; Clear 80-col TEXT page
-	jsr AppleII4				; draw the header on the 80-col page
 
-	stz @PREVDISP				; Reset previous display mode
 	lda #DISP_TEXT_1			; Start in TEXT mode, page 1
 	jsr SetScreenMode
 	ldx #0
 	jsr ClearScreen				; Clear TEXT page 1
-	jsr ClearLoRes				; Clear LORES page 2
-	jsr ClearGraphics			; Clear GRAPHICS (which overlaps with HIRES page 2)
+	jsr AppleII4				; draw the header
+
+	lda #DISP_64COL				; Setup and clear 64-col TEXT screen
+	jsr SetScreenMode
+	ldx #0
+	jsr ClearScreen				; Clear 64-col TEXT page
+	jsr AppleII4				; draw the header on the 64-col page
 
 	lda #'_'					; Initialize the cursor
 	ora #$40
@@ -65,13 +71,18 @@ sub Reset() @$FF0200 {
 	lda #':'H					; Initialize the prompt
 	sta @PMPTCHR
 
+	lda.w #II4GR_START			; Reset GRPTR to the start of GRAPHICS memory
+	sta.w @GRPTR
+	stz.w @GRX					; Reset GRAPHICS coordinate to 0,0
+	stz.w @GRY
+	lda #$FF					; Default to first ROM Font
+	sta @GRFONT
+
 	lda.t #_64K					; Reset the memory heap to start at $10000 (64K)
 	sta.t @HEAPSTART
 	stz.t @RUNLENGTH
 
 	jsr FindTopOfRAM			; search for the highest RAM address
-
-	jsr AppleII4				; draw the header
 	; drop through to CommandLoop
 }
 
@@ -280,6 +291,7 @@ sub CompleteCommand() {
 }
 
 #include "os4/util.ac"
+#include "os4/graphics.ac"
 #include "os4/disk4.ac"
 #include "os4/commands.ac"
 #include "os4/view.ac"

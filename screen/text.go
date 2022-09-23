@@ -10,6 +10,7 @@ const (
 	charWidth     = 7
 	charHeight    = 8
 	text40Columns = 40
+	text64Columns = 64
 	text80Columns = 80
 	textLines     = 24
 )
@@ -26,6 +27,11 @@ func snapshotText80(vs VideoSource, isSecondPage bool, isAltText bool, light col
 
 func snapshotText80II4(vs VideoSource, isSecondPage bool, isAltText bool, light color.Color) *image.RGBA {
 	text := getText80II4FromMemory(vs, isSecondPage)
+	return renderText(vs, text, isAltText, nil /*colorMap*/, light)
+}
+
+func snapshotText64II4(vs VideoSource, isSecondPage bool, isAltText bool, light color.Color) *image.RGBA {
+	text := getText64II4FromMemory(vs, isSecondPage)
 	return renderText(vs, text, isAltText, nil /*colorMap*/, light)
 }
 
@@ -67,6 +73,20 @@ func getText80II4FromMemory(vs VideoSource, isSecondPage bool) []uint8 {
 	return text
 }
 
+
+func getText64II4FromMemory(vs VideoSource, isSecondPage bool) []uint8 {
+	data := vs.GetII4TextMemory(isSecondPage)
+
+	text := make([]uint8, textLines*text64Columns)
+	for l := 0; l < textLines; l++ {
+		for c := 0; c < text64Columns; c++ {
+			char := data[get64II4CharOffset(c, l)]
+			text[text64Columns*l+c] = char
+		}
+	}
+	return text
+}
+
 func getTextFromMemory(vs VideoSource, isSecondPage bool, isExt bool) []uint8 {
 	data := vs.GetTextMemory(isSecondPage, isExt)
 
@@ -95,6 +115,13 @@ func get80II4CharOffset(col int, line int) uint16 {
 	return uint16(section*80 + eighth*0x100 + col)
 }
 
+func get64II4CharOffset(col int, line int) uint16 {
+	// Similar to the TEXT offsets
+	section := line / 8 // Top, middle and bottom
+	eighth := line % 8
+	return uint16(section*64 + eighth*0xC0 + col)
+}
+
 func getRGBTextColor(pixel bool, colorKey uint8) color.Color {
 	if pixel {
 		colorKey >>= 4
@@ -116,6 +143,9 @@ func renderText(vs VideoSource, text []uint8, isAltText bool, colorMap []uint8, 
 	height := textLines * charHeight
 
 	size := image.Rect(0, 0, 2*hiResWidth, hiResHeight)
+	if columns == 64 {
+		size = image.Rect(0, 0, 448, hiResHeight) // 448 = 64 chars * 7 pixels per char
+	}
 	img := image.NewRGBA(size)
 
 	for x := 0; x < width; x++ {

@@ -193,6 +193,14 @@ func (a *Apple2) AddFauxDisk(slot int, fauxRoot string, trace bool) error {
 	return nil
 }
 
+// AddBitBltCard adds a bitblt card and image
+func (a *Apple2) AddBitBltCard(slot int, trace bool) error {
+	c := NewCardBitBlt()
+	c.trace = trace
+	a.insertCard(c, slot)
+	return nil
+}
+
 // AddVidHD adds a card with the signature of VidHD
 func (a *Apple2) AddVidHD(slot int) {
 	a.insertCard(NewCardVidHD(), slot)

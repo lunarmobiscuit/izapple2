@@ -67,7 +67,10 @@ sub DoHelp(NPRM %%0) {
 	WHILE (< N_COMMANDS)
 
   done:
-	jsr NextLine
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr PaginateLine
+	jsr PaginateLine
 
 	RETURN
 }
@@ -310,7 +313,7 @@ sub DoClear(NPRM %%0) {
 		jsr ClearScreen
 		RETURN
 	}
-	cmp #DISP_80COL_1
+	cmp #DISP_64COL
 	IF (==) {
 		ldx #0
 		jsr ClearScreen
@@ -321,10 +324,15 @@ sub DoClear(NPRM %%0) {
 		sta @TXTPOS						; Start at position 0
 		RETURN
 	}
-	cmp #DISP_80COL_2
+	cmp #DISP_80COL
 	IF (==) {
 		ldx #0
 		jsr ClearScreen
+		jsr AppleII4
+		lda #2
+		sta @TXTROW						; Start at row 2
+		lda #0
+		sta @TXTPOS						; Start at position 0
 		RETURN
 	}
 	cmp #DISP_LORES_1
@@ -560,6 +568,72 @@ sub DoEdit(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 
 
 /*
+ *  'font'
+ */
+sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
+	jsr NextLine
+
+	lda @NPRM							; must specify a filename
+	IF (< 1) {
+		lda.t #NoFontNameErrStr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda.t #$4e4f46						; "NOF"
+	sta.t %%0.$80						; Lookup FONTS:NAME (build the filename in %%0.$80)
+	lda.t #$3a5354						; ":ST"
+	sta.t %%0.$83
+	ldy #0								; Append the font name
+	LOOP {
+		ldx.t @FONTNAME
+		lda.a24 XY
+		sta.a24 %%0.$86,Y
+
+		lda.a24 XY
+		if (==) {
+			BREAK
+		}
+		iny
+	}
+	lda.t #%%0.$80
+	sta.t %%6
+	jsr Disk4Exists
+	IF (!=) {							; If the font doesn't exist, error
+		lda.t #NoFontFoundErr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda.t @DISK4_RAM					; The type is returned in $C800-$C802
+	cmp.t #$d4cec6						; "FNT" = font file
+	IF (!=) {
+		lda.t #NotFontFileErr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda.t #%%0.$80
+	sta.t %%0.4
+	lda.t #RAMFONTS+4					; fonts from files get copied to RAM
+	sta.t RAMFONTS
+	sta.t %%0.7
+	jsr Load_File
+	if (==) {
+		lda.t #FontLoadFailedErr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	RETURN
+}
+
+
+/*
  *  'store' - Store memory to a file
  */
 sub DoStore(NPRM %%0, CMD %%0.1, FILENAME %%0.4, TYPE %%0.7, ADDRESS %%0.10, LENGTH %%0.13) {
@@ -781,11 +855,22 @@ sub DoPeek(NPRM %%0, CMD %%0.1, START_ADDR %%0.4, END_ADDR %%0.7) {
 	RETURN
 }
 sub Draw_Peek_Line(CUR_ADDR %%0.252.t) {
-	var IDX 		= %R0.b
-	var ADDR 		= %R3.t
+	var ADDR 		= %R7.t
+	var B			= %R10				; loop index across the bytes
+	var NB			= %R11				; number of bytes to display
 
 	lda.t @CUR_ADDR
 	sta.t @ADDR
+
+	lda @DISPMODE
+	cmp #DISP_80COL
+	IF (==) {							; 80-column TEXT can show 16 values per line
+		lda #16
+	}
+	ELSE {								; 40-column TEXT can only fit 8 values per line
+		lda #8
+	}
+	sta @NB
 
 	lda #'$'H						; $addr- xx xx xx xx xx xx xx xx ........
 	jsr PrintChar
@@ -794,14 +879,23 @@ sub Draw_Peek_Line(CUR_ADDR %%0.252.t) {
 	lda #'-'H
 	jsr PrintChar
 
-	FOR @IDX = 0 to 7 {				; Print the value as $HH
-		ldy @IDX
+	stz @B							; FOR @B = 0 to @NB-1
+	LOOP {
+		ldy @B						; Print the value as $HH
 		lda.a24 (@ADDR),Y
 		jsr PrintHexByte
 		jsr PrintSpace
+
+		inc @B
+		lda @B
+		cmp @NB
+		if (==) {
+			BREAK
+		}
 	}
-	FOR @IDX = 0 to 7 {
-		ldy @IDX
+	stz @B							; FOR @B = 0 to @NB-1
+	LOOP {
+		ldy @B
 		lda.a24 (@ADDR),Y
 		IF (< 128) {				; Print the (HIGH) ASCII equivalent of the value (except $00 = '.')
 			IF (== 0) {
@@ -813,6 +907,13 @@ sub Draw_Peek_Line(CUR_ADDR %%0.252.t) {
 			}
 		}
 		jsr PrintChar
+
+		inc @B
+		lda @B
+		cmp @NB
+		if (==) {
+			BREAK
+		}
 	}
 
 	RETURN
@@ -927,7 +1028,7 @@ sub DoRun(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 sub DoText(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 	lda @NPRM
 	IF (< 1) {
-		lda #DISP_TEXT_1
+		lda #DISP_64COL
 		jsr SetScreenMode
 		RETURN
 	}
@@ -943,7 +1044,22 @@ sub DoText(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 			ldy #2
 			lda.a24 XY
 			IF (==) {
-				lda #DISP_80COL_1
+				lda #DISP_80COL
+				jsr SetScreenMode
+			}
+		}
+		RETURN
+	}
+	cmp #'6'
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'4'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #DISP_64COL
 				jsr SetScreenMode
 			}
 		}
@@ -1034,7 +1150,7 @@ sub DoLores(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 
 
 /*
- *  'graphics' - Switch to the new 640x384 graphics screen
+ *  'graphics' - Switch to the new 512x384 graphics screen
  */
 sub DoGraphics(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 	lda #DISP_II4
@@ -1100,6 +1216,77 @@ sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 	lda.t #InvalidValue
 	sta.t %%7
 	jsr PrintError
+	RETURN
+}
+
+
+/*
+ *  'typeset' - Draw text with the current font on the GRAPHICS screen
+ */
+sub DoTypeset(NPRM %%0, CMD %%0.1, XPOS %%0.4.w, YPOS %%0.7.w, STR %%0.10.t) {
+	lda @NPRM						; must specify X, Y, and string
+	IF (< 3) {
+		lda.t #NoValueErrStr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda.w @XPOS
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @XPOS
+	jsr GrSetX
+
+	lda.w @YPOS
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @YPOS
+	jsr GrSetY
+
+	ldx.t @STR
+	ldy #1
+	lda.a24 XY
+	IF (==) {						; single character
+		lda.a24 X
+		jsr GrTypesetChar
+	}
+	ELSE {							; string of characters
+		lda.t @STR
+		sta.t %%7
+		jsr GrTypesetString
+	}
+
+	RETURN
+}
+/*
+ *  't' - test typesetting
+ */
+sub DoT(NPRM %%0, CMD %%0.1, STR %%0.4.t) {
+	lda @NPRM						; must specify X, Y, and string
+	IF (< 1) {
+		lda.t #NoValueErrStr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda #DISP_II4
+	jsr SetScreenMode
+
+	ldx.t @STR
+	ldy #1
+	lda.a24 XY
+	IF (==) {						; single character
+		lda.a24 X
+		jsr GrTypesetChar
+	}
+	ELSE {							; string of characters
+		lda.t @STR
+		sta.t %%7
+		jsr GrTypesetString
+	}
+
 	RETURN
 }
 

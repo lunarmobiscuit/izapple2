@@ -20,8 +20,9 @@ const (
 	VideoRGB160     uint16 = 0x13
 	VideoSHR        uint16 = 0x14
 	VideoVidex     	uint16 = 0x15
-	VideoText80II4  uint16 = 0x16
-	VideoII4GR  	uint16 = 0x17
+	VideoText64II4  uint16 = 0x16
+	VideoText80II4  uint16 = 0x17
+	VideoII4GR  	uint16 = 0x18
 )
 
 // Mix text video mdes modifiers

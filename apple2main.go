@@ -142,6 +142,10 @@ func MainApple() *Apple2 {
 		"traceSSReg",
 		false,
 		"dump to the console the sofswitch registrations")
+	traceBB := flag.Bool(
+		"traceBB",
+		false,
+		"dump to the console the bitblt commands")
 	traceFD := flag.Bool(
 		"traceFD",
 		false,
@@ -305,6 +309,9 @@ func MainApple() *Apple2 {
 			panic("SwyftCard available only on Apple IIe or better")
 		}
 		a.AddSwyftCard()
+	}
+	if (a.isApple24) {
+		a.AddBitBltCard(3, *traceBB)
 	}
 
 	if *smartPortImage != "" {

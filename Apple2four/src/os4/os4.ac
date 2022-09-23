@@ -63,7 +63,6 @@ global DISK4_GO			= @$c0ff	// Disk][4 execute-error (1 byte) READ/WRITE
 global DISK4_RAM		= @$c800	// Disk][4 RAM for passing large values in/out
 
 global SLOT_7_ROM		= @$c700	// Start of slot 7 ROM, to enable $C800 RAM
-global PR_RAM			= @$c800	// Disk][4 stores long return values in $C800 RAM
 
 const DISK4_VOLUME_NAME		= 0
 const DISK4_CATALOG			= 1

@@ -8,7 +8,7 @@ import (
 // SnapshotParts the currently visible screen
 func SnapshotParts(vs VideoSource, screenMode int) *image.RGBA {
 	snapScreen := snapshotByMode(vs, VideoText40, screenMode)
-	snapPage2 := snapshotByMode(vs, VideoText40|VideoSecondPage, screenMode)
+	snapPage2 := snapshotByMode(vs, VideoText64II4, screenMode)
 	snapPage3 := snapshotByMode(vs, VideoText80II4, screenMode)
 	snapPage4 := snapshotByMode(vs, VideoII4GR, screenMode)
 	snapPage5 := snapshotByMode(vs, VideoGR|VideoSecondPage, screenMode)
@@ -79,6 +79,8 @@ func VideoModeName(vs VideoSource) string {
 		name = "SHR"
 	case VideoVidex:
 		name = "VIDEX"
+	case VideoText64II4:
+		name = "TEXT64COL(II4)"
 	case VideoText80II4:
 		name = "TEXT80COL(II4)"
 	case VideoII4GR:

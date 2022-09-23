@@ -1,7 +1,7 @@
 /*
- *  ROM for the mythical Apple ][4
+ *ROM for the mythical Apple ][4
  *
- *  Constants and globals
+ *Constants and globals
  *
  */
 
@@ -20,8 +20,10 @@ const SETAN0		= $c058		// RW annunciator 0 off
 const SETAN1		= $c05a		// RW annunciator 1 off
 const CLRAN2		= $c05d		// RW annunciator 2 on
 const CLRAN3		= $c05f		// RW annunciator 3 on
-const TXT80CLR      = $c060     // RW 80column mode off (was casette in on II+)
-const TXT80SET   	= $c068     // RW 80column mode on (was casette in on II+)
+const TXT80CLR		= $c060		// RW 80column mode off (was casette in on II+)
+const TXT80SET		= $c068		// RW 80column mode on (was casette in on II+)
+const TXT64CLR		= $c06E		// RW 64column mode off (was duplicate PDL2 on II+)
+const TXT64SET		= $c06F		// RW 64column mode on (was duplicate PDL3 on II+)
 const PADDL0		= $c064		// R analog input 0
 const PTRIG			= $c070		// RW analog input reset
 const LANGCLR		= $c082		// Disable "Language card" RAM
@@ -33,28 +35,34 @@ const TOP_OF_STACK	= $fdff		// Put the stack in the "Language card" RAM
 const RSTVECTOR		= $fffc		// Apple ][ 6502 reset vector
 const PWREDUP		= $03f4		// Apple ][ stores #$A5 to make RST a soft reboot
 
-global TXTPTR 		= @$fe.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
-global TXTWIDTH 	= @$fd		// The width of the current screen (typically #40 or #80 columns)
-global TXTROW 		= @$ff00	// The current row on the text screen
-global TXTPOS 		= @$ff01	// The current position (column) in the text screen
-global TXTPGROWS 	= @$ff02	// The number of rows output to the screen (used for pagination)
-global DISPMODE 	= @$ff03	// The current display mode (see DISP_xxxx constants)
-global PREVDISP 	= @$ff04	// The previous display mode (see DISP_xxxx constants)
-global CURCHR       = @$ff05    // The character to draw for the cursor
-global PMPTCHR      = @$ff06    // The character to draw for the prompt
+global TXTPTR		= @$fe.w	// The address of the current line of text (2 bytes as the TEXT screen is <$FFFF)
+global TXTWIDTH		= @$fd		// The width of the current screen (typically #40 or #80 columns)
+global TXTROW		= @$ff00	// The current row on the text screen
+global TXTPOS		= @$ff01	// The current position (column) in the text screen
+global TXTPGROWS	= @$ff02	// The number of rows output to the screen (used for pagination)
+global DISPMODE		= @$ff03	// The current display mode (see DISP_xxxx constants)
+global PREVDISP		= @$ff04	// The previous display mode (see DISP_xxxx constants)
+global CURCHR		= @$ff05	// The character to draw for the cursor
+global PMPTCHR		= @$ff06	// The character to draw for the prompt
 
-const _64K          = $010000
-global RAMTOP       = @$ff10.t  // The highest RAM memory address
-global HEAPSTART    = @$ff13.t  // The start of the heap (initially $10000, then the page after the loaded program)
-global RUNLENGTH    = @$ff16.t  // The length of the loaded program
+global GRPTR		= @$ff20.w	// The address of the current row of graphics (2 bytes as GRAPHICS is <$FFFF)
+global GRX			= @$ff22.w	// The x coordinate for drawing II4 GRAPHICS
+global GRY			= @$ff24.w	// The y coordinate for drawing II4 GRAPHICS
+global GRFONT		= @$ff26	// The current font ID
 
-global TYPBUFFER 	= @$fe00	// $FE00-$FE4F holds the line of text being typed
-global TYPBUFFER2 	= @$fe50	// $FE50-$FEBF holds the previous line of text typed
-global TYPBUFFER3 	= @$feA0	// $FEA0-$FEEF holds the previous previous line of text typed
+const _64K			= $010000
+global RAMTOP		= @$ff10.t// The highest RAM memory address
+global HEAPSTART	= @$ff13.t// The start of the heap (initially $10000, then the page after the loaded program)
+global RUNLENGTH	= @$ff16.t// The length of the loaded program
+
+global TYPBUFFER	= @$fe00	// $FE00-$FE4F holds the line of text being typed
+global TYPBUFFER2	= @$fe50	// $FE50-$FEBF holds the previous line of text typed
+global TYPBUFFER3	= @$feA0	// $FEA0-$FEEF holds the previous previous line of text typed
 
 const DISP_PAGE_1		= $00		// MSB is page 1|2 
 const DISP_PAGE_2		= $80
 const DISP_40COL		= $00		// MSB-1 is 40|80 column 
+const DISP_64COL		= $48
 const DISP_80COL		= $40
 const DISP_TEXT			= $00
 const DISP_TEXT_MASK	= $7F
@@ -64,15 +72,21 @@ const DISP_II4			= $08
 
 const DISP_TEXT_1	= $00		// PAGE 1 | 40COL | TEXT
 const DISP_TEXT_2	= $80		// PAGE 2 | 40COL | TEXT 
-const DISP_80COL_1	= $40		// PAGE 1 | 80COL | TEXT 
-const DISP_80COL_2	= $C0		// PAGE 2 | 80COL | TEXT 
 const DISP_LORES_1	= $20		// PAGE 1 | LORES 
 const DISP_LORES_2	= $A0		// PAGE 2 | LORES 
 const DISP_HIRES_1	= $10		// PAGE 1 | HIRES 
 const DISP_HIRES_2	= $90		// PAGE 2 | HIRES 
 
-const LORES_START   = $800
-const HIRES_START   = $2000
-const II4GR_START   = $4000
+const LORES_START	= $800
+const HIRES_START	= $2000
+const II4GR_START	= $4000
+const II4GR_END		= $B800
+
+const ROMFONTS		= $FFE000
+const RAMFONTS		= $A000
+const GRWIDTH 		= 512
+const GRHEIGHT 		= 384
+const GRWBYTES 		= 80
+const GRBYTES		= 30720
 
 const PAGINATE_LINES_PER_PAGE = 22

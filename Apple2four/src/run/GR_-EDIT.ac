@@ -1,5 +1,5 @@
 /*
- *  GR_EDIT - Editor for 640x386 graphics files
+ *  GR_EDIT - Editor for 512x384 graphics files
  *
  *  aCCemble -l run/GR_-EDIT.lst -o ../root/OS4/GR_-EDIT.run run/GR_-EDIT.ac
  *
@@ -24,7 +24,7 @@ global PENDOWN		= %R134
 global CURSAVE		= %R135.t	// Actually, save six bytes for an 8x6 cursor
 
 /*
- *  Edit a 64x0386 GRAPHICS image
+ *  Edit a 512x384 GRAPHICS image
  */
 sub GR_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 	lda #DISP_II4
@@ -161,7 +161,7 @@ lda KBD
 				jsr drawPixel
 			}
 			lda.w @CURSORX
-			cmp.w #639
+			cmp.w #511
 			IF (<) {
 				inc.w
 				sta.w @CURSORX
@@ -197,14 +197,14 @@ lda KBD
 				jsr drawPixel
 			}
 			lda.w @CURSORX
-			cmp.w #639
+			cmp.w #511
 			IF (<) {
 				clc
 				adc.w #8
 				sta.w @CURSORX
 			}
 			ELSE {
-				lda.w #639
+				lda.w #511
 				sta.w @CURSORX			
 			}
 			jsr saveBehindCursor
@@ -287,7 +287,7 @@ lda KBD
  */
 sub setRowPtr(ROW A.w) {
 	var ROWPTR = %R180.w				; ROWPTR = II4GR_START
-										;            + ((CURSORY/8)-1 * 640) [80 bytes * 8 rows]
+										;            + ((CURSORY/8)-1 * 512) [80 bytes * 8 rows]
 										;            + GraphicsOffsets/(CURSORY%8)*2
 
 
@@ -312,7 +312,7 @@ sub setRowPtr(ROW A.w) {
 	rts.a24
   add_8_rows:
   	clc
-	adc.w #640							; + 640 bytes (80 bytes per row * 8 rows)
+	adc.w #512							; + 512 bytes (80 bytes per row * 8 rows)
 	dey
 	bra -add_loop
 }
@@ -602,18 +602,18 @@ sub DoHLine(NPRM %%0, CMD %%0.1, STARTPOS %%0.4, ENDPOS %%0.7) {
 	lda.t @STARTPOS					; parse the starting positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #639
+	cmp #511
 	IF (>) {
-		lda #639
+		lda #511
 	}
 	sta @STARTPOS
 
 	lda.t @ENDPOS					; parse the ending positon
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #639
+	cmp #511
 	IF (>) {
-		lda #639
+		lda #511
 	}
 	sta @ENDPOS
 
@@ -925,9 +925,9 @@ sub DoX(NPRM %%0, CMD %%0.1, XPOS %%0.4) {
 	lda.t @XPOS						; parse the position
 	sta.t %%7
 	jsr (os4_ParseNumber)
-	cmp #639
+	cmp #511
 	IF (>) {
-		lda #639
+		lda #511
 	}
 	sta @XPOS
 
@@ -1286,12 +1286,14 @@ data MissingRowsErr string {
  *  The offsets for the first 48 of 384 rows in the GRAPHICS screen
  */
 data GraphicsOffsets word {
-	$0000, $0050, $00A0, $00F0, $0140, $0190, $01E0, $0230
-	$0280, $02D0, $0320, $0370, $03C0, $0410, $0460, $04B0
-	$0500, $0550, $05A0, $05F0, $0640, $0690, $06E0, $0730
-	$0780, $07D0, $0820, $0870, $08C0, $0910, $0960, $09B0
-	$0A00, $0A50, $0AA0, $0AF0, $0B40, $0B90, $0BE0, $0C30,
-	$0C80, $0CD0, $0D20, $0D70, $0DC0, $0E10, $0E60, $0EB0
+	$0000, $0040, $0080, $00C0, $0100, $0140, $0180, $01C0
+	$0200, $0240, $0280, $02C0, $0300, $0340, $0380, $03C0
+	$0400, $0440, $0480, $04C0, $0500, $0540, $0580, $05C0
+	$0600, $0640, $0680, $06C0, $0700, $0740, $0780, $07C0
+	$0800, $0840, $0880, $08C0, $0900, $0940, $0980, $09C0
+	$0A00, $0A40, $0A80, $0AC0, $0B00, $0B40, $0B80, $0BC0
+	$0C00, $0C40, $0C80, $0CC0, $0D00, $0D40, $0D80, $0DC0
+	$0E00, $0E40, $0E80, $0EC0, $0F00, $0F40, $0F80, $0FC0
 }
 
 /*
