@@ -1,7 +1,7 @@
 /*
- *  LO_EDIT - Editor for LORES graphics files
+ *  LO_ EDIT - Editor for LORES graphics files
  *
- *  aCCemble -l run/LO_-EDIT.lst -o ../root/OS4/LO_-EDIT.run run/LO_-EDIT.ac
+ *  aCCemble -l run/LO_\ EDIT.lst -o ../root/OS4/LO_\ EDIT.run run/LO_\ EDIT.ac
  *
  */
 

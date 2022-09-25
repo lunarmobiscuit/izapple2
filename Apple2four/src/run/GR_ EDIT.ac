@@ -1,7 +1,7 @@
 /*
- *  GR_EDIT - Editor for 512x384 graphics files
+ *  GR_ EDIT - Editor for 512x384 graphics files
  *
- *  aCCemble -l run/GR_-EDIT.lst -o ../root/OS4/GR_-EDIT.run run/GR_-EDIT.ac
+ *  aCCemble -l run/GR_\ EDIT.lst -o ../root/OS4/GR_\ EDIT.run run/GR_\ EDIT.ac
  *
  */
 

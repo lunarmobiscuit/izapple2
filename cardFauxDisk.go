@@ -439,6 +439,10 @@ func (c *CardFauxDisk) findSubdir(dirname string) []fauxFile {
 //
 //  Does the file exist?
 //    0xC800 = zero-terminated name (high ASCII)
+//	Returns
+//	  0xC800-0xC802 = file type
+//	  0xC803-0xC805 = file size (in ASCII)
+//	  0xC806-0xC808 = file size (as 24-bit value)
 //
 func (c *CardFauxDisk) fauxDiskExists() uint8 {
 	if c.trace {
@@ -491,6 +495,22 @@ func (c *CardFauxDisk) fauxDiskExists__(filename string, dir []fauxFile, dirName
 		}
 	}
 
+	// Not found, so look in subdirectories
+	if (dirName == "") {
+		for i := 0; i < len(c.root); i++ {
+			d := c.root[i]
+			if (d.isdir) {
+				dir = d.subdir
+				for j := 0; j < len(dir); j++ {
+					f := dir[j]
+					if (filename == strings.ToUpper(f.name)) {
+						return c.fauxDiskExists__(filename, dir, d.filename + "/")
+					}
+				}
+			}
+		}
+	}
+
 	fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
 	return FAUX_ERR_NOT_FOUND
 }
@@ -500,6 +520,8 @@ func (c *CardFauxDisk) fauxDiskExists__(filename string, dir []fauxFile, dirName
 //  Create a file
 //    0xC800 = zero-terminated name (high ASCII)
 //    PARAM1 = file type (3 chars)
+//	Returns
+//	  RET0 = file number
 //
 func (c *CardFauxDisk) fauxDiskCreate() uint8 {
 	if c.trace {
@@ -557,6 +579,8 @@ func (c *CardFauxDisk) fauxDiskCreate__(fname string, fnameUC string, ftype stri
 //
 //  Open a file
 //    0xC800 = zero-terminated name (high ASCII)
+//	Returns
+//	  RET0 = file number
 //
 func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 	if c.trace {
@@ -596,6 +620,22 @@ func (c *CardFauxDisk) fauxDiskOpen__(filename string, dir []fauxFile, dirName s
 		}
 	}
 	if hasMatch == false {
+		// Not found, so look in subdirectories
+		if (dirName == "") {
+			for i := 0; i < len(c.root); i++ {
+				d := c.root[i]
+				if (d.isdir) {
+					dir = d.subdir
+					for j := 0; j < len(dir); j++ {
+						f := dir[j]
+						if (filename == strings.ToUpper(f.name)) {
+							return c.fauxDiskOpen__(filename, dir, d.filename + "/")
+						}
+					}
+				}
+			}
+		}
+
 		fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
 		return FAUX_ERR_NOT_FOUND
 	}

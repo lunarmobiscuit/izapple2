@@ -1,7 +1,7 @@
 /*
- *  BIN-EDIT - Editor for BIN files
+ *  BIN EDIT - Editor for BIN files
  *
- *  aCCemble -l run/BIN-EDIT.lst -o ../root/OS4/BIN-EDIT.run run/BIN-EDIT.ac
+ *  aCCemble -l run/BIN\ EDIT.lst -o ../root/OS4/BIN\ EDIT.run run/BIN\ EDIT.ac
  *
  */
 

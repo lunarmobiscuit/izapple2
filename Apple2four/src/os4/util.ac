@@ -78,8 +78,18 @@ sub SetScreenMode(MODE A) {
 		lda TXTPAGE1
 		RETURN
 	}
+	cmp #DISP_LORES_1
+	IF (==) {
+		lda TXT64CLR
+		lda TXT80CLR
+		lda TXTCLR
+		lda TXTPAGE1
+		lda LORES
+		RETURN
+	}
 	cmp #DISP_LORES_2
 	IF (==) {
+		lda TXT64CLR
 		lda TXT80CLR
 		lda TXTCLR
 		lda TXTPAGE2
@@ -1186,7 +1196,7 @@ sub AppleII4() {
 			lda Hello,x
 			beq +BREAK
 			ora #$80
-			sta $201C,x
+			sta $201A,x
 		}
 		RETURN
 	}
