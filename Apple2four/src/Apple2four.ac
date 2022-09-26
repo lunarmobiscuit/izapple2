@@ -8,7 +8,7 @@
 
 #include "os4/globals.ac"
 
-const N_COMMANDS	= 21		// The number of commands in CommandList
+const N_COMMANDS	= 20		// The number of commands in CommandList
 
 
 /*
@@ -75,7 +75,7 @@ sub Reset() @$FF0200 {
 	sta.w @GRPTR
 	stz.w @GRX					; Reset GRAPHICS coordinate to 0,0
 	stz.w @GRY
-	lda #$FF					; Default to first ROM Font
+	lda #$FE					; Default to 16 pixel tall ROM Font
 	sta @GRFONT
 
 	lda.t #_64K					; Reset the memory heap to start at $10000 (64K)

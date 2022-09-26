@@ -56,10 +56,10 @@ func main() {
 	        return
     	}
 
-    	generate8x8(charset)
-    	generate16x16(charset)
-    	generate24x24(charset)
-    	generate32x32(charset)
+    	generate7x8(charset)
+    	generate14x16(charset)
+    	generate21x16(charset)
+    	generate28x32(charset)
 
     } else {
 	    // Encode the font to the output file
@@ -135,7 +135,7 @@ func main() {
 //
 // 8x8 pixel verson of charset font
 //
-func generate8x8(charset []uint8) {	
+func generate7x8(charset []uint8) {	
 	fmt.Printf("  Create '%s8.fnt'\n", os.Args[3])
 	outfile, err := os.Create(os.Args[3] + "8.fnt")
 	if err != nil {
@@ -150,7 +150,7 @@ func generate8x8(charset []uint8) {
 	font.height = 8
 	font. baseline = 7
     for c := 128; c < 256; c++ {
-    	font.glyphs[c-128].width = 8
+    	font.glyphs[c-128].width = 7
     	if (c-128 < 64) {
 	    	font.glyphs[c-128].offset = (128*3)+3 + uint16((c-128)*8)
     	} else if (c-128 < 96) {
@@ -210,7 +210,7 @@ func generate8x8(charset []uint8) {
 //
 // 16x16 pixel verson of charset font
 //
-func generate16x16(charset []uint8) {
+func generate14x16(charset []uint8) {
 	fmt.Printf("  Create '%s16.fnt'\n", os.Args[3])
 	outfile, err := os.Create(os.Args[3] + "16.fnt")
 	if err != nil {
@@ -225,7 +225,7 @@ func generate16x16(charset []uint8) {
 	font.height = 16
 	font. baseline = 14
     for c := 128; c < 256; c++ {
-    	font.glyphs[c-128].width = 16
+    	font.glyphs[c-128].width = 13
     	if (c-128 < 64) {
 	    	font.glyphs[c-128].offset = (128*3)+3 + uint16((c-128)*(16*2))
     	} else if (c-128 < 96) {
@@ -290,7 +290,7 @@ func generate16x16(charset []uint8) {
 //
 // 24x24 pixel verson of charset font
 //
-func generate24x24(charset []uint8) {
+func generate21x16(charset []uint8) {
 	fmt.Printf("  Create '%s24.fnt'\n", os.Args[3])
 	outfile, err := os.Create(os.Args[3] + "24.fnt")
 	if err != nil {
@@ -305,7 +305,7 @@ func generate24x24(charset []uint8) {
 	font.height = 24
 	font. baseline = 21
     for c := 128; c < 256; c++ {
-    	font.glyphs[c-128].width = 24
+    	font.glyphs[c-128].width = 21
     	if (c-128 < 64) {
 	    	font.glyphs[c-128].offset = (128*3)+3 + uint16((c-128)*(24*3))
     	} else if (c-128 < 96) {
@@ -351,7 +351,6 @@ func generate24x24(charset []uint8) {
 				pixels[0] = uint8(word & 0xff)
 				pixels[1] = uint8((word >> 8) & 0xff)
 				pixels[2] = uint8((word >> 16) & 0xff)
-if c <= 130 { fmt.Printf("%08b%08b%08b\n", pixels[2], pixels[1], pixels[0]) }
 
 				// three identical rows as we blow up the original pixels to 3x3
 		        actualW, errW = outfile.Write(pixels)
@@ -367,7 +366,6 @@ if c <= 130 { fmt.Printf("%08b%08b%08b\n", pixels[2], pixels[1], pixels[0]) }
 				}
 			}
 		}
-if c <= 130 { fmt.Printf("\n") }
 	}
 }
 
@@ -375,7 +373,7 @@ if c <= 130 { fmt.Printf("\n") }
 //
 // 32x32 pixel verson of charset font
 //
-func generate32x32(charset []uint8) {
+func generate28x32(charset []uint8) {
 	fmt.Printf("  Create '%s32.fnt'\n", os.Args[3])
 	outfile, err := os.Create(os.Args[3] + "32.fnt")
 	if err != nil {
@@ -390,7 +388,7 @@ func generate32x32(charset []uint8) {
 	font.height = 24
 	font. baseline = 21
     for c := 128; c < 256; c++ {
-    	font.glyphs[c-128].width = 32
+    	font.glyphs[c-128].width = 28
     	if (c-128 < 64) {
 	    	font.glyphs[c-128].offset = (128*3)+3 + uint16((c-128)*(32*4))
     	} else if (c-128 < 96) {
@@ -437,7 +435,6 @@ func generate32x32(charset []uint8) {
 				pixels[1] = uint8((word >> 8) & 0xff)
 				pixels[2] = uint8((word >> 16) & 0xff)
 				pixels[3] = uint8((word >> 24) & 0xff)
-if c <= 130 { fmt.Printf("%08b%08b%08b%08b\n", pixels[3], pixels[2], pixels[1], pixels[0]) }
 
 				// four identical rows as we blow up the original pixels to 4x4
 		        actualW, errW = outfile.Write(pixels)
@@ -454,6 +451,5 @@ if c <= 130 { fmt.Printf("%08b%08b%08b%08b\n", pixels[3], pixels[2], pixels[1], 
 				}
 			}
 		}
-if c <= 130 { fmt.Printf("\n") }
 	}
 }

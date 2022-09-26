@@ -24,7 +24,7 @@ const BITBLT_TILE 		= 2
 const BITBLT_FILL		= 3
 const BITBLT_CHAR		= 4
 const BITBLT_STRING		= 5
-	
+
 
 /*
  *  Compute the GRAPHICS screen pointer
@@ -60,6 +60,19 @@ sub GrSetBase() {
 	dey
 	bra -add_loop
 
+	RETURN
+}
+
+
+/*
+ *  Set the font
+ */
+sub GrSetFont(FN A) {
+	cmp.w @GRFONT
+	if (!=) {
+		sta.w @GRFONT
+		RETURN
+	}
 	RETURN
 }
 

@@ -357,7 +357,6 @@ func (c *CardBitBlt) BitBltChar() {
 	}
 
 	ch := c.param0
-c.param1 = 0
 	c.fontID = c.param1
 	x := uint16(c.param2)
 	y := uint16(c.param3)
@@ -386,7 +385,6 @@ func (c *CardBitBlt) BitBltString() {
 	}
 
 	str := c.c800toString()
-c.param1 = 0
 	c.fontID = c.param1
 	x := uint16(c.param2)
 	y := uint16(c.param3)
@@ -412,105 +410,87 @@ c.param1 = 0
 //
 func (c *CardBitBlt) bltChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
 	// Low ASCII
-	fmt.Printf("CHAR %x\n", ch)
 	if (ch >= 128) {
 		ch -= 128
 	}
 
-	switch c.font.height {
-		case 8: return c.blt8BitChar(ch, x, y)
-		case 16: return c.blt16BitChar(ch, x, y)
-		case 24: return c.blt24BitChar(ch, x, y)
-	}
-
-	width := uint32(c.font.glyphs[ch].width)
-	x = 0
-	for ch = 0; ch < 8; ch++ {
-		width = uint32(c.font.glyphs[ch].width)
-		offset := uint32(c.font.glyphs[ch].offset)
-		glyphsPtr := c.font.address + uint32(offset)
-
-		for row := uint32(0); row < uint32(c.font.height); row++ {
-			rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + row) * GRAPHICS_ROW_BYTES))
-			fromAddr := glyphsPtr + (row * ((width+7)/8))
-			toAddr := rAddr + uint32(x/8);
-
-			c.a.mmu.Poke(toAddr, uint8(c.a.mmu.Peek(fromAddr)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+1)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+2)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+3)))
-
-			fromAddr += 4
-			toAddr += 4
-		}
-
-		x += (uint16(width & 0xff) + 7) / 8
-	}
-
-/*
 	// Lookup the details of this glyph
 	width := uint32(c.font.glyphs[ch].width)
+	stride := uint32(c.font.glyphs[ch].width + 7) / 8
 	offset := uint32(c.font.glyphs[ch].offset)
 	glyphsPtr := c.font.address + uint32(offset)
 
-	if c.trace {
-		fmt.Printf("[CardBitBlt] ch='%c' (%02x)  FONT=%x  X=%d  Y=%d  width=%d  height=%d  offset=%x\n",
-			ch + '@', ch, c.fontID, x, y, width, c.font.height, offset)
+	// X coordinate needs to fit within the screen (no clipping haflway through a glyph)
+	if (x >= GRAPHICS_WIDTH) {
+		return x, uint8(width)
+	} else if (x + uint16(width) >= GRAPHICS_WIDTH) { 
+		return x, uint8(width)
 	}
 
+	// Iterate for each row of the glyph
 	for row := uint32(0); row < uint32(c.font.height); row++ {
-		rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + row) * GRAPHICS_ROW_BYTES))
-		fromAddr := glyphsPtr + (row * (width+7)/8)
+		// Y coordinate points to baseline, but rendering starts at the top
+		if (y < uint16(c.font.baseline)) {
+			continue
+		} else if (y >= GRAPHICS_HEIGHT) { 
+			continue
+		}
+
+		rAddr := GRAPHICS_BASE + ((uint32(y - uint16(c.font.baseline)) + row) * GRAPHICS_ROW_BYTES)
+		fromAddr := glyphsPtr + (row * stride)
 		toAddr := rAddr + uint32(x/8);
 
-		for col := uint32(0); col <= width/8; col++ {
-			if c.trace && row < uint32(y+2) {
-				fmt.Printf("  %d 0x%x @%x -> @%x\n", row, uint32(ch), fromAddr, toAddr)
-			}
-
-			glyphBits := uint16(c.a.mmu.Peek(fromAddr)) | uint16(c.a.mmu.Peek(fromAddr + 1)) << 8
-			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
-			fromAddr += 1
-			toAddr += 1
-		}
-	}
-*/
-
-/*
-		// Draw the first pixels that are not aligned to x-coord mod 8
+		// Iterate over the pixels through width
 		p := 0
-		ip := int(8 - (x & 0x7))
-		if ip != 8 {
-			fmt.Printf("  %d pixels unaligned pixels to start\n", ip)
-			glyphBits := c.a.mmu.Peek(glyphsPtr + (r*uint32(c.font.height)))
-			bits := c.a.mmu.Peek(rAddr + (uint32(x) + uint32(p))/8)
-			bits |= glyphBits << ip
-			c.a.mmu.Poke(rAddr + (uint32(x) + uint32(p))/8, bits)
-			p += ip
+
+		// Draw the first pixels that are not aligned evenly to 8 bits
+		unalignedP := int(x & 0x7)
+		if unalignedP != 0 {
+			glyphBits := c.a.mmu.Peek(fromAddr) << unalignedP
+
+			screenMask := uint8(0xff >> (8 - unalignedP))
+
+			screenBits := c.a.mmu.Peek(toAddr)
+			screenBits &= screenMask
+			screenBits |= glyphBits
+			c.a.mmu.Poke(toAddr, screenBits)
+
+			p = (8 - unalignedP)
+			toAddr += 1
 		}
 
 		// Draw the aligned pixels
-		fmt.Printf("  %d pixels in the middle\n", width & 0xf8)
-		for i := p; i <= int(width & 0xf8); i += 8 {
-			glyphBits := c.a.mmu.Peek(glyphsPtr + (r*uint32(c.font.height))+(uint32(p/8)))
-			bits := c.a.mmu.Peek(rAddr + (uint32(x) + uint32(p))/8)
-			bits |= glyphBits
-			c.a.mmu.Poke(rAddr + (uint32(x) + uint32(p))/8, bits)
+		for p + 8 < int(width) {
+			glyphBits := uint16(c.a.mmu.Peek(fromAddr)) | (uint16(c.a.mmu.Peek(fromAddr + 1)) << 8)
+			if (unalignedP != 0) { glyphBits >>= 8 - unalignedP }
+			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
+
+			p += 8
+			fromAddr += 1
+			toAddr += 1
+		}
+
+		// Draw more pixels
+		remaining := int(width) - p
+		if (remaining > 0) {
+			glyphMask := uint8(0xff >> (8-remaining))
+			glyphBits := uint16(c.a.mmu.Peek(fromAddr)) | (uint16(c.a.mmu.Peek(fromAddr + 1)) << 8)
+			if (unalignedP != 0) { glyphBits >>= 8 - unalignedP }
+
+			screenMask := uint8(0xff)
+			if (remaining == 8) { screenMask = 0
+			} else { screenMask <<= remaining }
+
+			screenBits := c.a.mmu.Peek(toAddr)
+			screenBits &= screenMask
+			screenBits |= uint8(glyphBits) & glyphMask
+			c.a.mmu.Poke(toAddr, screenBits)
+
 			p += 8
 		}
-
-		// Draw the final pixels that are not aligned to x-coord mod 8
-		if p <= int(width) {
-			fmt.Printf("  %d pixels unaligned pixels to end\n", int(width) - p)
-			glyphBits := c.a.mmu.Peek(glyphsPtr + (r*uint32(c.font.height))+(uint32(p/8)))
-			bits := c.a.mmu.Peek(rAddr + (uint32(x) + uint32(p))/8)
-			bits |= glyphBits >> (int(width) - p)
-			c.a.mmu.Poke(rAddr + (uint32(x) + uint32(p))/8, bits)
-		}
 	}
-*/
 
-	return x + uint16(width), c.font.glyphs[ch].width
+	return x + uint16(width), uint8(width)
 }
 
 
@@ -692,9 +672,9 @@ func (c *CardBitBlt) loadFontTable(fontID uint8) {
 						uint32(c.a.mmu.Peek(RAMFONTS + (idx*3)))
 	}
 
-	if c.trace {
+	/*if c.trace {
 		fmt.Printf("[CardBitBlt] LOAD_FONT(%x) @$%x\n", fontID, fontAddr)
-	}
+	}*/
 
 	// 2-byte header with the number of glyphs (up to 256) and the height of the glyphs
 	c.font.nglyphs = c.a.mmu.Peek(fontAddr)
@@ -713,35 +693,6 @@ func (c *CardBitBlt) loadFontTable(fontID uint8) {
 				i, fontAddr+3+(i*3), c.font.glyphs[i].width, c.font.glyphs[i].offset)
 		} */
 	}
-
-if c.font.height == 8 {
-	for i := uint32(0); i < 8; i++ {
-		addr := uint32(ROMFONTS) + uint32(c.font.glyphs[1].offset) + i
-		fmt.Printf("A: $%06x %08b\n", addr, c.a.mmu.Peek(addr))
-	}
-}
-
-if c.font.height == 16 {
-	for i := uint32(0); i < 16; i++ {
-		addr := uint32(ROMFONTS) + uint32(c.font.glyphs[1].offset) + (i*2)
-		fmt.Printf("A: $%06x %08b%08b\n", addr, c.a.mmu.Peek(addr), c.a.mmu.Peek(addr+1))
-	}
-}
-
-if c.font.height == 24 {
-	for i := uint32(0); i < 24; i++ {
-		addr := uint32(RAMFONTS) + uint32(c.font.glyphs[1].offset) + (i*3)
-		fmt.Printf("A: $%06x %08b %08b %08b\n", addr, c.a.mmu.Peek(addr), c.a.mmu.Peek(addr+1), c.a.mmu.Peek(addr+2))
-	}
-}
-
-if c.font.height == 32 {
-	for i := uint32(0); i < 32; i++ {
-		addr := uint32(RAMFONTS) + uint32(c.font.glyphs[1].offset) + (i*4)
-		fmt.Printf("A: $%06x %08b %08b %08b %08b\n", addr, c.a.mmu.Peek(addr), c.a.mmu.Peek(addr+1), c.a.mmu.Peek(addr+2), c.a.mmu.Peek(addr+3))
-	}
-}
-
 }
 
 

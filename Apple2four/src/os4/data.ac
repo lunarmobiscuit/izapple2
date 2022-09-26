@@ -240,7 +240,6 @@ data CMD_Typeset string { "typeset" }
 data CMD_Wait string { "wait" }
 data CMD_View string { "view" }
 data CMD_2Plus string { "2+" }
-data CMD_T string { "t" }
 
 data CommandList u24 {
 	CMD_Help, DoHelp
@@ -263,5 +262,4 @@ data CommandList u24 {
 	CMD_View, DoView
 	CMD_Wait, Wait
 	CMD_2Plus, Do2Plus
-	CMD_T, DoT
 }

@@ -89,4 +89,7 @@ const GRHEIGHT 		= 384
 const GRWBYTES 		= 80
 const GRBYTES		= 30720
 
+const FONTA8		= $FF
+const FONTA16		= $FE
+
 const PAGINATE_LINES_PER_PAGE = 22

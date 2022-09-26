@@ -581,6 +581,49 @@ sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
 		RETURN
 	}
 
+	ldx.t @FONTNAME
+	lda.a24 X
+	cmp #'0'							; "0" is the loaded RAM font
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		IF (==) {
+			lda #0
+			jsr GrSetFont
+			RETURN
+		}
+	}
+	cmp #'a'							; "a8" is the built-in 7x8 AppleII font
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'8'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #FONTA8
+				jsr GrSetFont
+				RETURN
+			}
+		}
+		cmp #'1'						; "a16" is the built-in 14x16 AppleII font
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			cmp #'6'
+			IF (==) {
+				ldy #3
+				lda.a24 XY
+				IF (==) {
+					lda #FONTA16
+					jsr GrSetFont
+					RETURN
+				}
+			}
+		}
+	}
+
 	lda.t #$4e4f46						; "NOF"
 	sta.t %%0.$80						; Lookup FONTS:NAME (build the filename in %%0.$80)
 	lda.t #$3a5354						; ":ST"
@@ -628,6 +671,9 @@ sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
 		jsr PrintError
 		RETURN
 	}
+
+	lda #0								; switch to this font
+	jsr GrSetFont
 
 	RETURN
 }
@@ -1257,35 +1303,8 @@ sub DoTypeset(NPRM %%0, CMD %%0.1, XPOS %%0.4.w, YPOS %%0.7.w, STR %%0.10.t) {
 		jsr GrTypesetString
 	}
 
-	RETURN
-}
-/*
- *  't' - test typesetting
- */
-sub DoT(NPRM %%0, CMD %%0.1, STR %%0.4.t) {
-	lda @NPRM						; must specify X, Y, and string
-	IF (< 1) {
-		lda.t #NoValueErrStr
-		sta.t %%7
-		jsr PrintError
-		RETURN
-	}
-
 	lda #DISP_II4
 	jsr SetScreenMode
-
-	ldx.t @STR
-	ldy #1
-	lda.a24 XY
-	IF (==) {						; single character
-		lda.a24 X
-		jsr GrTypesetChar
-	}
-	ELSE {							; string of characters
-		lda.t @STR
-		sta.t %%7
-		jsr GrTypesetString
-	}
 
 	RETURN
 }
