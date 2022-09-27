@@ -302,7 +302,9 @@ func (c *CardFauxDisk) fauxDiskCatalog(firstCall bool) uint8 {
 		if catSubdir {
 			subdir := c.findSubdir(dirname)
 			if (subdir == nil) {
-				fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+				if c.trace {
+					fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+				}
 				return FAUX_ERR_NOT_FOUND
 			}
 			c.catDir = subdir
@@ -462,7 +464,9 @@ func (c *CardFauxDisk) fauxDiskExists() uint8 {
 		dirname := fname[:colon]
 		subdir := c.findSubdir(dirname)
 		if (subdir == nil) {
-			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			if c.trace {
+				fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			}
 			return FAUX_ERR_NOT_FOUND
 		}
 		return c.fauxDiskExists__(fname[colon+1:], subdir, dirname + "/")
@@ -511,7 +515,9 @@ func (c *CardFauxDisk) fauxDiskExists__(filename string, dir []fauxFile, dirName
 		}
 	}
 
-	fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+	if c.trace {
+		fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+	}
 	return FAUX_ERR_NOT_FOUND
 }
 
@@ -544,7 +550,9 @@ func (c *CardFauxDisk) fauxDiskCreate() uint8 {
 		dirname := fname[:colon]
 		subdir := c.findSubdir(dirname)
 		if (subdir == nil) {
-			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			if c.trace {
+				fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			}
 			return FAUX_ERR_NOT_FOUND
 		}
 		return c.fauxDiskCreate__(fname[colon+1:], fnameUC[colon+1:], ftype, subdir, dirname + "/")
@@ -564,7 +572,9 @@ func (c *CardFauxDisk) fauxDiskCreate__(fname string, fnameUC string, ftype stri
 
 	file, err := os.Create(string(c.rootName + "/" + dirName + fname + "." + ftype))
 	if (err != nil) {
-		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		}
 		return FAUX_ERR_NOT_FOUND
 	}
 
@@ -600,7 +610,9 @@ func (c *CardFauxDisk) fauxDiskOpen() uint8 {
 		dirname := fname[:colon]
 		subdir := c.findSubdir(dirname)
 		if (subdir == nil) {
-			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			if c.trace {
+				fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+			}
 			return FAUX_ERR_NOT_FOUND
 		}
 		return c.fauxDiskOpen__(fname[colon+1:], subdir, dirname + "/")
@@ -636,14 +648,17 @@ func (c *CardFauxDisk) fauxDiskOpen__(filename string, dir []fauxFile, dirName s
 			}
 		}
 
-		fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] FILE NOT FOUND\n")
+		}
 		return FAUX_ERR_NOT_FOUND
 	}
 
-fmt.Printf("  OPEN '%s'\n", c.rootName + "/" + dirName + dir[catIdx].filename)
 	file, err := os.Open(string(c.rootName + "/" + dirName + dir[catIdx].filename))
 	if (err != nil) {
-		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		}
 		return FAUX_ERR_NOT_FOUND
 	}
 
@@ -666,11 +681,15 @@ func (c *CardFauxDisk) fauxDiskRead() uint8 {
 	buffer := make([]byte, 1024)
 	actual, err := c.files[int(c.param0)].Read(buffer)
 	if (actual == 0) {
-		fmt.Printf("[CardFauxDisk] END OF FILE\n")
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] END OF FILE\n")
+		}
 		return FAUX_END_OF_FILE
 	}
 	if (err != nil) {
-		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		}
 		return FAUX_ERR_READ_ERROR
 	}
 	if c.trace {
@@ -791,11 +810,15 @@ func (c *CardFauxDisk) fauxDiskWrite() uint8 {
 	}
 	actual, err := c.files[int(c.param0)].Write(buffer)
 	if (err != nil) {
-		fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] ERROR: %s\n", err)
+		}
 		return FAUX_ERR_WRITE_ERROR
 	}
 	if (actual != int(c.param1)) {
-		fmt.Printf("[CardFauxDisk] ERROR: %d bytes written instead of %d\n", actual, c.param1)
+		if c.trace {
+			fmt.Printf("[CardFauxDisk] ERROR: %d bytes written instead of %d\n", actual, c.param1)
+		}
 		return FAUX_ERR_WRITE_ERROR
 	}
 
