@@ -22,7 +22,7 @@ sub Start() @$FF0000 {
 /*
  *  RST vector points here
  */
-sub Reset() @$FF0200 {
+sub Reset() @$FF0400 {
 	cld
 	sta LANGSET					; turn on ][+ "upper" 16K (write twice)
 	sta LANGSET
@@ -218,7 +218,7 @@ sub CommandLine() {
 
   		lda.t CommandList,X				; CommandList[X].string
   		sta.t %%7.3
-		jsr CompareText
+		jsr CompareTextCI
 		IF - {
 			ldx @I6
 	  		lda.t CommandList+3,X		; CommandList[X].func
@@ -268,7 +268,7 @@ sub CompleteCommand() {
 
   		lda.t CommandList,X				; CommandList[X].string
   		sta.t %%7.3
-		jsr CompareStartOfText
+		jsr CompareStartOfTextCI
 		IF - {
 			ldx @I6
 	  		lda.t CommandList,X			; %%0.1 <- CommandList[X].string

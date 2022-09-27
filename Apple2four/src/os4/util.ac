@@ -132,7 +132,7 @@ sub SetScreenMode(MODE A) {
 
 
 /*
- *  Compare the text buffer with a string
+ *  Compare two strings
  *  Return in A = #FF if match, #00 if not
  */
 sub CompareText(STR_A %%7.t, STR_B %%7.3.t) {
@@ -156,15 +156,75 @@ sub CompareText(STR_A %%7.t, STR_B %%7.3.t) {
 }
 
 /*
- *  Compare the text buffer with a string
+ *  Compare two strings (case insensitive, assuming STR_B is lower case)
+ *  Return in A = #FF if match, #00 if not
+ */
+sub CompareTextCI(STR_A %%7.t, STR_B %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_A
+		lda.a24 XY
+		cmp #'A'
+		if (>=) {
+			cmp #'Z'
+			if (<=) {
+				clc
+				adc #$20			; #'a' - #'A'
+			}
+		}
+		ldx.t @STR_B
+		cmp.a24 XY
+		IF != {
+			RETURN 0
+		}
+		IF == 0 {
+			lda.a24 XY
+			IF == 0 {
+				RETURN $FF
+			}
+			RETURN 0
+		}
+	}
+	RETURN 0
+}
+
+/*
+ *  Compare the start of two strings
  *  Return in A = #FF if STR_A matches the start of STR_B, #00 if not
  */
 sub CompareStartOfText(STR_A %%7.t, STR_B %%7.3.t) {
 	FOR Y = 0 TO 127 {
 		ldx.t @STR_A
 		lda.a24 XY
-		IF == 0 {
+		IF (==) {
 			RETURN $FF
+		}
+		ldx.t @STR_B
+		cmp.a24 XY
+		IF != {
+			RETURN 0
+		}
+	}
+	RETURN 0
+}
+
+/*
+ *  Compare the start of two strings (case insensitive, assuming STR_B is lower case)
+ *  Return in A = #FF if STR_A matches the start of STR_B, #00 if not
+ */
+sub CompareStartOfTextCI(STR_A %%7.t, STR_B %%7.3.t) {
+	FOR Y = 0 TO 127 {
+		ldx.t @STR_A
+		lda.a24 XY
+		IF (==) {
+			RETURN $FF
+		}
+		cmp #'A'
+		if (>=) {
+			cmp #'Z'
+			if (<=) {
+				clc
+				adc #$20			; #'a' - #'A'
+			}
 		}
 		ldx.t @STR_B
 		cmp.a24 XY

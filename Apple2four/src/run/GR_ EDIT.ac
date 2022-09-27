@@ -1008,7 +1008,7 @@ sub CommandLine() {
 
   		lda.t CommandList,X				; CommandList[X].string
   		sta.t %%7.3
-		jsr (os4_CompareText)
+		jsr (os4_CompareTextCI)
 		IF - {
 			ldx @I6
 	  		lda.t CommandList+3,X		; CommandList[X].func
@@ -1048,7 +1048,7 @@ sub CompleteCommand() {
 
   		lda.t CommandList,X				; CommandList[X].string
   		sta.t %%7.3
-		jsr (os4_CompareStartOfText)
+		jsr (os4_CompareStartOfTextCI)
 		IF - {
 			ldx @I6
 	  		lda.t CommandList,X			; %%0.1 <- CommandList[X].string

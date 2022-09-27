@@ -34,7 +34,9 @@ data ROMVectors @$FF0005 u24 {
 	ClearHires
 	ClearGraphics
 	CompareText
+	CompareTextCI
 	CompareStartOfText
+	CompareStartOfTextCI
 	CopyString
 	CopyStringHigh
 	ParseInputParams
@@ -57,6 +59,16 @@ data DOSVectors @$FF0100 u24 {
 	Disk4Write
 	Disk4C800
 	Disk4PrintError
+}
+
+data GraphicsVectors @$FF0200 u24 {
+	GrSetBase
+	GrSetFont
+	GrSetX
+	GrSetY
+	GrTypesetChar
+	GrTypesetString
+	GrTypesetSpace
 }
 
 /*
@@ -209,12 +221,12 @@ data BeepTimes byte {
 /*
  *  Built in fonts
  */
-data ROM_Fonts @$FFE000 u24 {
-	$FFE020,
-	$FFE600
+data ROM_Fonts @$FFA000 u24 {
+	$FFA020,
+	$FFA600
 }
-data FONT_Apple7x8 @$FFE020 file { "fonts/charset7x8.fnt" }
-data FONT_Apple14x16 @$FFE600 file { "fonts/charset14x16.fnt" }
+data FONT_Apple7x8 @$FFA020 file { "fonts/charset7x8.fnt" }
+data FONT_Apple14x16 @$FFA600 file { "fonts/charset14x16.fnt" }
 
 
 /*

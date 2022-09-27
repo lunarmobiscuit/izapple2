@@ -476,13 +476,13 @@ sub DoView(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 
 	lda.t #$34534f						; "4SO"
-	sta.t %%0.$80						; Lookup OS4:TYP-VIEW to view the file (build the filename in %%0.$80)
+	sta.t %%0.$80						; Lookup "OS4:TYP VIEW" to view the file (build the filename in %%0.$80)
 	lda.b #$3a							; ":"
 	sta.b %%0.$83
 	lda.t @DISK4_RAM
 	and.t #$7f7f7f						; convert to LOW ASCII
 	sta.t %%0.$84
-	lda.t #$49562D						; "IV_"
+	lda.t #$495620						; "IV "
 	sta.t %%0.$87
 	lda.t #$005745						; "WE"+zero
 	sta.t %%0.$8A
@@ -538,13 +538,13 @@ sub DoEdit(NPRM %%0, CMD %%0.1, FILENAME %%0.4) {
 	}
 
 	lda.t #$34534f						; "4SO"
-	sta.t %%0.$80						; Lookup OS4:TYP-EDIT to edit the file (build the filename in %%0.$80)
+	sta.t %%0.$80						; Lookup "OS4:TYP EDIT" to edit the file (build the filename in %%0.$80)
 	lda.b #$3a							; ":"
 	sta.b %%0.$83
 	lda.t @DISK4_RAM
 	and.t #$7f7f7f						; convert to LOW ASCII
 	sta.t %%0.$84
-	lda.t #$44452D						; "DE_"
+	lda.t #$444520						; "DE "
 	sta.t %%0.$87
 	lda.t #$005449						; "TI"+zero
 	sta.t %%0.$8A

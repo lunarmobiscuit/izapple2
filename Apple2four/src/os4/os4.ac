@@ -8,7 +8,7 @@
 const os4_Reset					= $ff0002
 const os4_Wait					= $ff0005
 const os4_SetScreenMode			= $ff0008
-const os4_SetScreenBase		 	= $ff000b
+const os4_SetScreenBase			= $ff000b
 const os4_GetChar				= $ff000e
 const os4_PrintChar				= $ff0011
 const os4_PrintSpace			= $ff0014
@@ -20,26 +20,28 @@ const os4_PrintHexDigit			= $ff0023
 const os4_PrintHexByte			= $ff0026
 const os4_PrintHexWord			= $ff0029
 const os4_PrintHex24			= $ff002c
-const os4_ResetPaginate		 	= $ff002f
-const os4_PaginateLine		 	= $ff0032
-const os4_NextLine			 	= $ff0035
-const os4_ScrollScreen		 	= $ff0038
+const os4_ResetPaginate			= $ff002f
+const os4_PaginateLine			= $ff0032
+const os4_NextLine				= $ff0035
+const os4_ScrollScreen			= $ff0038
 const os4_ClearRow				= $ff003b
 const os4_ClearScreen			= $ff003e
 const os4_ClearLores			= $ff0041
 const os4_ClearHires			= $ff0044
-const os4_ClearGraphics		 	= $ff0047
+const os4_ClearGraphics			= $ff0047
 const os4_CompareText			= $ff004a
-const os4_CompareStartOfText	= $ff004d
-const os4_CopyString			= $ff0050
-const os4_CopyStringHigh		= $ff0053
-const os4_ParseInputParams		= $ff0056
-const os4_ParseNumber			= $ff0059
-const os4_ParseHexNumber		= $ff005c
-const os4_ParseDecimalNumber	= $ff005f
-const os4_Times10				= $ff0062
-const os4_Modulo				= $ff0065
-const os4_PlayBeep				= $ff0068
+const os4_CompareTextCI			= $ff004d
+const os4_CompareStartOfText	= $ff0050
+const os4_CompareStartOfTextCI	= $ff0053
+const os4_CopyString			= $ff0056
+const os4_CopyStringHigh		= $ff0059
+const os4_ParseInputParams		= $ff005c
+const os4_ParseNumber			= $ff005f
+const os4_ParseHexNumber		= $ff0062
+const os4_ParseDecimalNumber	= $ff0065
+const os4_Times10				= $ff0068
+const os4_Modulo				= $ff006b
+const os4_PlayBeep				= $ff006e
 
 const os4_Disk4Name				= $ff0100
 const os4_Disk4CatalogStart		= $ff0103
@@ -84,4 +86,32 @@ const DISK4_ERR_EXISTS		= 3
 const DISK4_ERR_NOT_FOUND	= 4
 const DISK4_ERR_READ_ERROR	= 5
 const DISK4_ERR_WRITE_ERROR	= 6
+
+
+const os4_GrSetBase				= $ff0200
+const os4_GrSetFont				= $ff0203
+const os4_GrSetX				= $ff0206
+const os4_GrSetY				= $ff0209
+const os4_GrTypesetChar			= $ff020c
+const os4_GrTypesetString		= $ff020f
+const os4_GrTypesetSpace		= $ff0212
+	
+global BITBLT_CMD		= @$c0b0	// BitBlt command (1 byte) WRITE
+global BITBLT_PARAM0	= @$c0b1	// BitBlt parameter 0 (1 byte) WRITE
+global BITBLT_PARAM1	= @$c0b2	// BitBlt parameter 1 (1 byte) WRITE
+global BITBLT_PARAM2	= @$c0b3	// BitBlt parameter 2 (3 bytes) WRITE
+global BITBLT_PARAM3	= @$c0b6	// BitBlt parameter 3 (3 bytes) WRITE
+global BITBLT_PARAM4	= @$c0b9	// BitBlt parameter 4 (3 bytes) WRITE
+global BITBLT_PARAM5	= @$c0bc	// BitBlt parameter 5 (3 bytes) WRITE
+global BITBLT_RUNNING	= @$c0bf	// BitBlt return value 2 (2 bytes) READ
+global BITBLT_RAM		= @$c800	// BitBlt RAM for passing large values in/out
+
+global SLOT_3_ROM		= @$c300	// Start of slot 3 ROM, to enable $C800 RAM
+
+const BITBLT_DMA		= 0
+const BITBLT_COPY		= 1
+const BITBLT_TILE 		= 2
+const BITBLT_FILL		= 3
+const BITBLT_CHAR		= 4
+const BITBLT_STRING		= 5
 
