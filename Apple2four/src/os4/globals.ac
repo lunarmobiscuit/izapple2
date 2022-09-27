@@ -82,7 +82,7 @@ const HIRES_START	= $2000
 const II4GR_START	= $4000
 const II4GR_END		= $B800
 
-const ROMFONTS		= $FFE000
+const ROMFONTS		= $FFA000
 const RAMFONTS		= $A000
 const GRWIDTH 		= 512
 const GRHEIGHT 		= 384
