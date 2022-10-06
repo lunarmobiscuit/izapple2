@@ -91,5 +91,7 @@ const GRBYTES		= 30720
 
 const FONTA8		= $FF
 const FONTA16		= $FE
+const FONTCHICAGO	= $FD
+const FONTapple		= $FC
 
 const PAGINATE_LINES_PER_PAGE = 22

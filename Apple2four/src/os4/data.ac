@@ -52,6 +52,7 @@ data DOSVectors @$FF0100 u24 {
 	Disk4Name
 	Disk4CatalogStart
 	Disk4CatalogNext
+	Disk4Exists
 	Disk4Create
 	Disk4Open
 	Disk4Close
@@ -69,6 +70,7 @@ data GraphicsVectors @$FF0200 u24 {
 	GrTypesetChar
 	GrTypesetString
 	GrTypesetSpace
+	GrTypesetCharBig
 }
 
 /*
@@ -224,9 +226,13 @@ data BeepTimes byte {
 data ROM_Fonts @$FFA000 u24 {
 	$FFA020,
 	$FFA600
+	$FFB400
+	$FFC900
 }
 data FONT_Apple7x8 @$FFA020 file { "fonts/charset7x8.fnt" }
 data FONT_Apple14x16 @$FFA600 file { "fonts/charset14x16.fnt" }
+data FONT_Chicago @$FFB400 file { "fonts/Chicago.fnt" }
+data FONT_apple @$FFC900 file { "fonts/Motter.fnt" }
 
 
 /*
@@ -241,6 +247,7 @@ data CMD_Edit string { "edit" }
 data CMD_Font string { "font" }
 data CMD_Graphics string { "graphics" }
 data CMD_Hires string { "hires" }
+data CMD_Line string { "line" }
 data CMD_Load string { "load" }
 data CMD_Lores string { "lores" }
 data CMD_Peek string { "peek" }
@@ -263,6 +270,7 @@ data CommandList u24 {
 	CMD_Font, DoFont
 	CMD_Graphics, DoGraphics
 	CMD_Hires, DoHires
+	CMD_Line, DoLine
 	CMD_Load, DoLoad
 	CMD_Lores, DoLores
 	CMD_Peek, DoPeek

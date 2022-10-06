@@ -46,13 +46,14 @@ const os4_PlayBeep				= $ff006e
 const os4_Disk4Name				= $ff0100
 const os4_Disk4CatalogStart		= $ff0103
 const os4_Disk4CatalogNext		= $ff0106
-const os4_Disk4Create			= $ff0109
-const os4_Disk4Open				= $ff010c
-const os4_Disk4Close			= $ff010f
-const os4_Disk4Read				= $ff0112
-const os4_Disk4Write			= $ff0115
-const os4_Disk4C800				= $ff0118
-const os4_Disk4PrintError		= $ff011b
+const os4_Disk4Exists			= $ff0109
+const os4_Disk4Create			= $ff010c
+const os4_Disk4Open				= $ff010f
+const os4_Disk4Close			= $ff0112
+const os4_Disk4Read				= $ff0115
+const os4_Disk4Write			= $ff0118
+const os4_Disk4C800				= $ff011b
+const os4_Disk4PrintError		= $ff011e
 
 
 global DISK4_CMD		= @$c0f0	// Disk][4 command (1 byte) WRITE
@@ -95,6 +96,7 @@ const os4_GrSetY				= $ff0209
 const os4_GrTypesetChar			= $ff020c
 const os4_GrTypesetString		= $ff020f
 const os4_GrTypesetSpace		= $ff0212
+const os4_GrTypesetCharBig		= $ff0215
 	
 global BITBLT_CMD		= @$c0b0	// BitBlt command (1 byte) WRITE
 global BITBLT_PARAM0	= @$c0b1	// BitBlt parameter 0 (1 byte) WRITE

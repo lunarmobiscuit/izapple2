@@ -8,7 +8,7 @@
 
 #include "os4/globals.ac"
 
-const N_COMMANDS	= 20		// The number of commands in CommandList
+const N_COMMANDS	= 21		// The number of commands in CommandList
 
 
 /*

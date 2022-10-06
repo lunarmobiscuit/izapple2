@@ -1,0 +1,774 @@
+/*
+ *  FNT VIEW - Viewer for 512x384 graphics fonts
+ *
+ *  aCCemble -l run/FNT\ VIEW.lst -o ../root/OS4/FNT\ VIEW.run run/FNT\ VIEW.ac
+ *
+ */
+
+#include "os4/globals.ac"
+#include "os4/os4.ac"
+
+const N_COMMANDS	= 5			// The number of commands in CommandList
+
+const GRBASE		= II4GR_START
+const GRSIZE		= 30720
+
+global INPBUFFER 	= @$100		// $100-$14F holds the line of text being typed
+global INPBUFFER2 	= @$150		// $150-$1BF holds the previous line of text typed
+global INPBUFFER3 	= @$1A0		// $1A0-$1EF holds the previous previous line of text typed
+
+global SHOWCHAR		= %R129		// The character to show
+
+
+/*
+ *  Edit a font
+ */
+sub FNT_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
+	lda #DISP_II4
+	jsr (os4_SetScreenMode)
+	jsr (os4_ClearGraphics)
+	lda #2
+	sta @TXTROW
+	stz @TXTPOS
+	ldx #0
+	jsr (os4_ClearScreen)
+
+
+	lda #'A'
+	sta @SHOWCHAR
+
+	FOR X = 0 TO 39 {
+		lda Header,x
+		beq +BREAK
+		ora #$80
+		sta $40A,x
+	}
+
+	lda @NPRM
+	IF (!=) {
+		jsr DoFont
+	}
+
+	jsr refreshScreen
+
+	jsr ClearInputBuffers
+	LOOP {
+		jsr (os4_SetScreenBase)			; Set the @TXTPTR based on @TXTROW
+		lda @TXTPOS
+		IF == {
+			lda #'A'H					; Draw the 'Aa:' prompt
+			jsr (os4_PrintChar)
+			lda #'a'H
+			jsr (os4_PrintChar)
+			lda @PMPTCHR
+			jsr (os4_PrintChar)
+			jsr (os4_PrintCursor)		; Draw the cursor
+		}
+		LOOP {
+			bit KBD 					; check keyboard for next key
+			IF - {
+				BREAK
+			}
+		}
+		lda KBD 						; get the key code from the keyboard and ack the read
+		bit KBDSTRB
+		IF == $9B {						; 27 = ESC ($80 | $1B in high ASCII)
+			lda @DISPMODE
+			and #DISP_II4
+			IF (==) {
+				lda #DISP_II4			; Toggle to II4 GRAPHICS
+			}
+			ELSE {
+				lda #DISP_TEXT_1		; Toggle to TEXT page 1
+			}
+			jsr (os4_SetScreenMode)
+			CONTINUE
+		}
+		ldx @DISPMODE
+		cpx #DISP_II4
+		IF (==) {						; If the II4 GRAPHICS is visible, show the character
+			and #$7F					; LOW ASCII
+			sta @SHOWCHAR
+			jsr refreshScreen
+			CONTINUE
+		}
+		IF == $8D {						; 13 = CR ($80 | $0D in high ASCII)
+			jsr (os4_ClearCursor)
+			jsr (os4_NextLine)
+			jsr CurrentToPrevInputBuffer
+			stz %%0.255
+			jsr CommandLine
+			sta %%0.255
+			jsr ClearCurrentInputBuffer
+
+			lda %%0.255					; End the program?
+			if (== $ff) {
+				RETURN 0
+			}
+			CONTINUE
+		}
+		IF == $FF {						; 127 = DEL ($80 | $7F in high ASCII)
+			lda @TXTPOS
+			IF > 3 {
+				jsr (os4_ClearCursor)	; Erase the cursor
+				lda #' 'H				; Erase the current character
+				ldy @TXTPOS
+				dey
+				sta (@TXTPTR),y
+				dey						; Delete the last character in the text buffer
+				lda #0
+				sta @INPBUFFER,y
+				dec @TXTPOS				; Decrement the text position
+				jsr (os4_PrintCursor)
+			}
+			CONTINUE
+		}
+		IF == $89 {						; 9 = Tab ($80 | $09 in high ASCII)
+			jsr CompleteCommand
+			CONTINUE
+		}
+		IF == $8B {						; 11 = Up Arrow ($80 | $0B in high ASCII)
+			jsr PrevToCurrentInputBuffer
+			jsr InputBufferToTextScreen
+			jsr (os4_PrintCursor)
+			CONTINUE
+		}
+		IF == $9A {						; 26 = Control-Z ($80 | $1A in high ASCII)
+			jsr PrevToCurrentInputBuffer
+			jsr InputBufferToTextScreen
+			jsr (os4_PrintCursor)
+			CONTINUE
+		}
+		IF > $9F {						; >31 = Not a control character ($80 | $1F in high ASCII)
+			ldy @TXTPOS
+			jsr (os4_PrintChar)
+			cpy #40 					; Ignore IF >= column 40
+			IF < {
+				and #$7F				; store (low) ASCII in TEXT buffer
+				dey 					; Y-3 as the command starts at POS=3, after the 'lo:' prompt
+				dey
+				dey
+				sta @INPBUFFER,y
+				jsr (os4_PrintCursor)
+			}
+		}
+	}
+	; loop forever
+}
+
+
+/*
+ *  Lookup and execute the typed command
+ */
+sub DoHelp() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+	var COL	= @$06						; column 0/12/24
+
+	jsr (os4_ResetPaginate)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr (os4_PaginateLine)
+
+	lda.t #HelpListStr
+	sta.t %%7
+	jsr (os4_PrintString)
+	lda #PAGINATE_LINES_PER_PAGE
+	sta %%7
+	jsr (os4_PaginateLine)
+	jsr (os4_PaginateLine)
+
+	@I = 1
+	@COL = 0
+	DO {
+		jsr (os4_PrintSpace)
+
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7
+		jsr (os4_PrintString)
+
+		lda @COL
+		IF ==  {
+			@COL = 1
+			@TXTPOS = 12
+		}
+		ELSE {
+			IF == 1 {
+				@COL = 2
+				@TXTPOS = 24
+			}
+			IF == 2 {
+				@COL = 0
+				lda #PAGINATE_LINES_PER_PAGE
+				sta %%7
+				jsr (os4_PaginateLine)
+			}
+		}
+
+		inc @I
+		lda @I
+	}
+	WHILE (< N_COMMANDS)
+
+	jsr (os4_NextLine)
+	jsr (os4_NextLine)
+	RETURN 0
+}
+
+/*
+ *  Clear the screen
+ */
+sub DoClear() {
+	jsr (os4_ClearGraphics)
+	RETURN 0
+}
+
+
+/*
+ *  change 'font'
+ *
+ */
+sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
+	lda @NPRM							; must specify a filename
+	IF (< 1) {
+		lda.t #NoFontNameErrStr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN 0
+	}
+
+	ldx.t @FONTNAME
+	lda.a24 X
+	cmp #'0'							; "0" is the loaded RAM font
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		IF (==) {
+			lda #0
+			jsr (os4_GrSetFont)
+			jsr refresh
+			RETURN 0
+		}
+	}
+	cmp #'a'							; "a" is the font used in appleII
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		IF (==) {
+			lda #FONTapple
+			jsr (os4_GrSetFont)
+			jsr refresh
+			RETURN 0
+		}
+		cmp #'8'						; "a8" is the built-in 7x8 AppleII font
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #FONTA8
+				jsr (os4_GrSetFont)
+				jsr refresh
+				RETURN 0
+			}
+		}
+		cmp #'1'						; "a16" is the built-in 14x16 AppleII font
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			cmp #'6'
+			IF (==) {
+				ldy #3
+				lda.a24 XY
+				IF (==) {
+					lda #FONTA16
+					jsr (os4_GrSetFont)
+					jsr refresh
+					RETURN 0
+				}
+			}
+		}
+	}
+	cmp #'c'							; "ch" is the built-in "Chicago" font
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'h'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #FONTCHICAGO
+				jsr (os4_GrSetFont)
+				jsr refresh
+				RETURN 0
+			}
+		}
+	}
+
+	lda.t #$4e4f46						; "NOF"
+	sta.t %%0.$80						; Lookup FONTS:NAME (build the filename in %%0.$80)
+	lda.t #$3a5354						; ":ST"
+	sta.t %%0.$83
+	ldy #0								; Append the font name
+	LOOP {
+		ldx.t @FONTNAME
+		lda.a24 XY
+		sta.a24 %%0.$86,Y
+
+		lda.a24 XY
+		if (==) {
+			BREAK
+		}
+		iny
+	}
+	lda.t #%%0.$80
+	sta.t %%6
+	jsr (os4_Disk4Exists)
+	IF (!=) {							; If the font doesn't exist, error
+		lda.t #NoFontFoundErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN 0
+	}
+
+	lda.t @DISK4_RAM					; The type is returned in $C800-$C802
+	cmp.t #$d4cec6						; "FNT" = font file
+	IF (!=) {
+		lda.t #NotFontFileErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN 0
+	}
+
+	lda.t #%%0.$80
+	sta.t %%1
+	lda.t #RAMFONTS+4					; fonts from files get copied to RAM
+	sta.t RAMFONTS
+	sta.t %%1.3
+	jsr loadFont
+	if (==) {
+		lda.t #FontLoadFailedErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN 0
+	}
+
+	lda #0								; switch to this font
+	jsr (os4_GrSetFont)
+	jsr refresh
+
+	RETURN 0
+}
+
+
+/*
+ *  Load a file into the address
+ *	  Returns total # of bytes read
+ */
+sub loadFont(FILENAME %%1.t, ADDRESS %%1.3.t) {
+	var FN = %R3.b
+	lda.t @FILENAME
+	sta.t %%6
+	jsr (os4_Disk4Open)
+	IF (!=) {
+		jsr (os4_Disk4PrintError)
+		RETURN 0
+	}
+	stx @FN
+	stx @DISK4_PARAM0
+
+	var R_IDX = %R4.t					; index of total bytes read across all loops
+	var ACTUAL = %R7.w					; actual bytes read per Disk4Read
+	var C_IDX = %R9.w					; bytes copied from the read buffer
+
+	stz.t @R_IDX
+	LOOP {
+		jsr (os4_Disk4Read)
+		IF (== DISK4_END_OF_FILE) {		; Until EOF
+			BREAK
+		}
+		lda.t @DISK4_RET0				; Or check for zero byes (to be safe)
+		IF (==) {
+			BREAK
+		}
+		sta.w @ACTUAL
+
+		stz.w @C_IDX
+		LOOP {
+			ldx.w #@DISK4_RAM			; Load from $C800,Y
+			ldy.w @C_IDX
+			lda.a24 XY
+			inc.t @C_IDX
+
+			ldx.t @ADDRESS				; Store in @ADDRESS,Y
+			ldy.t @R_IDX
+			sta.a24 XY
+			inc.t @R_IDX
+
+			ldy.w @C_IDX				; Until @C_IDX == @ACTUAL
+			cpy.w @ACTUAL
+			IF (==) {
+				BREAK
+			}
+		}
+	}
+
+	lda @FN
+	jsr (os4_Disk4Close)
+
+	lda @R_IDX
+	RETURN
+}
+
+
+/*
+ *  Set the visible character (by ASCII code)
+ */
+sub DoChar(NPRM %%0, CMD %%0.1, CHAR %%0.4.t) {
+	lda @NPRM						; no coordinate specified
+	if (< 1) {
+		lda.t #MissingValueErr
+		sta.t %%7
+		jsr (os4_PrintError)
+		RETURN
+	}
+
+	lda.t @CHAR						; parse the position
+	sta.t %%7
+	jsr (os4_ParseNumber)
+	sta @SHOWCHAR
+	jsr refresh
+
+	RETURN 0
+}
+
+
+/*
+ *  Quit the program
+ */
+sub DoQuit() {
+	lda #DISP_TEXT_1
+	jsr (os4_SetScreenMode)
+
+	RETURN $ff
+}
+
+
+/*
+ *  Draw the glyph on the screen
+ */
+sub refresh() {
+	lda #DISP_II4
+	jsr (os4_SetScreenMode)
+	// DROP THROUGH
+}
+sub refreshScreen() {
+	jsr (os4_ClearGraphics)
+
+	lda #10
+	jsr (os4_GrSetX)
+	lda #30
+	jsr (os4_GrSetY)
+	lda.t #ASCII_Numbers
+	sta.t %%5
+	jsr (os4_GrTypesetString)
+
+	lda #10
+	jsr (os4_GrSetX)
+	lda #60
+	jsr (os4_GrSetY)
+	lda.t #ASCII_Uppercase
+	sta.t %%5
+	jsr (os4_GrTypesetString)
+
+	lda #10
+	jsr (os4_GrSetX)
+	lda #90
+	jsr (os4_GrSetY)
+	lda.t #ASCII_Lowercase
+	sta.t %%5
+	jsr (os4_GrTypesetString)
+
+	lda #50
+	sta.w %%5
+	lda #120
+	sta.w %%5.2
+	lda @SHOWCHAR
+	jsr (os4_GrTypesetCharBig)
+
+	RETURN
+}
+
+
+/*
+ *  Lookup and execute the typed command
+ */
+sub CommandLine() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda @INPBUFFER						; Check for blank line
+	if (==) {
+		RETURN
+	}
+
+	lda.t #@INPBUFFER
+	sta.t %%7
+	jsr (os4_ParseInputParams)
+
+	lda.t %%0.1							; strA for CompareText
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr (os4_CompareTextCI)
+		IF - {
+			ldx @I6
+	  		lda.t CommandList+3,X		; CommandList[X].func
+	  		sta.t %R0
+			jsr.a24 (%R0)
+			sta %%0.255					; Store the return code (!= is quit)
+			RETURN
+		}
+	}
+
+	lda.t #UnknownCommandErr
+	sta.t %%7
+	jsr (os4_PrintError)
+	stz %%0.255							; Doubly sure not to quit over this
+	RETURN
+}
+
+/*
+ *  Try and complete the command
+ */
+sub CompleteCommand() {
+	var I	= @$04						; loop variable
+	var I6	= @$05						; I * 6
+
+	lda #@INPBUFFER						; %%7 <- TEXT buffer
+	sta.t %%7
+	FOR @I = 0 TO N_COMMANDS-1 {
+		lda @I							; X = @M$04 * 6 = (@M$04 * 4) + (@M$04 * 2)
+		A <<= 2
+		sta @I6
+		lda @I
+		A <<= 1
+		clc
+		adc @I6
+		sta @I6
+		tax
+
+  		lda.t CommandList,X				; CommandList[X].string
+  		sta.t %%7.3
+		jsr (os4_CompareStartOfTextCI)
+		IF - {
+			ldx @I6
+	  		lda.t CommandList,X			; %%0.1 <- CommandList[X].string
+	  		sta.t %%7
+			lda #@INPBUFFER				; %%7.3 <- TEXT buffer
+			sta.t %%7.3
+			jsr (os4_CopyString)
+			lda.w @TXTPTR				; @TXTPTR <- Current line on TEXT screen
+			inc.w						;  +3 for the cursor
+			inc.w
+			inc.w
+			sta.t %%7.3
+			jsr (os4_CopyStringHigh)
+			iny							;  +3 for the cursor
+			iny
+			iny
+			sty @TXTPOS					; CopyString leaves the length of the string in Y
+			jsr (os4_PrintCursor)
+			RETURN
+		}
+	}
+
+	RETURN
+}
+
+
+/*
+ *  Clear the text input buffers (255 bytes, filled with zeros)
+ */
+sub ClearInputBuffers() {
+	lda #0
+	FOR X = 0 TO 255 {
+		sta @INPBUFFER,x
+	}
+	rts.a24
+}
+
+/*
+ *  Clear the text input buffer (128 bytes, filled with zeros)
+ */
+sub ClearCurrentInputBuffer() {
+	lda #0
+	FOR X = 0 TO 79 {
+		sta @INPBUFFER,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub PrevToCurrentInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER2,x
+		sta @INPBUFFER,x
+
+		lda @INPBUFFER3,x
+		sta @INPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the previous input buffer into the current buffer (128 bytes)
+ */
+sub CurrentToPrevInputBuffer() {
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER2,x
+		sta @INPBUFFER3,x
+
+		lda @INPBUFFER,x
+		sta @INPBUFFER2,x
+	}
+	RETURN
+}
+
+/*
+ *  Copy the current text input buffer to the current line on the TEXT screen
+ */
+sub InputBufferToTextScreen() {
+	ldy #3
+	FOR X = 0 TO 79 {
+		lda @INPBUFFER,x
+		IF (== 0) {
+			sty @TXTPOS
+			BREAK
+		} 
+		ora #$80
+		sta (@TXTPTR),y
+		iny
+	}
+	lda #' 'H
+	LOOP {
+		cpy #40
+		IF (==) {
+			BREAK
+		}
+		sta (@TXTPTR),y
+		iny
+	}
+	RETURN
+}
+
+
+/*  The title of the screen */
+data Header string {
+	"(Font) FNT Edit ][4"
+}
+
+data HelpListStr string {
+	" FNT Edit COMMANDS:"
+}
+data LoadedStr string {
+	"LOADED: "
+}
+data StoredStr string {
+	"STORED: "
+}
+
+data FontFileType string {
+	"FNT"
+}
+
+/*  The command was unknown */
+data UnknownCommandErr string {
+	"** ERROR: Unknown command"
+}
+data NoFilenameErrStr string {
+	"** FILENAME must be specified"
+}
+data NoFontNameErrStr string {
+	"*** FONT NAME must be specified"
+}
+
+/*  Error strings */
+data MissingValueErr string {
+	"** ERROR: Missing VALUE"
+}
+data NoFontFoundErr string {
+	"*** The FONT was NOT found"
+}
+data NotFontFileErr string {
+	"*** The file is not of type FNT"
+}
+data FontLoadFailedErr string {
+	"*** FONT load FAILED"
+}
+
+/*  ASCII codes */
+data ASCII_Numbers string {
+	"01234567890 +- ()[]{};:,."
+}
+data ASCII_Uppercase string {
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+}
+data ASCII_Lowercase string {
+	"abcdefghijklmnopqrstuvwxyz"
+}
+
+
+/*
+ *  The offsets for the first 48 of 384 rows in the GRAPHICS screen
+ */
+data GraphicsOffsets word {
+	$0000, $0040, $0080, $00C0, $0100, $0140, $0180, $01C0
+	$0200, $0240, $0280, $02C0, $0300, $0340, $0380, $03C0
+	$0400, $0440, $0480, $04C0, $0500, $0540, $0580, $05C0
+	$0600, $0640, $0680, $06C0, $0700, $0740, $0780, $07C0
+	$0800, $0840, $0880, $08C0, $0900, $0940, $0980, $09C0
+	$0A00, $0A40, $0A80, $0AC0, $0B00, $0B40, $0B80, $0BC0
+	$0C00, $0C40, $0C80, $0CC0, $0D00, $0D40, $0D80, $0DC0
+	$0E00, $0E40, $0E80, $0EC0, $0F00, $0F40, $0F80, $0FC0
+}
+
+/*
+ *  The list of commands
+ */
+data CMD_Help string { "?" }
+data CMD_Clear string { "clear" }
+data CMD_Char string { "char" }
+data CMD_Font string { "font" }
+data CMD_Quit string { "quit" }
+
+data CommandList u24 {
+	CMD_Help, DoHelp
+	CMD_Clear, DoClear
+	CMD_Char, DoChar
+	CMD_Font, DoFont
+	CMD_Quit, DoQuit
+}

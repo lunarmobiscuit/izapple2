@@ -593,11 +593,16 @@ sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
 			RETURN
 		}
 	}
-	cmp #'a'							; "a8" is the built-in 7x8 AppleII font
+	cmp #'a'							; "a" is the font used in appleII
 	IF (==) {
 		ldy #1
 		lda.a24 XY
-		cmp #'8'
+		IF (==) {
+			lda #FONTapple
+			jsr GrSetFont
+			RETURN
+		}
+		cmp #'8'						; "a8" is the built-in 7x8 AppleII font
 		IF (==) {
 			ldy #2
 			lda.a24 XY
@@ -620,6 +625,21 @@ sub DoFont(NPRM %%0, CMD %%0.1, FONTNAME %%0.4) {
 					jsr GrSetFont
 					RETURN
 				}
+			}
+		}
+	}
+	cmp #'c'							; "ch" is the built-in "Chicago" font
+	IF (==) {
+		ldy #1
+		lda.a24 XY
+		cmp #'h'
+		IF (==) {
+			ldy #2
+			lda.a24 XY
+			IF (==) {
+				lda #FONTCHICAGO
+				jsr GrSetFont
+				RETURN
 			}
 		}
 	}
@@ -1267,6 +1287,51 @@ sub DoHires(NPRM %%0, CMD %%0.1, WHERE %%0.4) {
 
 
 /*
+ *  'line' - Draw a line on the GRAPHICS screen
+ */
+sub DoLine(NPRM %%0, CMD %%0.1, XSTART %%0.4.t, YSTART %%0.7.t, XEND %%0.10.t, YEND %%0.13.t) {
+	lda @NPRM						; must specify X, Y, and string
+	IF (< 4) {
+		lda.t #NoValueErrStr
+		sta.t %%7
+		jsr PrintError
+		RETURN
+	}
+
+	lda.w @XSTART
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @XSTART
+	sta.w %%5.0
+
+	lda.w @YSTART
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @YSTART
+	sta.w %%5.2
+
+	lda.w @XEND
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @XEND
+	sta.w %%5.4
+
+	lda.w @YEND
+	sta.t %%7
+	jsr ParseNumber
+	sta.t @YEND
+	sta.w %%5.6
+
+	jsr GrLine
+
+	lda #DISP_II4
+	jsr SetScreenMode
+
+	RETURN
+}
+
+
+/*
  *  'typeset' - Draw text with the current font on the GRAPHICS screen
  */
 sub DoTypeset(NPRM %%0, CMD %%0.1, XPOS %%0.4.w, YPOS %%0.7.w, STR %%0.10.t) {
@@ -1299,7 +1364,7 @@ sub DoTypeset(NPRM %%0, CMD %%0.1, XPOS %%0.4.w, YPOS %%0.7.w, STR %%0.10.t) {
 	}
 	ELSE {							; string of characters
 		lda.t @STR
-		sta.t %%7
+		sta.t %%5
 		jsr GrTypesetString
 	}
 

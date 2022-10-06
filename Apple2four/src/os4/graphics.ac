@@ -22,8 +22,10 @@ const BITBLT_DMA		= 0
 const BITBLT_COPY		= 1
 const BITBLT_TILE 		= 2
 const BITBLT_FILL		= 3
-const BITBLT_CHAR		= 4
-const BITBLT_STRING		= 5
+const BITBLT_LINE		= 4
+const BITBLT_CHAR		= 5
+const BITBLT_STRING		= 6
+const BITBLT_CHAR_BIG	= 7
 
 
 /*
@@ -110,6 +112,28 @@ sub GrSetY(YPOS A) {
 	RETURN
 }
 
+/*
+ *  Draw a line on the the GRAPHICS screen
+ */
+sub GrLine(XSTART %%5.w, YSTART %%5.2.w, XEND %%5.4.w, YEND %%5.6.w) {
+	lda.w @XSTART
+	sta.w @BITBLT_PARAM2
+
+	lda.w @YSTART
+	sta.w @BITBLT_PARAM3
+	
+	lda.w @XEND
+	sta.w @BITBLT_PARAM4
+	
+	lda.w @YEND
+	sta.w @BITBLT_PARAM5
+
+	lda #BITBLT_LINE			; Draw the line
+	sta @BITBLT_CMD
+
+	RETURN
+}
+
 
 /*
  *  Print a character
@@ -139,7 +163,7 @@ sub GrTypesetChar(ASCII A) {
 /*
  *  Print a string using a font on the II4 GRAPHICS screen
  */
-sub GrTypesetString(STR %%7.t) {
+sub GrTypesetString(STR %%5.t) {
 	jsr grStringToC800
 
 	lda @GRFONT					; Current font
@@ -158,6 +182,27 @@ sub GrTypesetString(STR %%7.t) {
 	sta.w @GRX
 
 	lda.w @BITBLT_RAM+2			; Return the total width
+	RETURN
+}
+
+
+/*
+ *  Print a character at 8x size
+ */
+sub GrTypesetCharBig(ASCII A, XPOS %%5.w, YPOS %%5.2.w) {
+	sta @BITBLT_PARAM0			; Character
+
+	lda @GRFONT					; Current font
+	sta @BITBLT_PARAM1
+
+	lda.w @XPOS					; Curent x,y coordinate
+	sta.w @BITBLT_PARAM2
+	lda.w @YPOS
+	sta.w @BITBLT_PARAM3
+
+	lda #BITBLT_CHAR_BIG		; BitBlt the character at 8x size
+	sta @BITBLT_CMD
+
 	RETURN
 }
 
@@ -217,7 +262,7 @@ sub GrScrollScreen(FIRST_ROW X) {
 /*
  *  Copies the string to $C800
  */
-sub grStringToC800(STR %%7.t) {
+sub grStringToC800(STR %%5.t) {
 	lda @SLOT_3_ROM				; Activate the BITBLT $C800 RAM
 
 	ldx.t @STR

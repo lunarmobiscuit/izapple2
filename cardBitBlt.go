@@ -10,8 +10,10 @@ const (
 	BITBLT_COPY
 	BITBLT_TILE
 	BITBLT_FILL
+	BITBLT_LINE
 	BITBLT_CHAR
 	BITBLT_STRING
+	BITBLT_CHAR_BIG
 )
 
 const (
@@ -101,8 +103,10 @@ func (c *CardBitBlt) assign(a *Apple2, slot int) {
 		case BITBLT_COPY: c.BitBltCopy()
 		case BITBLT_TILE: c.BitBltTile()
 		case BITBLT_FILL: c.BitBltFill()
+		case BITBLT_LINE: c.BitBltLine()
 		case BITBLT_CHAR: c.BitBltChar()
 		case BITBLT_STRING: c.BitBltString()
+		case BITBLT_CHAR_BIG: c.BitBltCharBig()
 		}
 
 		c.running = false
@@ -343,6 +347,78 @@ func (c *CardBitBlt) BitBltFill() {
 }
 
 //
+//  Draw a line on the GRAPHICS page
+//	  param0 = 0 = black | !0 = white // @@@ TODO
+//	  param2 = to top
+//	  param3 = to left
+//	  param4 = to bottom
+//	  param5 = to right
+//
+func (c *CardBitBlt) BitBltLine() {
+	if c.trace {
+		fmt.Printf("[CardBitBlt] BITBLT_LINE\n")
+	}
+
+	xStart := c.param2
+	yStart := c.param3
+	xEnd := c.param4
+	yEnd := c.param5
+
+	// Vertical line
+	if (xStart == xEnd) {
+		pixelBits := uint8(0x01 << (xStart % 8))
+		screenMask := 1 ^ pixelBits
+
+		for y := yStart; y <= yEnd; y++ {
+			toAddr := GRAPHICS_BASE + y * GRAPHICS_ROW_BYTES
+
+			screenBits := c.a.mmu.Peek(toAddr + (xStart/8))
+			screenBits &= screenMask
+			screenBits |= pixelBits
+			c.a.mmu.Poke(toAddr + (xStart/8), screenBits)
+		}
+		return
+	}
+
+	// Horizontal line
+	if (yStart == yEnd) {
+fmt.Printf("HORIZ: %d,%d - %d,%d\n", xStart, yStart, xEnd, yEnd)
+		for x := xStart; x <= xEnd; x++ {
+			toAddr := GRAPHICS_BASE + yStart * GRAPHICS_ROW_BYTES
+
+			screenBits := c.a.mmu.Peek(toAddr + (x/8))
+			screenBits |= 0xff // @@@ TODO - partial bytes
+			c.a.mmu.Poke(toAddr + (x/8), screenBits)
+		}
+		return
+	}
+
+	if (xStart > xEnd) {
+		xStart = c.param4
+		xEnd = c.param2
+	}
+	if (yStart > yEnd) {
+		yStart = c.param5
+		yEnd = c.param3
+	}
+
+	// Diagonal line
+fmt.Printf("DIAG: %d,%d - %d,%d\n", xStart, yStart, xEnd, yEnd)
+	slope := (yEnd - yStart) / (xEnd - xStart)
+	base := uint32(yEnd - (slope * xEnd))
+	for x := xStart; x <= xEnd; x++ {
+		y := slope * x + base
+		toAddr := GRAPHICS_BASE + y * GRAPHICS_ROW_BYTES
+fmt.Printf("  x:%d y:%d @ %x\n", x, y, toAddr + (x/8))
+
+		screenBits := c.a.mmu.Peek(toAddr + (x/8))
+		screenBits |= 0xff // @@@ TODO - partial bytes
+		c.a.mmu.Poke(toAddr + (x/8), screenBits)
+	}
+
+}
+
+//
 //  Draw a single glyph from a font on the GRAPHICS page
 //	  param0 = ascii code
 //	  param1 = fontID
@@ -406,7 +482,34 @@ func (c *CardBitBlt) BitBltString() {
 
 
 //
-//  Load the font table into a struct
+//  Draw a single glyph from a font on the GRAPHICS page at 8x scale
+//	  param0 = ascii code
+//	  param1 = fontID
+//	  param2 = x
+//	  param3 = y
+//	Returns
+//	  0xC800-0xC801 = the farthest x position
+//
+func (c *CardBitBlt) BitBltCharBig() {
+	if c.trace {
+		fmt.Printf("[CardBitBlt] BITBLT_CHAR_BIG '%c'\n", c.param0)
+	}
+
+	ch := c.param0
+	c.fontID = c.param1
+	x := uint16(c.param2)
+	y := uint16(c.param3)
+
+	c.loadFontTable(c.fontID)
+
+	x, _ = c.bltCharBig(ch, x, y)
+
+	c.c800[0] = uint8(x & 0xff)
+	c.c800[1] = uint8(x >> 8 & 0xff)
+}
+
+//
+//  Render a character from the font onto the GRAPHICS screen
 //
 func (c *CardBitBlt) bltChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
 	// Low ASCII
@@ -494,159 +597,62 @@ func (c *CardBitBlt) bltChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
 }
 
 
-// @@@ Correctly draws aligned 8-pixel wide font
-func (c *CardBitBlt) blt8BitChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
+//
+//  Render a character from the font onto the GRAPHICS screen at 8x scale
+//  (using y as the top-left corner, ignoring the baseline)
+//  (blasting over any other pixels in the way, not aligning to rounded up x % 8)
+//
+func (c *CardBitBlt) bltCharBig(ch uint8, x uint16, y uint16) (uint16, uint8) {
+	// Low ASCII
+	if (ch >= 128) {
+		ch -= 128
+	}
+
 	// Lookup the details of this glyph
-	width := c.font.glyphs[ch].width
+	width := uint32(c.font.glyphs[ch].width)
+	stride := uint32(c.font.glyphs[ch].width + 7) / 8
 	offset := uint32(c.font.glyphs[ch].offset)
 	glyphsPtr := c.font.address + uint32(offset)
 
-	if c.trace {
-		fmt.Printf("[CardBitBlt] ch='%c' (%02x)  FONT=%x  X=%d  Y=%d  width=%d  height=%d  offset=%x\n",
-			ch + '@', ch, c.fontID, x, y, width, c.font.height, offset)
+	// Round the x coordinate up to the next nearest aligned pixel
+	x = (x + 7) >> 3
+
+	// X coordinate needs to fit within the screen (no clipping haflway through a glyph)
+	if (x >= GRAPHICS_WIDTH) {
+		return x, uint8(width)
+	} else if (x + uint16(width * 8) >= GRAPHICS_WIDTH) { 
+		return x, uint8(width * 8)
 	}
 
-	for r := uint32(0); r < uint32(c.font.height); r++ {
-		rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + r) * GRAPHICS_ROW_BYTES))
-		toAddr := rAddr + uint32(x/8);
-
-		fromAddr := glyphsPtr + r
-
-		if c.trace && r < uint32(y+2) {
-			fmt.Printf("  %d 0x%x @%x -> @%x\n", r, uint32(ch), fromAddr, toAddr)
+	// Iterate for each row of the glyph
+	for row := uint32(0); row < uint32(c.font.height * 8); row++ {
+		// Stop if the glyph goes off the bottom of the screen
+		if (y >= GRAPHICS_HEIGHT) { 
+			break
 		}
 
-		glyphBits := c.a.mmu.Peek(fromAddr)
-		c.a.mmu.Poke(toAddr, glyphBits)
+		rAddr := GRAPHICS_BASE + ((uint32(y) + row) * GRAPHICS_ROW_BYTES)
+		fromAddr := glyphsPtr + (row/8 * stride)
+		toAddr := rAddr + uint32(x);
 
-		toAddr += 1
-	}
+		// Iterate over the pixels from 0 through width
+		for p := 0; p < int(width); p++ {
+			if (p != 0) && ((p % 8) == 0) {
+				fromAddr += 1
+			}
 
-	return x + uint16(width), width
-}
+			glyphBits := c.a.mmu.Peek(fromAddr)
+			if ((glyphBits >> (p % 8)) & 0x01 == 0) {
+				c.a.mmu.Poke(toAddr, 0x00)
+			} else {
+				c.a.mmu.Poke(toAddr, 0xff)
+			}
 
-// @@@ Correctly draws aligned 16-pixel wide font
-func (c *CardBitBlt) blt16BitChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
-	width := uint32(c.font.glyphs[0].width)
-	x = 0
-	for ch = 0; ch < 32; ch++ {
-		width = uint32(c.font.glyphs[ch].width)
-		offset := uint32(c.font.glyphs[ch].offset)
-		glyphsPtr := c.font.address + uint32(offset)
-
-		for row := uint32(0); row < uint32(c.font.height); row++ {
-			rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + row) * GRAPHICS_ROW_BYTES))
-			fromAddr := glyphsPtr + (row * ((width+7)/8))
-			toAddr := rAddr + uint32(x/8);
-
-			glyphBits := uint16(c.a.mmu.Peek(fromAddr)) | uint16(c.a.mmu.Peek(fromAddr + 1)) << 8
-			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
-			c.a.mmu.Poke(toAddr+1, uint8(glyphBits >> 8 & 0xff))
-
-			c.a.mmu.Poke(toAddr, uint8(c.a.mmu.Peek(fromAddr)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+1)))
-
-			fromAddr += 2
-			toAddr += 2
+			toAddr += 1
 		}
-
-		x += uint16(width & 0xff)
 	}
 
-	return x + uint16(width), uint8(width)
-}
-
-// @@@ Draws aligned 24-pixel wide font?
-func (c *CardBitBlt) blt24BitChar(ch uint8, x uint16, y uint16) (uint16, uint8) {
-	width := uint32(c.font.glyphs[0].width)
-	x = 0
-	for ch = 0; ch < 16; ch++ {
-		width = uint32(c.font.glyphs[ch].width)
-		offset := uint32(c.font.glyphs[ch].offset)
-		glyphsPtr := c.font.address + uint32(offset)
-
-		for row := uint32(0); row < uint32(c.font.height); row++ {
-			rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + row) * GRAPHICS_ROW_BYTES))
-			fromAddr := glyphsPtr + (row * ((width+7)/8))
-			toAddr := rAddr + uint32(x/8);
-
-			glyphBits := uint32(c.a.mmu.Peek(fromAddr)) |
-							uint32(c.a.mmu.Peek(fromAddr + 1)) << 8 |
-							uint32(c.a.mmu.Peek(fromAddr + 2)) << 16
-			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
-			c.a.mmu.Poke(toAddr+1, uint8(glyphBits >> 8 & 0xff))
-			c.a.mmu.Poke(toAddr+2, uint8(glyphBits >> 16 & 0xff))
-
-			c.a.mmu.Poke(toAddr, uint8(c.a.mmu.Peek(fromAddr)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+1)))
-			c.a.mmu.Poke(toAddr+2, uint8(c.a.mmu.Peek(fromAddr+2)))
-
-			fromAddr += 3
-			toAddr += 3
-		}
-
-		x += uint16(width & 0xff)
-	}
-
-	x = 0
-	for ch = 16; ch < 16+16; ch++ {
-		width = uint32(c.font.glyphs[ch].width)
-		offset := uint32(c.font.glyphs[ch].offset)
-		glyphsPtr := c.font.address + uint32(offset)
-
-		for row := uint32(0); row < uint32(c.font.height); row++ {
-			rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + (row + 30)) * GRAPHICS_ROW_BYTES))
-			fromAddr := glyphsPtr + (row * ((width+7)/8))
-			toAddr := rAddr + uint32(x/8);
-
-			glyphBits := uint32(c.a.mmu.Peek(fromAddr)) |
-							uint32(c.a.mmu.Peek(fromAddr + 1)) << 8 |
-							uint32(c.a.mmu.Peek(fromAddr + 2)) << 16
-			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
-			c.a.mmu.Poke(toAddr+1, uint8(glyphBits >> 8 & 0xff))
-			c.a.mmu.Poke(toAddr+2, uint8(glyphBits >> 16 & 0xff))
-
-			c.a.mmu.Poke(toAddr, uint8(c.a.mmu.Peek(fromAddr)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+1)))
-			c.a.mmu.Poke(toAddr+2, uint8(c.a.mmu.Peek(fromAddr+2)))
-
-			fromAddr += 3
-			toAddr += 3
-		}
-
-		x += uint16(width & 0xff)
-	}
-
-	x = 0
-	for ch = 90; ch < 90+16; ch++ {
-		width = uint32(c.font.glyphs[ch].width)
-		offset := uint32(c.font.glyphs[ch].offset)
-		glyphsPtr := c.font.address + uint32(offset)
-
-		for row := uint32(0); row < uint32(c.font.height); row++ {
-			rAddr := uint32(GRAPHICS_BASE + ((uint32(y) + (row + 60)) * GRAPHICS_ROW_BYTES))
-			fromAddr := glyphsPtr + (row * ((width+7)/8))
-			toAddr := rAddr + uint32(x/8);
-
-			glyphBits := uint32(c.a.mmu.Peek(fromAddr)) |
-							uint32(c.a.mmu.Peek(fromAddr + 1)) << 8 |
-							uint32(c.a.mmu.Peek(fromAddr + 2)) << 16
-			c.a.mmu.Poke(toAddr, uint8(glyphBits & 0xff))
-			c.a.mmu.Poke(toAddr+1, uint8(glyphBits >> 8 & 0xff))
-			c.a.mmu.Poke(toAddr+2, uint8(glyphBits >> 16 & 0xff))
-
-			c.a.mmu.Poke(toAddr, uint8(c.a.mmu.Peek(fromAddr)))
-			c.a.mmu.Poke(toAddr+1, uint8(c.a.mmu.Peek(fromAddr+1)))
-			c.a.mmu.Poke(toAddr+2, uint8(c.a.mmu.Peek(fromAddr+2)))
-
-			fromAddr += 3
-			toAddr += 3
-		}
-
-		x += uint16(width & 0xff)
-	}
-
-	return x + uint16(width), uint8(width)
+	return x + uint16(width*8), uint8(width)
 }
 
 
