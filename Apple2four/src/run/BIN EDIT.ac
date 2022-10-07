@@ -154,6 +154,7 @@ lda @LASTKEY
 					dey
 					sta (@TXTPTR),y
 					dey						; Delete the last character in the text buffer
+					dey
 					lda #0
 					sta @INPBUFFER,y
 					dec @TXTPOS				; Decrement the text position

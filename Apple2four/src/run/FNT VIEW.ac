@@ -116,6 +116,7 @@ sub FNT_Edit(NPRM %%0, CMD %%0.1.t, FILENAME %%0.4.t) @$10000 {
 				dey
 				sta (@TXTPTR),y
 				dey						; Delete the last character in the text buffer
+				dey
 				lda #0
 				sta @INPBUFFER,y
 				dec @TXTPOS				; Decrement the text position
@@ -732,7 +733,7 @@ data FontLoadFailedErr string {
 
 /*  ASCII codes */
 data ASCII_Numbers string {
-	"01234567890 +- ()[]{};:,."
+	"01234567890 +-=()[]{};:,."
 }
 data ASCII_Uppercase string {
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -1,0 +1,5 @@
+aCCemble -l Apple2four.lst -o ../../resources/Apple2four.rom Apple2four.ac
+aCCemble -l run/BIN\ EDIT.lst -o ../root/OS4/BIN\ EDIT.run run/BIN\ EDIT.ac
+aCCemble -l run/GR_\ EDIT.lst -o ../root/OS4/GR_\ EDIT.run run/GR_\ EDIT.ac
+aCCemble -l run/BIN\ EDIT.lst -o ../root/OS4/BIN\ EDIT.run run/BIN\ EDIT.ac
+aCCemble -l run/FNT\ VIEW.lst -o ../root/OS4/FNT\ VIEW.run run/FNT\ VIEW.ac

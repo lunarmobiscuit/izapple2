@@ -842,7 +842,7 @@ sub ClearGraphics() {
 		iny.w
 		iny.w
 		iny.w
-		cpy.w #30720
+		cpy.w #$6000
 		IF (==) {
 			RETURN
 		}
